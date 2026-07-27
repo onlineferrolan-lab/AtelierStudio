@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">
+  <!-- Placeholder cerámico: piedra neutra con moteado suave. DATOS FALSOS (§7.3). -->
+  <rect width="600" height="600" fill="#c8c0b2"/>
+  <g opacity="0.35">
+    <ellipse cx="150" cy="140" rx="180" ry="90" fill="#b5ac9c"/>
+    <ellipse cx="470" cy="300" rx="200" ry="110" fill="#d4ccbd"/>
+    <ellipse cx="180" cy="470" rx="190" ry="95" fill="#b0a793"/>
+    <ellipse cx="420" cy="80" rx="150" ry="70" fill="#d0c8b9"/>
+  </g>
+  <g fill="#8f8674" opacity="0.5">
+    <circle cx="90" cy="90" r="4"/><circle cx="240" cy="60" r="3"/><circle cx="400" cy="150" r="4"/>
+    <circle cx="540" cy="110" r="3"/><circle cx="140" cy="260" r="3"/><circle cx="310" cy="230" r="4"/>
+    <circle cx="480" cy="380" r="3"/><circle cx="70" cy="420" r="4"/><circle cx="230" cy="380" r="3"/>
+    <circle cx="360" cy="470" r="4"/><circle cx="520" cy="520" r="3"/><circle cx="160" cy="560" r="3"/>
+  </g>
+  <g fill="#e0d8c9" opacity="0.5">
+    <circle cx="180" cy="180" r="3"/><circle cx="350" cy="120" r="2.5"/><circle cx="500" cy="230" r="3"/>
+    <circle cx="110" cy="350" r="2.5"/><circle cx="290" cy="320" r="3"/><circle cx="430" cy="300" r="2.5"/>
+    <circle cx="250" cy="500" r="3"/><circle cx="470" cy="460" r="2.5"/><circle cx="60" cy="540" r="3"/>
+  </g>
+  <text x="585" y="582" text-anchor="end" font-family="system-ui, sans-serif" font-size="26" font-weight="600" fill="#665e50" opacity="0.8">MUESTRA</text>
+</svg>

@@ -1,0 +1,93 @@
+/**
+ * Utilidades compartidas de los tests del motor: carga de la configuración
+ * REAL de /public/config (las tarifas del PDF de taller) y factorías de
+ * materiales y entradas de cotización.
+ *
+ * La configuración se importa como módulo JSON (resolveJsonModule): así los
+ * tests no dependen de tipos de Node ni de la ruta de ejecución.
+ */
+
+import {
+  construirConfiguracion,
+  validarConfiguracion,
+  type Configuracion,
+} from '../../../src/domain/config';
+import { centimos } from '../../../src/domain/money';
+import type { EntradaCotizacion, Material } from '../../../src/domain/types';
+import { mm } from '../../../src/domain/units';
+import parametrosJson from '../../../public/config/parametros.json';
+import tarifasJson from '../../../public/config/tarifas.json';
+import figurasJson from '../../../public/config/figuras.json';
+
+type ArgsConfiguracion = Parameters<typeof construirConfiguracion>;
+
+/** Carga la configuración real servida en /public/config (parametros + tarifas + figuras). */
+export function cargarConfigReal(): Configuracion {
+  // Los literales de string del JSON se ensanchan a `string` al importar; el
+  // parseo de construirConfiguracion + validarConfiguracion garantizan la forma.
+  const config = construirConfiguracion(
+    parametrosJson as unknown as ArgsConfiguracion[0],
+    tarifasJson as unknown as ArgsConfiguracion[1],
+    figurasJson as unknown as ArgsConfiguracion[2],
+  );
+  const errores = validarConfiguracion(config);
+  if (errores.length > 0) {
+    throw new Error(
+      `La configuración real de /public/config no es válida:\n- ${errores.join('\n- ')}`,
+    );
+  }
+  return config;
+}
+
+/** Material ERP de prueba: baldosa 60×60 cm, TARP 25 €/m², 4 piezas/caja, 1,44 m²/caja. */
+export function materialErp(overrides: Partial<Material> = {}): Material {
+  return {
+    referencia: 'TEST-6060',
+    descripcion: 'Baldosa de prueba 60×60',
+    marca: 'Pruebas',
+    formato: { largoMm: mm(600), anchoMm: mm(600) },
+    precioM2Centimos: centimos(2500),
+    precioUnidadCentimos: null,
+    piezasPorCaja: 4,
+    m2PorCaja: 1.44,
+    imagenUrl: null,
+    esManual: false,
+    ...overrides,
+  };
+}
+
+/** Material manual de prueba: 60×60 cm a 8 €/unidad. */
+export function materialManual(overrides: Partial<Material> = {}): Material {
+  return {
+    referencia: 'MANUAL-1',
+    descripcion: 'Pieza manual de prueba 60×60',
+    marca: null,
+    formato: { largoMm: mm(600), anchoMm: mm(600) },
+    precioM2Centimos: null,
+    precioUnidadCentimos: centimos(800),
+    piezasPorCaja: null,
+    m2PorCaja: null,
+    imagenUrl: null,
+    esManual: true,
+    ...overrides,
+  };
+}
+
+/**
+ * Entrada base válida: Figura 2, 50×30 cm con frontal de 4 cm, 5 piezas,
+ * stock, merma 10 %. Sobrescribible por test.
+ */
+export function entradaBase(overrides: Partial<EntradaCotizacion> = {}): EntradaCotizacion {
+  return {
+    material: materialErp(),
+    origen: 'stock',
+    figuraId: 'figura-2',
+    medidasMm: { longitud: mm(500), fondo: mm(300), alturaFrontal: mm(40) },
+    cantidad: 5,
+    suplementos: [],
+    pintado: false,
+    precioMaterialEditado: null,
+    mermaPorcentaje: 10,
+    ...overrides,
+  };
+}

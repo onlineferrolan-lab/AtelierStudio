@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">
+  <!-- Placeholder cerámico: terrazo de fragmentos. DATOS FALSOS (§7.3). -->
+  <rect width="600" height="600" fill="#d9d6d0"/>
+  <g stroke="none">
+    <polygon points="60,80 120,60 140,120 85,140" fill="#a89f92"/>
+    <polygon points="230,40 300,70 260,130" fill="#8d8578"/>
+    <polygon points="420,90 500,60 530,130 455,150" fill="#bfa98f"/>
+    <polygon points="120,230 190,210 210,280 140,300" fill="#97a0a5"/>
+    <polygon points="330,220 400,250 370,320 300,290" fill="#a89f92"/>
+    <polygon points="500,260 570,240 585,310 520,330" fill="#8d8578"/>
+    <polygon points="70,400 150,380 170,450 95,470" fill="#bfa98f"/>
+    <polygon points="260,420 330,390 360,460 285,485" fill="#97a0a5"/>
+    <polygon points="450,430 540,410 555,490 470,505" fill="#a89f92"/>
+    <circle cx="180" cy="150" r="22" fill="#8d8578"/>
+    <circle cx="390" cy="160" r="16" fill="#97a0a5"/>
+    <circle cx="520" cy="380" r="20" fill="#bfa98f"/>
+    <circle cx="200" cy="520" r="18" fill="#8d8578"/>
+    <circle cx="420" cy="540" r="14" fill="#97a0a5"/>
+    <circle cx="90" cy="330" r="12" fill="#a89f92"/>
+    <circle cx="330" cy="90" r="10" fill="#bfa98f"/>
+  </g>
+  <text x="585" y="582" text-anchor="end" font-family="system-ui, sans-serif" font-size="26" font-weight="600" fill="#5d574d" opacity="0.8">MUESTRA</text>
+</svg>

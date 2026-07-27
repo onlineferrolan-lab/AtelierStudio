@@ -1,0 +1,379 @@
+/**
+ * Cálculo completo de la cotización (§4). Motor puro: devuelve los errores de
+ * validación como valor (`SalidaMotor`), NUNCA lanza por entrada de usuario.
+ *
+ * Decisiones de cálculo documentadas:
+ *
+ *  - ORDEN DE REDONDEO EN MANIPULACIÓN: la tarifa lineal (y cada suplemento
+ *    porCm) se aplica POR PIEZA con un único redondeo half-up a céntimos
+ *    (`aplicarTarifaLineal`), y el importe por pieza se multiplica después por
+ *    la cantidad (entero exacto). Los suplementos porPieza son céntimos
+ *    enteros × cantidad. Así, cada línea de cotización redondea una sola vez.
+ *
+ *  - MERMA (§4): baldosasConMerma = ceil(baldosas × (1 + %/100)) con división
+ *    entera exacta; el % se cuantiza a centésimas de punto (10,25 %…) para no
+ *    usar floats. La condición "mínimo 3" NO se implementa (§6.1, pendiente).
+ *
+ *  - FACTURACIÓN (§4): stock → piezas (caja abierta); pedido → cajas completas
+ *    = ceil(baldosasConMerma / piezasPorCaja) y unidades = cajas × piezasPorCaja
+ *    (todo el sobrante se cobra al cliente). Sin datos logísticos del ERP →
+ *    error de validación claro. Mínimos de compra: no implementados (§6.8).
+ *
+ *  - COSTE DE MATERIAL: aritmética entera mm²·céntimos/1e6 con redondeo
+ *    half-up exacto. m² stock = baldosasConMerma × área baldosa; m² pedido =
+ *    cajas × m2PorCaja (m2PorCaja del ERP se cuantiza a mm² enteros). Material
+ *    manual → precioUnidad × unidades. `precioMaterialEditado` sustituye al
+ *    precio unitario correspondiente (€/m² en ERP, €/unidad en manual);
+ *    `precioMaterialOriginal` conserva la tarifa (o el editado si no había).
+ *
+ *  - ARRANQUE DE MÁQUINA (§2): una sola vez por orden cuando hay manipulación.
+ *    Toda figura activa con tarifa genera línea de manipulación, así que se
+ *    aplica siempre que el cálculo llega a su fase de manipulación.
+ *
+ *  - VETA (§4): todos los componentes de una pieza salen de la MISMA baldosa y
+ *    no se combinan componentes de piezas distintas → baldosas de origen =
+ *    cantidad de piezas. No se empaquetan varias piezas por baldosa ni se
+ *    reutilizan sobrantes (fuera de la v1, §8).
+ *
+ *  - PINTADO: solo cambia la tarifa de figuras con regla "pintable" (rodapiés,
+ *    §2). En el resto se ignora silenciosamente.
+ */
+
+import type { Configuracion, Figura } from '../config';
+import type {
+  Centimos,
+  ComponentePieza,
+  EntradaCotizacion,
+  ErrorValidacion,
+  LineaManipulacion,
+  Mm,
+  SalidaMotor,
+} from '../types';
+import {
+  aplicarPorcentaje,
+  aplicarTarifaLineal,
+  centimos,
+  multiplicarCentimos,
+  sumarCentimos,
+} from '../money';
+import { formatearCotaCm } from '../units';
+import { figuraPorId } from './index';
+import { evaluarOcupacion } from './ocupacion';
+import {
+  longitudTarifaMm,
+  medidasReferenciadas,
+  resolverTarifa,
+  tarifasReferenciadas,
+} from './tarifas';
+import { revalidarMedidasMm } from './validacion';
+
+/** División entera hacia arriba (a ≥ 0, b > 0, enteros seguros). */
+function ceilDiv(a: number, b: number): number {
+  return Math.floor((a + b - 1) / b);
+}
+
+/**
+ * Redondeo half-up EXACTO de n/1e6 con aritmética entera (n entero ≥ 0):
+ * floor((n + 500000) / 1000000). Los productos intermedios (baldosas × mm² ×
+ * céntimos) permanecen muy por debajo de 2^53 para cualquier uso razonable.
+ */
+function halfUpPartePorMillon(n: number): number {
+  return Math.floor((n + 500_000) / 1_000_000);
+}
+
+/** Construye los componentes de UNA pieza a partir de la receta de la figura. */
+function construirComponentes(
+  figura: Figura,
+  medidasMm: Readonly<Record<string, Mm>>,
+): ComponentePieza[] {
+  return figura.componentes.map((c) => ({
+    id: c.id,
+    largoMm: medidasMm[c.largoDe],
+    anchoMm: medidasMm[c.anchoDe],
+  }));
+}
+
+/**
+ * Valida la entrada completa y devuelve los errores acumulados ([] = válida).
+ * Es la fase que garantiza que el resto del cálculo no puede lanzar por
+ * entrada de usuario ni por referencias de configuración rotas.
+ */
+function validarEntrada(
+  entrada: EntradaCotizacion,
+  config: Configuracion,
+  figura: Figura,
+): ErrorValidacion[] {
+  const errores: ErrorValidacion[] = [];
+
+  // Cantidad y merma (la UI las parsea de texto; el motor las revalida).
+  if (!Number.isInteger(entrada.cantidad) || entrada.cantidad < 1) {
+    errores.push({
+      paso: 'medidas',
+      medida: 'cantidad',
+      mensaje: 'La cantidad debe ser un número entero mayor que 0.',
+    });
+  }
+  if (!Number.isFinite(entrada.mermaPorcentaje) || entrada.mermaPorcentaje < 0) {
+    errores.push({
+      paso: 'medidas',
+      medida: 'merma',
+      mensaje: 'La merma debe ser un porcentaje válido igual o mayor que 0.',
+    });
+  }
+
+  // Medidas presentes y dentro de rango (no se confía en la validación de la UI).
+  errores.push(...revalidarMedidasMm(figura, entrada.medidasMm));
+
+  // Referencias de la receta/tarifa a medidas declaradas (configuración coherente).
+  const idsDeclarados = new Set(figura.medidas.map((m) => m.id));
+  for (const id of medidasReferenciadas(figura)) {
+    if (!idsDeclarados.has(id)) {
+      errores.push({
+        paso: 'figura',
+        mensaje: `La configuración de «${figura.nombre}» referencia la medida '${id}', que no está declarada.`,
+      });
+    }
+  }
+
+  // Tarifas referenciadas existentes en configuración.
+  if (figura.tarifa === null || figura.longitudTarifa === null) {
+    errores.push({
+      paso: 'figura',
+      mensaje: `La figura «${figura.nombre}» no tiene tarifa configurada (pendiente de taller, §6).`,
+    });
+  } else {
+    for (const id of tarifasReferenciadas(figura)) {
+      if (!config.tarifas[id]) {
+        errores.push({
+          paso: 'figura',
+          mensaje: `La figura «${figura.nombre}» referencia la tarifa '${id}', que no existe en la configuración.`,
+        });
+      }
+    }
+  }
+
+  // Suplementos: existen, son aplicables a la figura y tienen precio coherente.
+  for (const id of new Set(entrada.suplementos)) {
+    const suplemento = config.suplementos[id];
+    if (!suplemento) {
+      errores.push({
+        paso: 'suplementos',
+        mensaje: `El suplemento '${id}' no existe en la configuración.`,
+      });
+      continue;
+    }
+    if (!figura.suplementos.includes(id)) {
+      errores.push({
+        paso: 'suplementos',
+        mensaje: `«${suplemento.nombre}» no disponible para «${figura.nombre}».`,
+      });
+      continue;
+    }
+    if (suplemento.tipo === 'porPieza' && suplemento.precioCentimos === null) {
+      errores.push({
+        paso: 'suplementos',
+        mensaje: `El suplemento «${suplemento.nombre}» no tiene precio por pieza configurado.`,
+      });
+    }
+    if (suplemento.tipo === 'porCm' && suplemento.precioMilesimasPorCm === null) {
+      errores.push({
+        paso: 'suplementos',
+        mensaje: `El suplemento «${suplemento.nombre}» no tiene precio por cm configurado.`,
+      });
+    }
+  }
+
+  // Material: precio unitario disponible (tarifa o edición del comercial) y
+  // datos logísticos para facturar pedidos por cajas completas.
+  const { material } = entrada;
+  if (entrada.precioMaterialEditado !== null && entrada.precioMaterialEditado < 0) {
+    errores.push({
+      paso: 'material',
+      mensaje: 'El precio del material editado no puede ser negativo.',
+    });
+  }
+  const precioUnitario = material.esManual
+    ? material.precioUnidadCentimos
+    : material.precioM2Centimos;
+  if (precioUnitario === null && entrada.precioMaterialEditado === null) {
+    errores.push({
+      paso: 'material',
+      mensaje: material.esManual
+        ? `El material manual «${material.descripcion}» no tiene precio por unidad; introdúcelo para poder cotizar.`
+        : `El material «${material.descripcion}» no tiene tarifa TARP (€/m²); introduce el precio manualmente.`,
+    });
+  }
+  if (entrada.origen === 'pedido') {
+    if (
+      material.piezasPorCaja === null ||
+      !Number.isInteger(material.piezasPorCaja) ||
+      material.piezasPorCaja < 1
+    ) {
+      errores.push({
+        paso: 'material',
+        mensaje: `El material «${material.descripcion}» no tiene el dato «piezas por caja» del ERP; no se puede facturar un pedido por cajas completas.`,
+      });
+    }
+    if (
+      material.m2PorCaja === null ||
+      !Number.isFinite(material.m2PorCaja) ||
+      material.m2PorCaja <= 0
+    ) {
+      errores.push({
+        paso: 'material',
+        mensaje: `El material «${material.descripcion}» no tiene el dato «m² por caja» del ERP; no se puede facturar un pedido por cajas completas.`,
+      });
+    }
+  }
+
+  return errores;
+}
+
+/** Calcula la cotización completa. Errores como valor; nunca lanza por entrada de usuario. */
+export function calcularCotizacion(entrada: EntradaCotizacion, config: Configuracion): SalidaMotor {
+  // 1. Figura activa (§3: las pendientes se muestran bloqueadas).
+  const figura = figuraPorId(config, entrada.figuraId);
+  if (!figura) {
+    return {
+      ok: false,
+      errores: [
+        {
+          paso: 'figura',
+          mensaje: `La figura '${entrada.figuraId}' no existe en la configuración.`,
+        },
+      ],
+    };
+  }
+  if (figura.estado !== 'activa') {
+    return {
+      ok: false,
+      errores: [
+        {
+          paso: 'figura',
+          mensaje: `«${figura.nombre}» no está disponible todavía: ${figura.motivoPendiente ?? 'pendiente de confirmación por taller (§6).'}`,
+        },
+      ],
+    };
+  }
+
+  const errores = validarEntrada(entrada, config, figura);
+  if (errores.length > 0) return { ok: false, errores };
+
+  // 2. Componentes de UNA pieza desde la receta de la figura.
+  const componentes = construirComponentes(figura, entrada.medidasMm);
+
+  // 3. Ocupación §4 (receta PROVISIONAL, ver ocupacion.ts): ambas orientaciones.
+  const ocupacion = evaluarOcupacion(componentes, entrada.material.formato, config.parametros);
+  if (!ocupacion.ok) return { ok: false, errores: [ocupacion.error] };
+
+  // 4. Baldosas de origen y merma (veta §4: una pieza = una baldosa de origen).
+  const baldosasNecesarias = entrada.cantidad;
+  // TODO §6.1: la condición "mínimo 3" de la merma NO se implementa hasta que taller la defina.
+  const mermaCentesimas = Math.round(entrada.mermaPorcentaje * 100);
+  const baldosasConMerma = ceilDiv(baldosasNecesarias * (10_000 + mermaCentesimas), 10_000);
+
+  // 5. Facturación: stock → piezas; pedido → cajas completas (sobrante al cliente).
+  let unidadesFacturadas: number;
+  let cajasFacturadas: number;
+  if (entrada.origen === 'stock') {
+    unidadesFacturadas = baldosasConMerma;
+    cajasFacturadas = 0;
+  } else {
+    const piezasPorCaja = entrada.material.piezasPorCaja as number; // validado en validarEntrada
+    cajasFacturadas = ceilDiv(baldosasConMerma, piezasPorCaja);
+    unidadesFacturadas = cajasFacturadas * piezasPorCaja;
+  }
+
+  // 6. Coste de material (aritmética entera, redondeo half-up exacto).
+  const { material } = entrada;
+  const precioUnitarioOriginal = material.esManual
+    ? material.precioUnidadCentimos
+    : material.precioM2Centimos;
+  const precioUnitarioAplicado = (entrada.precioMaterialEditado ??
+    precioUnitarioOriginal) as Centimos; // validado no nulo
+  const mm2PorBaldosa = material.formato.largoMm * material.formato.anchoMm;
+  // m2PorCaja del ERP (float) se cuantiza a mm² enteros para mantener enteros.
+  const mm2PorCaja = Math.round((material.m2PorCaja ?? 0) * 1_000_000);
+  const mm2FacturadosTotal =
+    entrada.origen === 'stock' ? baldosasConMerma * mm2PorBaldosa : cajasFacturadas * mm2PorCaja;
+  const m2Facturados = mm2FacturadosTotal / 1_000_000;
+
+  let materialCentimos: Centimos;
+  if (material.esManual) {
+    materialCentimos = multiplicarCentimos(precioUnitarioAplicado, unidadesFacturadas);
+  } else {
+    materialCentimos = centimos(halfUpPartePorMillon(mm2FacturadosTotal * precioUnitarioAplicado));
+  }
+
+  // 7. Manipulación: tarifa resuelta × longitud de tarifa (redondeo por pieza,
+  //    luego × cantidad — ver cabecera) + suplementos activos. El pintado solo
+  //    afecta a figuras con regla "pintable" (rodapiés); en las demás se ignora.
+  const tarifa = resolverTarifa(figura, entrada.medidasMm, entrada.pintado, config);
+  const longitudTarifa = longitudTarifaMm(figura, entrada.medidasMm);
+  const cantidad = entrada.cantidad;
+  const suplementosActivos = new Set(entrada.suplementos);
+
+  const lineas: LineaManipulacion[] = [];
+  const principalPorPieza = aplicarTarifaLineal(tarifa.milesimasPorCm, longitudTarifa);
+  lineas.push({
+    concepto: `${tarifa.nombre} — ${formatearCotaCm(longitudTarifa)} × ${cantidad} ud.`,
+    centimos: multiplicarCentimos(principalPorPieza, cantidad),
+  });
+
+  // Orden canónico de líneas: el de la configuración de la figura (determinista).
+  for (const id of figura.suplementos) {
+    if (!suplementosActivos.has(id)) continue;
+    const suplemento = config.suplementos[id];
+    if (suplemento.tipo === 'porPieza' && suplemento.precioCentimos !== null) {
+      lineas.push({
+        concepto: `${suplemento.nombre} — ${cantidad} ud.`,
+        centimos: multiplicarCentimos(suplemento.precioCentimos, cantidad),
+      });
+    } else if (suplemento.tipo === 'porCm' && suplemento.precioMilesimasPorCm !== null) {
+      const porPieza = aplicarTarifaLineal(suplemento.precioMilesimasPorCm, longitudTarifa);
+      lineas.push({
+        concepto: `${suplemento.nombre} — ${formatearCotaCm(longitudTarifa)} × ${cantidad} ud.`,
+        centimos: multiplicarCentimos(porPieza, cantidad),
+      });
+    }
+  }
+
+  const manipulacionCentimos = sumarCentimos(...lineas.map((l) => l.centimos));
+
+  // 8. Arranque de máquina: una vez por orden cuando hay manipulación (§2).
+  const arranqueCentimos = config.parametros.arranqueCentimos;
+
+  // 9. Totales: sin IVA, IVA (21 % configurable), con IVA.
+  const totalSinIvaCentimos = sumarCentimos(
+    materialCentimos,
+    manipulacionCentimos,
+    arranqueCentimos,
+  );
+  const ivaCentimos = aplicarPorcentaje(totalSinIvaCentimos, config.parametros.ivaPorcentaje);
+  const totalConIvaCentimos = sumarCentimos(totalSinIvaCentimos, ivaCentimos);
+
+  return {
+    ok: true,
+    resultado: {
+      componentes,
+      ocupacion: ocupacion.detalle,
+      baldosasNecesarias,
+      baldosasConMerma,
+      unidadesFacturadas,
+      cajasFacturadas,
+      m2Facturados,
+      lineasManipulacion: lineas,
+      desglose: {
+        materialCentimos,
+        manipulacionCentimos,
+        arranqueCentimos,
+        totalSinIvaCentimos,
+        ivaCentimos,
+        totalConIvaCentimos,
+      },
+      // Si no había tarifa original y el comercial introdujo el precio, el
+      // "original" mostrado es ese mismo valor (no hay tarifa que conservar).
+      precioMaterialOriginal: precioUnitarioOriginal ?? precioUnitarioAplicado,
+    },
+  };
+}

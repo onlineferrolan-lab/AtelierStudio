@@ -1,0 +1,26 @@
+{
+  "_nota": "Tarifas de manipulación según 'Tarifa Torelos Castellbisbal Juny 2023'. Confirmar vigencia con taller antes de producción (§2). Precios sin IVA.",
+  "tarifas": [
+    { "id": "f1-frontal-le5", "nombre": "Figura 1 — frontal ≤ 5 cm", "eurosPorCm": 0.19 },
+    { "id": "f1-frontal-gt5", "nombre": "Figura 1 — frontal > 5 cm", "eurosPorCm": 0.23 },
+    { "id": "figura-2", "nombre": "Figura 2", "eurosPorCm": 0.23 },
+    { "id": "figura-3", "nombre": "Figura 3", "eurosPorCm": 0.25 },
+    { "id": "figura-4", "nombre": "Figura 4", "eurosPorCm": 0.29 },
+    { "id": "peldano-romo", "nombre": "Peldaño romo", "eurosPorCm": 0.045 },
+    { "id": "rodapie-estandar", "nombre": "Rodapié romo/microbiselado 7,2 y 8 cm", "eurosPorCm": 0.017 },
+    { "id": "rodapie-estandar-pintado", "nombre": "Rodapié romo/microbiselado pintado", "eurosPorCm": 0.025 },
+    { "id": "rodapie-no-estandar", "nombre": "Rodapié de medidas no estándar", "eurosPorCm": 0.034 },
+    { "id": "rodapie-no-estandar-pintado", "nombre": "Rodapié no estándar pintado", "eurosPorCm": 0.042 },
+    { "id": "corte", "nombre": "Corte de piezas", "eurosPorCm": 0.017 }
+  ],
+  "suplementos": [
+    { "id": "angular-f14", "nombre": "Angular", "tipo": "porPieza", "eurosPorPieza": 2.0 },
+    { "id": "ranuras-f14", "nombre": "Tres ranuras antideslizantes", "tipo": "porCm", "eurosPorCm": 0.02 },
+    { "id": "goteron-f14", "nombre": "Ranura (goterón)", "tipo": "porCm", "eurosPorCm": 0.02 },
+    { "id": "espesado-f14", "nombre": "Material espesado", "tipo": "porCm", "eurosPorCm": 0.06 },
+    { "id": "angular-romo", "nombre": "Angular", "tipo": "porPieza", "eurosPorPieza": 1.0 },
+    { "id": "ranuras-romo", "nombre": "Tres ranuras antideslizantes", "tipo": "porCm", "eurosPorCm": 0.02 },
+    { "id": "goteron-romo", "nombre": "Ranura (goterón)", "tipo": "porCm", "eurosPorCm": 0.02 },
+    { "id": "espesado-romo", "nombre": "Material espesado", "tipo": "porCm", "eurosPorCm": 0.03 }
+  ]
+}

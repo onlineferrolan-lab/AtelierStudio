@@ -1,0 +1,42 @@
+{
+  "caso": "ejemplo-001",
+  "validadoPorTaller": false,
+  "nota": "EJEMPLO NO VALIDADO POR TALLER — caso de muestra para documentar el formato (ver README.md). Calculado a mano por desarrollo; NO es un cálculo real validado por taller. Los parámetros de ocupación (disco 3 mm, tolerancia 2 mm, saneado 5 mm/lado) son PROVISIONALES (§6.2/§6.3/§6.4).",
+  "material": {
+    "referencia": "EJM-6060",
+    "descripcion": "Baldosa de ejemplo 60×60",
+    "marca": "Ejemplo",
+    "formatoCm": { "largo": 60, "ancho": 60 },
+    "precioM2Euros": 25,
+    "precioUnidadEuros": null,
+    "piezasPorCaja": 4,
+    "m2PorCaja": 1.44,
+    "esManual": false
+  },
+  "origen": "stock",
+  "figuraId": "figura-2",
+  "medidasCm": { "longitud": "50", "fondo": "30", "alturaFrontal": "4" },
+  "cantidad": 5,
+  "suplementos": ["angular-f14", "ranuras-f14"],
+  "pintado": false,
+  "precioMaterialEditadoEuros": null,
+  "mermaPorcentaje": 10,
+  "esperado": {
+    "ok": true,
+    "baldosasNecesarias": 5,
+    "baldosasConMerma": 6,
+    "unidadesFacturadas": 6,
+    "cajasFacturadas": 0,
+    "m2Facturados": 2.16,
+    "ocupacionMm": 355,
+    "dimensionUtilMm": 600,
+    "baldosaGirada": false,
+    "precioMaterialOriginal": 2500,
+    "materialCentimos": 5400,
+    "manipulacionCentimos": 7250,
+    "arranqueCentimos": 6000,
+    "totalSinIvaCentimos": 18650,
+    "ivaCentimos": 3917,
+    "totalConIvaCentimos": 22567
+  }
+}

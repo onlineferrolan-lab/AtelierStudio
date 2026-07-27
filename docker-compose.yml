@@ -1,0 +1,10 @@
+services:
+  atelier-studio:
+    build: .
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+    environment:
+      # Clave del catálogo de cerámica (X-API-Key): solo la usa nginx dentro
+      # del contenedor para el proxy /api/cataleg/, nunca llega al navegador.
+      - CATALEG_API_KEY=${CATALEG_API_KEY}

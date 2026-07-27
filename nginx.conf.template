@@ -1,0 +1,36 @@
+server {
+  listen 80;
+  server_name _;
+  root /usr/share/nginx/html;
+  index index.html;
+
+  gzip on;
+  gzip_types text/css application/javascript application/json image/svg+xml;
+
+  location /config/ {
+    # La configuración (tarifas, parámetros, figuras) puede cambiar sin redeploy:
+    # no cachear.
+    add_header Cache-Control "no-store";
+  }
+
+  location /assets/ {
+    # Assets con hash de Vite: cache larga.
+    add_header Cache-Control "public, max-age=31536000, immutable";
+  }
+
+  # Proxy al catàleg de ceràmica (studio.ferrolan.es/cataleg/). La clau X-API-Key
+  # NUNCA llega al navegador: nginx la añade aquí, leída de la variable de
+  # entorno CATALEG_API_KEY (envsubst la vuelca en este fichero al arrancar el
+  # contenedor; el navegador solo habla con /api/cataleg/, sin clave alguna).
+  location /api/cataleg/ {
+    proxy_http_version 1.1;
+    proxy_ssl_server_name on;
+    proxy_set_header Host studio.ferrolan.es;
+    proxy_set_header X-API-Key "${CATALEG_API_KEY}";
+    proxy_pass https://studio.ferrolan.es/cataleg/$is_args$args;
+  }
+
+  location / {
+    try_files $uri $uri/ /index.html;
+  }
+}

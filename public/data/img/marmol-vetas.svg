@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="600" viewBox="0 0 600 600">
+  <!-- Placeholder cerámico: mármol claro con vetas. DATOS FALSOS (§7.3). -->
+  <rect width="600" height="600" fill="#eae4d8"/>
+  <g fill="none" stroke-linecap="round">
+    <path d="M-20 120 C 90 90, 180 170, 300 140 S 520 60, 640 110" stroke="#c9c0ae" stroke-width="7" opacity="0.55"/>
+    <path d="M-30 300 C 110 260, 220 350, 340 310 S 540 240, 650 300" stroke="#b7ad99" stroke-width="4" opacity="0.5"/>
+    <path d="M-10 470 C 120 430, 240 520, 360 480 S 560 410, 660 470" stroke="#c9c0ae" stroke-width="8" opacity="0.45"/>
+    <path d="M80 -20 C 120 120, 60 260, 130 400 S 180 560, 150 640" stroke="#d5cdbd" stroke-width="3" opacity="0.6"/>
+    <path d="M420 -30 C 460 140, 390 300, 470 450 S 520 580, 500 650" stroke="#b7ad99" stroke-width="2.5" opacity="0.45"/>
+    <path d="M-40 200 C 150 170, 350 230, 660 180" stroke="#d5cdbd" stroke-width="2" opacity="0.5"/>
+  </g>
+  <text x="585" y="582" text-anchor="end" font-family="system-ui, sans-serif" font-size="26" font-weight="600" fill="#6b6252" opacity="0.8">MUESTRA</text>
+</svg>

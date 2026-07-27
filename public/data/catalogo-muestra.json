@@ -1,0 +1,125 @@
+{
+  "_aviso": "CATÁLOGO DE MUESTRA — DATOS FALSOS (§7.3)",
+  "articulos": [
+    {
+      "referencia": "MUE-6001",
+      "descripcion": "Mármol Blanco Veralta pulido",
+      "marca": "Cerámica Veralta",
+      "formato": { "largoCm": 60, "anchoCm": 60 },
+      "precioM2Euros": 18.9,
+      "piezasPorCaja": 4,
+      "m2PorCaja": 1.44,
+      "imagen": "/data/img/marmol-vetas.svg"
+    },
+    {
+      "referencia": "MUE-6002",
+      "descripcion": "Mármol Veralta vetas grises gran formato",
+      "marca": "Cerámica Veralta",
+      "formato": { "largoCm": 120, "anchoCm": 60 },
+      "precioM2Euros": 26.5,
+      "piezasPorCaja": 2,
+      "m2PorCaja": 1.44,
+      "imagen": "/data/img/marmol-vetas.svg"
+    },
+    {
+      "referencia": "MUE-6003",
+      "descripcion": "Terrazo Rialto gris perla antideslizante",
+      "marca": "Gres Arlanza",
+      "formato": { "largoCm": 33.3, "anchoCm": 33.3 },
+      "precioM2Euros": 12.75,
+      "piezasPorCaja": 9,
+      "m2PorCaja": 1,
+      "imagen": "/data/img/terrazo.svg"
+    },
+    {
+      "referencia": "MUE-6004",
+      "descripcion": "Terrazo Rialto beige moteado",
+      "marca": "Gres Arlanza",
+      "formato": { "largoCm": 90, "anchoCm": 90 },
+      "precioM2Euros": 29.9,
+      "piezasPorCaja": 2,
+      "m2PorCaja": 1.62,
+      "imagen": "/data/img/terrazo.svg"
+    },
+    {
+      "referencia": "MUE-6005",
+      "descripcion": "Piedra Nabarra natural mate",
+      "marca": "Porcelánica del Norte",
+      "formato": { "largoCm": 120, "anchoCm": 120 },
+      "precioM2Euros": 42.3,
+      "piezasPorCaja": 2,
+      "m2PorCaja": 2.88,
+      "imagen": "/data/img/piedra-neutra.svg"
+    },
+    {
+      "referencia": "MUE-6006",
+      "descripcion": "Piedra Nabarra arena para escalera",
+      "marca": "Porcelánica del Norte",
+      "formato": { "largoCm": 75, "anchoCm": 75 },
+      "precioM2Euros": 24.6,
+      "piezasPorCaja": 3,
+      "m2PorCaja": 1.69,
+      "imagen": "/data/img/piedra-neutra.svg"
+    },
+    {
+      "referencia": "MUE-6007",
+      "descripcion": "Cemento Grisú urbano rectificado",
+      "marca": "Keramia",
+      "formato": { "largoCm": 100, "anchoCm": 100 },
+      "precioM2Euros": 33.8,
+      "piezasPorCaja": 2,
+      "m2PorCaja": 2,
+      "imagen": "/data/img/cemento.svg"
+    },
+    {
+      "referencia": "MUE-6008",
+      "descripcion": "Cemento Grisú oscuro antideslizante exterior",
+      "marca": "Keramia",
+      "formato": { "largoCm": 45, "anchoCm": 90 },
+      "precioM2Euros": 21.4,
+      "piezasPorCaja": 3,
+      "m2PorCaja": 1.22,
+      "imagen": "/data/img/cemento.svg"
+    },
+    {
+      "referencia": "MUE-6009",
+      "descripcion": "Mármol Baño Clásico brillo",
+      "marca": "Cerámica Veralta",
+      "formato": { "largoCm": 59.6, "anchoCm": 59.6 },
+      "precioM2Euros": 16.2,
+      "piezasPorCaja": 4,
+      "m2PorCaja": 1.42,
+      "imagen": null
+    },
+    {
+      "referencia": "MUE-6010",
+      "descripcion": "Piedra Nabarra grafito sin stock de caja",
+      "marca": "Porcelánica del Norte",
+      "formato": { "largoCm": 30, "anchoCm": 60 },
+      "precioM2Euros": 15.5,
+      "piezasPorCaja": null,
+      "m2PorCaja": null,
+      "imagen": "/data/img/piedra-neutra.svg"
+    },
+    {
+      "referencia": "MUE-6011",
+      "descripcion": "Terrazo Rialto blanco roto especial zócalos",
+      "marca": "Gres Arlanza",
+      "formato": { "largoCm": 25, "anchoCm": 50 },
+      "precioM2Euros": 14.9,
+      "piezasPorCaja": null,
+      "m2PorCaja": null,
+      "imagen": null
+    },
+    {
+      "referencia": "MUE-6012",
+      "descripcion": "Cemento Grisú perla formato peldaño",
+      "marca": "Keramia",
+      "formato": { "largoCm": 31.6, "anchoCm": 90 },
+      "precioM2Euros": 22.7,
+      "piezasPorCaja": 4,
+      "m2PorCaja": 1.14,
+      "imagen": "/data/img/cemento.svg"
+    }
+  ]
+}

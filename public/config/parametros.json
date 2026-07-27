@@ -1,0 +1,10 @@
+{
+  "_nota": "Parámetros de taller de Atelier Studio. Los valores marcados abajo como PROVISIONAL en PENDIENTES.md están pendientes de taller (§6.2, §6.3, §6.4, §6.10): NO son valores reales confirmados.",
+  "discoMm": 3,
+  "toleranciaMm": 2,
+  "saneadoPorLadoMm": 5,
+  "mermaPorcentajeDefecto": 10,
+  "mermaEditable": true,
+  "arranqueMaquinaEuros": 60,
+  "ivaPorcentaje": 21
+}
