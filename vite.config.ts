@@ -19,6 +19,19 @@ export default defineConfig(({ mode }) => {
     // `MSYS2_ENV_CONV_EXCL=BASE_PUBLICA BASE_PUBLICA=/ npm run build`).
     base: env.BASE_PUBLICA ?? '/atelier-studio/',
     plugins: [react()],
+    resolve: {
+      // jsPDF carga html2canvas, canvg y dompurify con import() dinámico, solo
+      // para doc.html() y doc.addSvgAsImage(). Aquí no se usa ninguna de las dos
+      // (la orden se dibuja con rect/text/line/addImage), así que Rollup emitía
+      // 353 kB de chunks que nunca se descargaban: ficheros muertos en `dist`.
+      // Se sustituyen por un módulo vacío que explica el motivo si se invoca.
+      // Para volver a usar esas API: borrar estos tres alias.
+      alias: {
+        html2canvas: '/src/pdf/jspdfSinDependenciasOpcionales.mjs',
+        canvg: '/src/pdf/jspdfSinDependenciasOpcionales.mjs',
+        dompurify: '/src/pdf/jspdfSinDependenciasOpcionales.mjs',
+      },
+    },
     server: {
       port: 5173,
       proxy: {
