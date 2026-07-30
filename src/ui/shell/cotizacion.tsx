@@ -18,16 +18,17 @@
  *    del paso ③ (medidas) se ocultan hasta que el comercial ha tecleado algo
  *    ahí (`medidasTecleadas`, mismo criterio que `PasoMedidas`): recién
  *    elegida la figura, "vacío" no es todavía un error que enseñar.
- *  - «Generar PDF»: construye `DatosOrdenTrabajo` (construirEntrada + resultado)
- *    y llama a `generarPdfOrdenTrabajo`; cualquier error se muestra en pantalla
- *    sin romper la app.
+ *  - «Generar PDF»: construye `DatosOrdenTrabajo` (construirEntrada + resultado
+ *    + la sección de la pieza para el croquis) y llama a
+ *    `generarPdfOrdenTrabajo`; cualquier error se muestra en pantalla sin
+ *    romper la app.
  */
 
 import { useState } from 'react';
 import { figuraPorId } from '../../domain/engine';
 import { formatearEuros } from '../../domain/money';
 import type { Centimos } from '../../domain/types';
-import { generarPdfOrdenTrabajo } from '../../pdf/ordenTrabajo';
+import { construirSeccion, rasgosDeSuplementos } from '../../piezas/piezaDeFigura';
 import { Boton, Campo, EntradaNumero } from '../components/primitivas';
 import { useConfig } from '../state/config-context';
 import { construirEntrada, medidasTecleadas, useAtelier, useSalidaMotor } from '../state/quote-state';
@@ -142,6 +143,9 @@ export function PanelCotizacion(): JSX.Element {
 
     setGenerandoPdf(true);
     try {
+      // jsPDF (y sus dependencias) pesan ~580 kB y solo hacen falta al pulsar
+      // este botón: se cargan aquí, no en la primera pantalla.
+      const { generarPdfOrdenTrabajo } = await import('../../pdf/ordenTrabajo');
       await generarPdfOrdenTrabajo({
         material: construida.entrada.material,
         origen: construida.entrada.origen,
@@ -149,12 +153,22 @@ export function PanelCotizacion(): JSX.Element {
         medidasMm: construida.medidasMm,
         cantidad: construida.entrada.cantidad,
         suplementosActivos: construida.entrada.suplementos,
+        unidadesSuplemento: construida.entrada.unidadesSuplemento,
         pintado: construida.entrada.pintado,
         precioMaterialEditadoEuros: estado.precioMaterialEditadoEuros,
         mermaPorcentaje: construida.entrada.mermaPorcentaje,
         resultado: salida.resultado,
         config,
         fecha: new Date(),
+        // Croquis de la pieza: la MISMA sección que extruye el visor 3D, para
+        // que el dibujo del taller no pueda discrepar del modelo. Con los
+        // suplementos activos, para que el croquis enseñe dónde van las ranuras.
+        seccion: construirSeccion(
+          figura,
+          construida.medidasMm,
+          undefined,
+          rasgosDeSuplementos(construida.entrada.suplementos),
+        ),
       });
     } catch (error: unknown) {
       setErrorPdf(error instanceof Error ? error.message : 'Error desconocido al generar el PDF.');
@@ -178,6 +192,10 @@ export function PanelCotizacion(): JSX.Element {
 
         {resultado !== null ? (
           <dl className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-md bg-slate-50 p-3 text-sm">
+            <DatoLogistico
+              etiqueta="Piezas por baldosa"
+              valor={String(resultado.ocupacion.piezasPorBaldosa)}
+            />
             <DatoLogistico etiqueta="Baldosas necesarias" valor={String(resultado.baldosasNecesarias)} />
             <DatoLogistico etiqueta="Baldosas con merma" valor={String(resultado.baldosasConMerma)} />
             <DatoLogistico etiqueta="Piezas facturadas" valor={String(resultado.unidadesFacturadas)} />

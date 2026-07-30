@@ -22,8 +22,8 @@ import { ImagenMaterial } from './ImagenMaterial';
 import { formatoMaterialTexto, cajaMaterialTexto, precioMaterialTexto } from './materialUtil';
 
 const AYUDA_ORIGEN =
-  'Stock: la pieza sale de una caja ya abierta en almacén y se factura por piezas. ' +
-  'Pedido: se piden cajas completas al proveedor y todo el sobrante se cobra al cliente (§4).';
+  'Pedido: se piden cajas completas al proveedor y todo el sobrante se cobra al cliente. ' +
+  'Stock: la pieza sale de una caja ya abierta en almacén y se factura por piezas (§4).';
 
 // ---------------------------------------------------------------------------
 // Tarjeta-resumen del material seleccionado
@@ -97,9 +97,11 @@ export function PasoMaterial(): JSX.Element {
         <CampoGrupo etiqueta="Origen del material" ayuda={AYUDA_ORIGEN}>
           <div>
             <ControlSegmentado
+              // Pedido primero y por defecto (2026-07-30, indicación directa):
+              // es el caso habitual, el de stock es la excepción.
               opciones={[
-                { valor: 'stock' as const, etiqueta: 'Stock' },
                 { valor: 'pedido' as const, etiqueta: 'Pedido' },
+                { valor: 'stock' as const, etiqueta: 'Stock' },
               ]}
               valor={estado.origen}
               alCambiar={(origen) => dispatch({ tipo: 'cambiarOrigen', origen })}

@@ -14,7 +14,8 @@
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "indice:cataleg": "node scripts/generar-indice-cataleg.mjs"
+    "indice:cataleg": "node scripts/generar-indice-cataleg.mjs",
+    "manual": "node scripts/generar-manual.mjs"
   },
   "dependencies": {
     "@fontsource/montserrat": "^5.3.0",

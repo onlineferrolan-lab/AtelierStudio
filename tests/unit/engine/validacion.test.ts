@@ -48,12 +48,14 @@ describe('validarMedidasCrudas — errores concretos por medida', () => {
     expect(r.ok).toBe(false);
     if (!r.ok) {
       expect(r.errores).toHaveLength(3);
-      expect(r.errores.map((e) => e.medida)).toEqual(['longitud', 'fondo', 'alturaFrontal']);
+      // Los errores salen en el orden en que la figura declara sus medidas
+      // (figuras.json): primero el ancho, después el largo.
+      expect(r.errores.map((e) => e.medida)).toEqual(['fondo', 'longitud', 'alturaFrontal']);
       for (const e of r.errores) {
         expect(e.paso).toBe('medidas');
         expect(e.mensaje).toMatch(/es obligatoria/);
       }
-      expect(r.errores[0].mensaje).toContain('«Longitud»');
+      expect(r.errores[0].mensaje).toContain('«Ancho»');
     }
   });
 
@@ -62,10 +64,12 @@ describe('validarMedidasCrudas — errores concretos por medida', () => {
     expect(r.ok).toBe(false);
     if (!r.ok) {
       expect(r.errores).toHaveLength(2);
-      expect(r.errores[0].mensaje).toContain('«abc»');
-      expect(r.errores[0].mensaje).toContain('«Longitud»');
+      // Mismo orden de declaración: el ancho ('12a') antes que el largo ('abc').
+      expect(r.errores[0].mensaje).toContain('«12a»');
+      expect(r.errores[0].mensaje).toContain('«Ancho»');
       expect(r.errores[0].mensaje).toMatch(/no es un número válido/);
-      expect(r.errores[1].mensaje).toContain('«12a»');
+      expect(r.errores[1].mensaje).toContain('«abc»');
+      expect(r.errores[1].mensaje).toContain('«Largo»');
     }
   });
 
@@ -82,7 +86,7 @@ describe('validarMedidasCrudas — errores concretos por medida', () => {
       expect(r.errores).toHaveLength(1);
       expect(r.errores[0].medida).toBe('longitud');
       expect(r.errores[0].mensaje).toBe(
-        'La medida «Longitud» no puede ser menor que 1 cm (indicado: 0,5 cm).',
+        'La medida «Largo» no puede ser menor que 1 cm (indicado: 0,5 cm).',
       );
     }
   });

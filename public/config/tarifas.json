@@ -1,5 +1,5 @@
 {
-  "_nota": "Tarifas de manipulación según 'Tarifa Torelos Castellbisbal Juny 2023'. Confirmar vigencia con taller antes de producción (§2). Precios sin IVA.",
+  "_nota": "Tarifas de manipulación según 'Tarifa Torelos Castellbisbal Juny 2023'. Confirmar vigencia con taller antes de producción (§2). Precios sin IVA. Las tarifas de pasamanos son PROVISIONALES (2026-07-29): repiten el precio del peldaño equivalente mientras taller no confirme la tarifa de pasamanos (§6.6, PENDIENTES.md).",
   "tarifas": [
     { "id": "f1-frontal-le5", "nombre": "Figura 1 — frontal ≤ 5 cm", "eurosPorCm": 0.19 },
     { "id": "f1-frontal-gt5", "nombre": "Figura 1 — frontal > 5 cm", "eurosPorCm": 0.23 },
@@ -7,6 +7,12 @@
     { "id": "figura-3", "nombre": "Figura 3", "eurosPorCm": 0.25 },
     { "id": "figura-4", "nombre": "Figura 4", "eurosPorCm": 0.29 },
     { "id": "peldano-romo", "nombre": "Peldaño romo", "eurosPorCm": 0.045 },
+    { "id": "pasamanos-1-frontal-le5", "nombre": "Pasamanos 1 — frontal ≤ 5 cm", "eurosPorCm": 0.19 },
+    { "id": "pasamanos-1-frontal-gt5", "nombre": "Pasamanos 1 — frontal > 5 cm", "eurosPorCm": 0.23 },
+    { "id": "pasamanos-2", "nombre": "Pasamanos 2", "eurosPorCm": 0.23 },
+    { "id": "pasamanos-3", "nombre": "Pasamanos 3", "eurosPorCm": 0.25 },
+    { "id": "pasamanos-4", "nombre": "Pasamanos 4", "eurosPorCm": 0.29 },
+    { "id": "pasamanos-romo", "nombre": "Pasamanos romo", "eurosPorCm": 0.045 },
     { "id": "rodapie-estandar", "nombre": "Rodapié romo/microbiselado 7,2 y 8 cm", "eurosPorCm": 0.017 },
     { "id": "rodapie-estandar-pintado", "nombre": "Rodapié romo/microbiselado pintado", "eurosPorCm": 0.025 },
     { "id": "rodapie-no-estandar", "nombre": "Rodapié de medidas no estándar", "eurosPorCm": 0.034 },

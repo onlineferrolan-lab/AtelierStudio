@@ -25,8 +25,8 @@ describe('PasoMedidas', () => {
     const { api } = montarPasos(<PasoMedidas />);
     act(() => api().dispatch({ tipo: 'seleccionarFigura', figuraId: 'figura-4' }));
 
-    expect(screen.getByLabelText(/^Longitud/)).toBeInTheDocument();
-    expect(screen.getByLabelText(/^Fondo/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Largo/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Ancho/)).toBeInTheDocument();
     expect(screen.getByLabelText(/^Altura frontal/)).toBeInTheDocument();
     expect(screen.getByLabelText(/^Retorno/)).toBeInTheDocument();
     expect(screen.getByLabelText(/^Cantidad/)).toBeInTheDocument();
@@ -68,17 +68,59 @@ describe('PasoMedidas', () => {
     // Las medidas están vacías (recién elegida la figura): no debe verse ningún error todavía,
     // aunque el motor internamente ya devuelva "obligatoria" (medidasTecleadas lo oculta).
     expect(screen.queryByText(/es obligatoria/)).not.toBeInTheDocument();
-    expect(screen.getByLabelText(/^Longitud/)).not.toHaveClass('border-red-400');
+    expect(screen.getByLabelText(/^Largo/)).not.toHaveClass('border-red-400');
   });
 
-  it('en cuanto se teclea algo en una medida, sí aparecen los «obligatoria» de las demás', () => {
+  it('teclear en una medida NO pinta en rojo las demás, que aún no ha tocado', () => {
     const { api } = montarPasos(<PasoMedidas />);
     act(() => api().dispatch({ tipo: 'seleccionarMaterial', material: materialPrueba() }));
     act(() => api().dispatch({ tipo: 'seleccionarFigura', figuraId: 'figura-1' }));
 
-    const longitud = screen.getByLabelText(/^Longitud/);
-    fireEvent.change(longitud, { target: { value: '100' } });
+    fireEvent.change(screen.getByLabelText(/^Largo/), { target: { value: '100' } });
 
-    expect(screen.getByText('«Fondo» es obligatoria.')).toBeInTheDocument();
+    expect(screen.queryByText('«Ancho» es obligatoria.')).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/^Ancho/)).not.toHaveClass('border-red-400');
+  });
+
+  it('al salir de una medida dejándola vacía, esa sí se marca (y solo esa)', () => {
+    const { api } = montarPasos(<PasoMedidas />);
+    act(() => api().dispatch({ tipo: 'seleccionarMaterial', material: materialPrueba() }));
+    act(() => api().dispatch({ tipo: 'seleccionarFigura', figuraId: 'figura-1' }));
+
+    fireEvent.change(screen.getByLabelText(/^Largo/), { target: { value: '100' } });
+    fireEvent.blur(screen.getByLabelText(/^Ancho/)); // pasa por Fondo y lo deja vacío
+
+    expect(screen.getByText('«Ancho» es obligatoria.')).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Ancho/)).toHaveClass('border-red-400');
+    // «Altura frontal» sigue sin tocar: no se señala.
+    expect(screen.queryByText('«Altura frontal» es obligatoria.')).not.toBeInTheDocument();
+  });
+
+  it('si se cierra el paso sin rellenarlo, al reabrirlo ya se ven todas las que faltan', () => {
+    const { api, pasos } = montarPasos(<PasoMedidas />);
+    act(() => api().dispatch({ tipo: 'seleccionarMaterial', material: materialPrueba() }));
+    act(() => api().dispatch({ tipo: 'seleccionarFigura', figuraId: 'figura-1' }));
+
+    fireEvent.change(screen.getByLabelText(/^Largo/), { target: { value: '100' } });
+    expect(screen.queryByText('«Ancho» es obligatoria.')).not.toBeInTheDocument();
+
+    act(() => pasos().alternar(3)); // el comercial cierra el paso: lo ha saltado
+    act(() => pasos().alternar(3)); // y vuelve
+
+    expect(screen.getByText('«Ancho» es obligatoria.')).toBeInTheDocument();
+    expect(screen.getByText('«Altura frontal» es obligatoria.')).toBeInTheDocument();
+  });
+
+  it('cambiar de figura vuelve a empezar sin campos marcados', () => {
+    const { api, pasos } = montarPasos(<PasoMedidas />);
+    act(() => api().dispatch({ tipo: 'seleccionarMaterial', material: materialPrueba() }));
+    act(() => api().dispatch({ tipo: 'seleccionarFigura', figuraId: 'figura-1' }));
+    act(() => pasos().alternar(3));
+    act(() => pasos().alternar(3));
+    expect(screen.getByText('«Ancho» es obligatoria.')).toBeInTheDocument();
+
+    act(() => api().dispatch({ tipo: 'seleccionarFigura', figuraId: 'figura-2' }));
+
+    expect(screen.queryByText(/es obligatoria/)).not.toBeInTheDocument();
   });
 });

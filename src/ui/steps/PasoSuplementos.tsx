@@ -8,17 +8,23 @@
  * conmutador «Pintado» que cambia la tarifa al precio de pintado (rodapiés,
  * §2). Cada cambio actualiza la cotización al momento vía el estado global.
  *
- * El paso ③ Medidas no se cierra solo (ver `PasoMedidas`): este paso es quien
- * lo cierra, y solo cuando el comercial ya está actuando aquí — al activar un
- * suplemento/pintado, o al mover el ratón sobre esta tarjeta (señal de que ha
- * pasado a mirar suplementos, aunque todavía no haya tocado nada).
+ * Los suplementos POR PIEZA («Angular») llevan además un campo con a cuántas
+ * piezas se aplican: es un remate del extremo y en un tramo de escalera solo lo
+ * llevan las de esquina, no todas (2026-07-30, indicación directa). Los de por cm
+ * recorren la pieza entera y se aplican siempre a toda la cantidad.
+ *
+ * Este paso no cierra ninguna otra tarjeta. Antes cerraba el ③ Medidas al
+ * activar un suplemento y al pasar el ratón por encima; se quitó (2026-07-29,
+ * indicación directa) porque cerraba una tarjeta que el comercial estaba usando,
+ * en el caso del ratón sin que hubiera tocado nada. Ver `pasos-context`: el
+ * automatismo solo abre pasos.
  */
 
 import type { Suplemento } from '../../domain/config';
 import { figuraPorId } from '../../domain/engine';
 import { formatearEuros } from '../../domain/money';
 import { useConfig } from '../state/config-context';
-import { useAtelier } from '../state/quote-state';
+import { useAtelier, useSalidaMotor } from '../state/quote-state';
 import { usePasos } from '../state/pasos-context';
 import { FilaConmutador, InfoTooltip, PasoCard } from '../components/primitivas';
 
@@ -42,6 +48,51 @@ function precioSuplementoTexto(suplemento: Suplemento): string {
     return `+${texto}/cm`;
   }
   return '';
+}
+
+/**
+ * Campo «piezas con este remate» de un suplemento por pieza. Va FUERA del
+ * `<label>` del conmutador: dentro, cualquier clic en el campo alternaría la
+ * casilla.
+ */
+function UnidadesSuplemento({
+  id,
+  nombre,
+  unidades,
+  cantidad,
+  error,
+  alCambiar,
+}: {
+  readonly id: string;
+  readonly nombre: string;
+  readonly unidades: string;
+  readonly cantidad: string;
+  readonly error: string | undefined;
+  readonly alCambiar: (unidades: string) => void;
+}): JSX.Element {
+  const idCampo = `unidades-${id}`;
+  return (
+    <div className="px-2 pb-2 pl-9">
+      <div className="flex items-center gap-2">
+        <label htmlFor={idCampo} className="text-xs text-slate-600">
+          Piezas con {nombre.toLowerCase()}
+        </label>
+        <input
+          id={idCampo}
+          type="text"
+          inputMode="numeric"
+          value={unidades}
+          onChange={(e) => alCambiar(e.target.value)}
+          aria-label={`Piezas con ${nombre}`}
+          className={`w-16 rounded-md border px-2 py-1 text-sm shadow-sm outline-none transition-colors focus:border-marca focus:ring-2 focus:ring-marca/20 ${
+            error ? 'border-red-400 bg-red-50' : 'border-slate-300 bg-white'
+          }`}
+        />
+        <span className="text-xs text-slate-500">de {cantidad}</span>
+      </div>
+      {error ? <p className="pt-1 text-xs text-red-600">{error}</p> : null}
+    </div>
+  );
 }
 
 /** Conmutador «Pintado» (tarifa alternativa de rodapiés, §2) con tooltip. */
@@ -72,6 +123,11 @@ export function PasoSuplementos(): JSX.Element {
   const config = useConfig();
   const { estado, dispatch } = useAtelier();
   const pasos = usePasos();
+  const salida = useSalidaMotor(config);
+  const errorDe = (id: string): string | undefined =>
+    salida != null && !salida.ok
+      ? salida.errores.find((e) => e.paso === 'suplementos' && e.medida === id)?.mensaje
+      : undefined;
 
   const figura = estado.figuraId ? figuraPorId(config, estado.figuraId) : undefined;
 
@@ -86,26 +142,36 @@ export function PasoSuplementos(): JSX.Element {
         {figura.suplementos.map((idSuplemento) => {
           const suplemento = config.suplementos[idSuplemento];
           if (!suplemento) return null; // validarConfiguracion ya lo impide al cargar
+          const activo = estado.suplementos[idSuplemento] === true;
           return (
-            <FilaConmutador
-              key={idSuplemento}
-              etiqueta={suplemento.nombre}
-              detalle={precioSuplementoTexto(suplemento)}
-              activo={estado.suplementos[idSuplemento] === true}
-              alCambiar={(activo) => {
-                pasos.cerrar(3);
-                dispatch({ tipo: 'alternarSuplemento', suplemento: idSuplemento, activo });
-              }}
-            />
+            <div key={idSuplemento}>
+              <FilaConmutador
+                etiqueta={suplemento.nombre}
+                detalle={precioSuplementoTexto(suplemento)}
+                activo={activo}
+                alCambiar={(marcado) =>
+                  dispatch({ tipo: 'alternarSuplemento', suplemento: idSuplemento, activo: marcado })
+                }
+              />
+              {activo && suplemento.tipo === 'porPieza' ? (
+                <UnidadesSuplemento
+                  id={idSuplemento}
+                  nombre={suplemento.nombre}
+                  unidades={estado.unidadesSuplemento[idSuplemento] ?? ''}
+                  cantidad={estado.cantidad}
+                  error={errorDe(idSuplemento)}
+                  alCambiar={(unidades) =>
+                    dispatch({ tipo: 'cambiarUnidadesSuplemento', suplemento: idSuplemento, unidades })
+                  }
+                />
+              ) : null}
+            </div>
           );
         })}
         {figura.tienePintado ? (
           <FilaPintado
             activo={estado.pintado}
-            alCambiar={(pintado) => {
-              pasos.cerrar(3);
-              dispatch({ tipo: 'cambiarPintado', pintado });
-            }}
+            alCambiar={(pintado) => dispatch({ tipo: 'cambiarPintado', pintado })}
           />
         ) : null}
       </div>
@@ -113,17 +179,13 @@ export function PasoSuplementos(): JSX.Element {
   }
 
   return (
-    // onMouseMove (no onMouseEnter): cerrar el ③ solo si de verdad se mueve el
-    // ratón por aquí, no si simplemente queda quieto tras un scroll o un layout shift.
-    <div onMouseMove={() => pasos.cerrar(3)}>
-      <PasoCard
-        numero={4}
-        titulo="Suplementos"
-        abierto={pasos.estado[4] ?? false}
-        alAlternar={() => pasos.alternar(4)}
-      >
-        {contenido}
-      </PasoCard>
-    </div>
+    <PasoCard
+      numero={4}
+      titulo="Suplementos"
+      abierto={pasos.estado[4] ?? false}
+      alAlternar={() => pasos.alternar(4)}
+    >
+      {contenido}
+    </PasoCard>
   );
 }

@@ -1,7 +1,7 @@
 {
   "caso": "ejemplo-001",
   "validadoPorTaller": false,
-  "nota": "EJEMPLO NO VALIDADO POR TALLER — caso de muestra para documentar el formato (ver README.md). Calculado a mano por desarrollo; NO es un cálculo real validado por taller. Los parámetros de ocupación (disco 3 mm, tolerancia 2 mm, saneado 5 mm/lado) son PROVISIONALES (§6.2/§6.3/§6.4).",
+  "nota": "El angular se aplica solo a 2 de las 5 piezas (unidadesSuplemento): es un remate de esquina, no lo llevan todas. EJEMPLO NO VALIDADO POR TALLER — caso de muestra para documentar el formato (ver README.md). Calculado a mano por desarrollo; NO es un cálculo real validado por taller. Los parámetros de ocupación (disco 3 mm, tolerancia 2 mm, saneado 5 mm/lado) son PROVISIONALES (§6.2/§6.3/§6.4).",
   "material": {
     "referencia": "EJM-6060",
     "descripcion": "Baldosa de ejemplo 60×60",
@@ -18,6 +18,7 @@
   "medidasCm": { "longitud": "50", "fondo": "30", "alturaFrontal": "4" },
   "cantidad": 5,
   "suplementos": ["angular-f14", "ranuras-f14"],
+  "unidadesSuplemento": { "angular-f14": 2 },
   "pintado": false,
   "precioMaterialEditadoEuros": null,
   "mermaPorcentaje": 10,
@@ -33,10 +34,10 @@
     "baldosaGirada": false,
     "precioMaterialOriginal": 2500,
     "materialCentimos": 5400,
-    "manipulacionCentimos": 7250,
+    "manipulacionCentimos": 6650,
     "arranqueCentimos": 6000,
-    "totalSinIvaCentimos": 18650,
-    "ivaCentimos": 3917,
-    "totalConIvaCentimos": 22567
+    "totalSinIvaCentimos": 18050,
+    "ivaCentimos": 3791,
+    "totalConIvaCentimos": 21841
   }
 }

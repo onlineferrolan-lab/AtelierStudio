@@ -12,14 +12,14 @@
  * al cambiar figura/medidas/textura solo se reconstruye el grupo de la pieza.
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import type { Figura } from '../domain/config';
 import type { Mm } from '../domain/types';
 import { Boton, Insignia } from '../ui/components/primitivas';
 import { crearGrupoCotas } from './cotas';
 import { EscenaVisor } from './escena';
-import { construirPieza, faltanMedidasParaPieza } from './geometria';
+import { construirPieza, faltanMedidasParaPieza, rasgosDeSuplementos } from './geometria';
 import { aplicarTextura, cargarTextura } from './materiales';
 
 export interface VisorPiezaProps {
@@ -27,16 +27,31 @@ export interface VisorPiezaProps {
   readonly medidasMm: Readonly<Record<string, Mm>> | null;
   readonly imagenUrl: string | null;
   readonly cantidad?: number;
+  /**
+   * Ids de suplemento activos. Los que se cobran por cm (ranuras, goterón) se
+   * ven en la pieza; el resto no cambia la forma (ver `rasgosDeSuplementos`).
+   */
+  readonly suplementos?: readonly string[];
 }
 
 type EstadoTextura = 'sin' | 'cargando' | 'lista' | 'error';
+
+const SIN_SUPLEMENTOS_ACTIVOS: readonly string[] = [];
 
 export function VisorPieza({
   figura,
   medidasMm,
   imagenUrl,
   cantidad = 1,
+  suplementos = SIN_SUPLEMENTOS_ACTIVOS,
 }: VisorPiezaProps): JSX.Element {
+  // La prop puede llegar como array nuevo en cada render; se reduce a una clave
+  // estable para no reconstruir la malla (y perder la cámara) sin motivo.
+  const claveSuplementos = [...suplementos].sort().join('|');
+  const rasgosSuplementos = useMemo(
+    () => rasgosDeSuplementos(claveSuplementos === '' ? [] : claveSuplementos.split('|')),
+    [claveSuplementos],
+  );
   const contenedorRef = useRef<HTMLDivElement | null>(null);
   const escenaRef = useRef<EscenaVisor | null>(null);
   const [estadoTextura, setEstadoTextura] = useState<EstadoTextura>('sin');
@@ -70,7 +85,7 @@ export function VisorPieza({
       setEstadoTextura('sin');
       return;
     }
-    const pieza = construirPieza(figura, medidasMm);
+    const pieza = construirPieza(figura, medidasMm, undefined, rasgosSuplementos);
     if (!pieza) {
       escena.establecerPieza(null);
       return;
@@ -101,7 +116,7 @@ export function VisorPieza({
     return () => {
       cancelado = true;
     };
-  }, [figura, medidasMm, imagenUrl]);
+  }, [figura, medidasMm, imagenUrl, rasgosSuplementos]);
 
   const mensajeVacio = visorRoto
     ? 'No se pudo iniciar el visor 3D (WebGL no disponible en este navegador).'

@@ -85,6 +85,7 @@ export function entradaBase(overrides: Partial<EntradaCotizacion> = {}): Entrada
     medidasMm: { longitud: mm(500), fondo: mm(300), alturaFrontal: mm(40) },
     cantidad: 5,
     suplementos: [],
+    unidadesSuplemento: {},
     pintado: false,
     precioMaterialEditado: null,
     mermaPorcentaje: 10,

@@ -1,18 +1,14 @@
 /**
- * Tests de `pasos-context.tsx`: apertura inicial de solo el paso 1, avance
- * automático de un paso a otro al completarse (transición incompleto→completo,
- * no en cada render) y alternancia manual independiente de eso.
+ * Tests de `pasos-context.tsx`: apertura inicial de solo el paso 1, apertura
+ * automática del paso siguiente al completarse uno (transición
+ * incompleto→completo, no en cada render) y alternancia manual independiente de
+ * eso. Regla clave: el automatismo NUNCA cierra un paso (2026-07-29).
  */
 
 import { act, render, screen } from '@testing-library/react';
 import { useState } from 'react';
 import { afterEach, beforeEach, vi } from 'vitest';
-import {
-  ProveedorPasos,
-  useAbrirAlCompletar,
-  usePasoCompletado,
-  usePasos,
-} from '../../../../src/ui/state/pasos-context';
+import { ProveedorPasos, usePasoCompletado, usePasos } from '../../../../src/ui/state/pasos-context';
 
 function SondaPaso({
   numero,
@@ -51,24 +47,6 @@ function Arnes(): JSX.Element {
   );
 }
 
-function SondaAbrirAlCompletar({
-  numero,
-  completo,
-  retrasoMs,
-}: {
-  numero: number;
-  completo: boolean;
-  retrasoMs?: number;
-}): JSX.Element {
-  const pasos = usePasos();
-  useAbrirAlCompletar(numero, completo, retrasoMs);
-  return (
-    <span>
-      paso-{numero}: {pasos.estado[numero] ? 'abierto' : 'cerrado'}
-    </span>
-  );
-}
-
 function ArnesConRetraso({ retrasoMs }: { retrasoMs: number }): JSX.Element {
   const [completo1, setCompleto1] = useState(false);
   return (
@@ -96,15 +74,16 @@ describe('ProveedorPasos', () => {
     expect(screen.getByText('paso-2: cerrado')).toBeInTheDocument();
   });
 
-  it('al completarse un paso, se cierra y se abre el siguiente', () => {
+  it('al completarse un paso, abre el siguiente y deja abierto el actual', () => {
     render(
       <ProveedorPasos>
         <Arnes />
       </ProveedorPasos>,
     );
     act(() => screen.getByText('completar-1').click());
-    expect(screen.getByText('paso-1: cerrado')).toBeInTheDocument();
     expect(screen.getByText('paso-2: abierto')).toBeInTheDocument();
+    // El automatismo solo abre: el paso que se acaba de completar sigue abierto.
+    expect(screen.getByText('paso-1: abierto')).toBeInTheDocument();
   });
 
   it('alternar a mano abre/cierra el paso indicado sin afectar a los demás', () => {
@@ -131,7 +110,7 @@ describe('ProveedorPasos', () => {
   });
 });
 
-describe('usePasoCompletado con retrasoMs (§ PasoMedidas: un solo dígito no debe expulsar al paso siguiente)', () => {
+describe('usePasoCompletado con retrasoMs (§ PasoMedidas: un solo dígito no debe abrir el paso siguiente)', () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
@@ -140,25 +119,25 @@ describe('usePasoCompletado con retrasoMs (§ PasoMedidas: un solo dígito no de
     vi.useRealTimers();
   });
 
-  it('no avanza hasta que pasa el retraso', () => {
+  it('no abre el siguiente hasta que pasa el retraso', () => {
     render(
       <ProveedorPasos>
         <ArnesConRetraso retrasoMs={700} />
       </ProveedorPasos>,
     );
     act(() => screen.getByText('completar-1').click());
-    expect(screen.getByText('paso-1: abierto')).toBeInTheDocument(); // todavía no
+    expect(screen.getByText('paso-2: cerrado')).toBeInTheDocument(); // todavía no
 
     act(() => {
       vi.advanceTimersByTime(699);
     });
-    expect(screen.getByText('paso-1: abierto')).toBeInTheDocument();
+    expect(screen.getByText('paso-2: cerrado')).toBeInTheDocument();
 
     act(() => {
       vi.advanceTimersByTime(1);
     });
-    expect(screen.getByText('paso-1: cerrado')).toBeInTheDocument();
     expect(screen.getByText('paso-2: abierto')).toBeInTheDocument();
+    expect(screen.getByText('paso-1: abierto')).toBeInTheDocument();
   });
 
   it('si deja de estar completo antes de que pase el retraso, se cancela el avance', () => {
@@ -176,33 +155,8 @@ describe('usePasoCompletado con retrasoMs (§ PasoMedidas: un solo dígito no de
     act(() => {
       vi.advanceTimersByTime(1000);
     });
-    // Nunca avanzó: el paso 1 sigue abierto y el 2 sigue cerrado.
-    expect(screen.getByText('paso-1: abierto')).toBeInTheDocument();
+    // Nunca abrió el siguiente: el paso 2 sigue cerrado.
     expect(screen.getByText('paso-2: cerrado')).toBeInTheDocument();
-  });
-});
-
-describe('useAbrirAlCompletar (§ paso ③ Medidas: abre el ④ sin cerrarse a sí mismo)', () => {
-  it('al completarse, abre el siguiente pero NO cierra el actual', () => {
-    function Arnes2(): JSX.Element {
-      const [completo3, setCompleto3] = useState(false);
-      return (
-        <>
-          <button type="button" onClick={() => setCompleto3(true)}>
-            completar-3
-          </button>
-          <SondaAbrirAlCompletar numero={4} completo={completo3} />
-        </>
-      );
-    }
-    render(
-      <ProveedorPasos inicial={{ 3: true }}>
-        <Arnes2 />
-      </ProveedorPasos>,
-    );
-    expect(screen.getByText('paso-4: cerrado')).toBeInTheDocument();
-    act(() => screen.getByText('completar-3').click());
-    expect(screen.getByText('paso-4: abierto')).toBeInTheDocument();
-    // El propio paso 3 no está gestionado por este hook: nada aquí lo cierra.
+    expect(screen.getByText('paso-1: abierto')).toBeInTheDocument();
   });
 });

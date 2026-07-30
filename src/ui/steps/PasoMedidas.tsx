@@ -13,23 +13,27 @@
  * se listan al final del paso.
  *
  * Tres detalles de UX para no ser molesto:
- *  - Los errores no se muestran hasta que el comercial ha tecleado algo en
- *    este paso (`medidasTecleadas`): recién seleccionada la figura, las
- *    medidas están vacías por definición — eso no es todavía un error que
- *    enseñar. El resumen de `PanelCotizacion` aplica el mismo criterio.
- *  - Este paso NUNCA se cierra solo por completarse (a diferencia de los
- *    pasos ①/②): el comercial puede seguir viendo/tocando las medidas
- *    mientras ya mira Suplementos. En cuanto las medidas son válidas, se abre
- *    el paso ④ (`useAbrirAlCompletar`, con un pequeño retraso: un solo dígito
- *    ya puede ser válido sin que se haya terminado de teclear) — pero el ③
- *    solo lo cierra `PasoSuplementos` cuando el comercial empieza a actuar allí.
+ *  - El error de una medida se enseña CAMPO A CAMPO, no de golpe: solo cuando
+ *    el comercial ya ha pasado por ese campo y lo ha dejado atrás (blur), o
+ *    cuando ha cerrado el paso dejándolo sin rellenar. Antes bastaba teclear en
+ *    una medida para que TODAS las demás se pintaran en rojo de golpe
+ *    (`medidasTecleadas`, criterio de paso completo), lo que señalaba como error
+ *    campos que aún no le había tocado el turno (2026-07-29, indicación
+ *    directa). «Cantidad» es la excepción: nunca empieza vacía, así que si su
+ *    valor es inválido es porque se ha tecleado así, y se avisa al momento.
+ *  - Este paso no se cierra solo (ningún paso lo hace: el automatismo solo
+ *    abre, ver `pasos-context`). El comercial puede seguir viendo y tocando las
+ *    medidas mientras ya mira Suplementos. En cuanto las medidas son válidas se
+ *    abre el paso ④, con un pequeño retraso: un solo dígito ya puede ser válido
+ *    sin que se haya terminado de teclear.
  */
 
+import { useEffect, useRef, useState } from 'react';
 import type { ErrorValidacion } from '../../domain/types';
 import { figuraPorId } from '../../domain/engine';
 import { useConfig } from '../state/config-context';
-import { medidasTecleadas, useAtelier, useSalidaMotor } from '../state/quote-state';
-import { useAbrirAlCompletar, usePasos } from '../state/pasos-context';
+import { useAtelier, useSalidaMotor } from '../state/quote-state';
+import { usePasoCompletado, usePasos } from '../state/pasos-context';
 import { Campo, ControlSegmentado, EntradaNumero, PasoCard } from '../components/primitivas';
 import { CampoGrupo } from './CampoGrupo';
 
@@ -42,19 +46,40 @@ export function PasoMedidas(): JSX.Element {
   const { estado, dispatch } = useAtelier();
   const salida = useSalidaMotor(config);
   const pasos = usePasos();
-  useAbrirAlCompletar(4, salida != null && salida.ok, RETRASO_ABRIR_MS);
+  usePasoCompletado(3, salida != null && salida.ok, RETRASO_ABRIR_MS);
+  const abierto = pasos.estado[3] ?? false;
 
-  const figura = estado.figuraId ? figuraPorId(config, estado.figuraId) : undefined;
+  // Campos por los que el comercial ya ha pasado (ver cabecera del módulo).
+  const [tocadas, setTocadas] = useState<Readonly<Record<string, true>>>({});
+  const [pasoSaltado, setPasoSaltado] = useState(false);
+  const marcarTocada = (medida: string): void =>
+    setTocadas((previo) => (previo[medida] ? previo : { ...previo, [medida]: true }));
+
+  // Cerrar el paso cuenta como saltarlo: al volver a abrirlo, lo que quedó sin
+  // rellenar ya se ve en rojo.
+  const eraAbierto = useRef(abierto);
+  useEffect(() => {
+    if (eraAbierto.current && !abierto) setPasoSaltado(true);
+    eraAbierto.current = abierto;
+  }, [abierto]);
+
+  // Otra figura son otros campos: se vuelve a empezar sin nada marcado.
+  const figuraId = estado.figuraId;
+  useEffect(() => {
+    setTocadas({});
+    setPasoSaltado(false);
+  }, [figuraId]);
+
+  const figura = figuraId ? figuraPorId(config, figuraId) : undefined;
+
+  /** true si el error de esta medida ya se puede enseñar sin ser prematuro. */
+  const seEnsena = (medida: string | null | undefined): boolean =>
+    pasoSaltado || medida == null || medida === 'cantidad' || tocadas[medida] === true;
 
   // Errores del motor que pertenecen a este paso, indexados por medida.
-  // «Cantidad» nunca empieza vacía (por defecto '1'): su error se enseña en
-  // cuanto aparece. Las medidas de la figura sí empiezan vacías al elegirla,
-  // así que esperan a `medidasTecleadas` para no ser prematuras.
   const erroresPaso: readonly ErrorValidacion[] =
     salida != null && !salida.ok
-      ? salida.errores.filter(
-          (e) => e.paso === 'medidas' && (e.medida === 'cantidad' || medidasTecleadas(estado)),
-        )
+      ? salida.errores.filter((e) => e.paso === 'medidas' && seEnsena(e.medida))
       : [];
   const errorDe = (medida: string): string | undefined =>
     erroresPaso.find((e) => e.medida === medida)?.mensaje;
@@ -85,9 +110,10 @@ export function PasoMedidas(): JSX.Element {
                           etiqueta: FORMATO_CM.format(opcion),
                         }))}
                         valor={valor}
-                        alCambiar={(v) =>
-                          dispatch({ tipo: 'cambiarMedida', medida: campo.id, valor: v })
-                        }
+                        alCambiar={(v) => {
+                          marcarTocada(campo.id);
+                          dispatch({ tipo: 'cambiarMedida', medida: campo.id, valor: v });
+                        }}
                         ariaLabel={campo.etiqueta}
                       />
                     </div>
@@ -101,6 +127,7 @@ export function PasoMedidas(): JSX.Element {
                     alCambiar={(v) =>
                       dispatch({ tipo: 'cambiarMedida', medida: campo.id, valor: v })
                     }
+                    onBlur={() => marcarTocada(campo.id)}
                     invalido={error != null}
                     placeholder={FORMATO_CM.format(campo.minCm)}
                   />

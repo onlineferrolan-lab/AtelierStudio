@@ -18,13 +18,22 @@ export function normalizarTexto(texto: string): string {
 }
 
 /**
+ * Términos de búsqueda ya normalizados: el texto partido por espacios, sin
+ * vacíos. Texto vacío o solo espacios → [] (coincide con todo). Compartido por
+ * `coincideBusqueda` y por el filtro precomputado de `fuenteIndiceCataleg.ts`.
+ */
+export function extraerTerminosBusqueda(texto: string): readonly string[] {
+  return normalizarTexto(texto)
+    .split(/\s+/)
+    .filter((t) => t.length > 0);
+}
+
+/**
  * true si TODOS los términos del texto (separados por espacios) aparecen en
  * alguno de los campos dados. Texto vacío o solo espacios coincide con todo.
  */
 export function coincideBusqueda(campos: readonly (string | null)[], texto: string): boolean {
-  const terminos = normalizarTexto(texto)
-    .split(/\s+/)
-    .filter((t) => t.length > 0);
+  const terminos = extraerTerminosBusqueda(texto);
   if (terminos.length === 0) return true;
   const camposNormalizados = campos
     .filter((campo): campo is string => campo !== null)

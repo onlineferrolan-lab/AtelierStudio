@@ -25,8 +25,14 @@ export function mm2Am2(largoMm: Mm, anchoMm: Mm): number {
   return (largoMm * anchoMm) / 1_000_000;
 }
 
+/**
+ * Formateador de cotas compartido: construir un `Intl.NumberFormat` es caro
+ * (~45× más que formatear), así que se crea una sola vez por módulo.
+ */
+const formatoCotas = new Intl.NumberFormat('es-ES', { maximumFractionDigits: 1 });
+
 /** Formatea mm como cota en cm: "120,5 cm". */
 export function formatearCotaCm(milimetros: Mm): string {
   const cm = milimetros / 10;
-  return `${new Intl.NumberFormat('es-ES', { maximumFractionDigits: 1 }).format(cm)} cm`;
+  return `${formatoCotas.format(cm)} cm`;
 }

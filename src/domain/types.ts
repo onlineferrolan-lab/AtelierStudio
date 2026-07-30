@@ -81,6 +81,17 @@ export interface EntradaCotizacion {
   readonly cantidad: number;
   /** Ids de suplementos activos (deben existir en la figura). */
   readonly suplementos: readonly string[];
+  /**
+   * A cuántas piezas se aplica cada suplemento POR PIEZA, por id de suplemento.
+   *
+   * «Angular» es un remate del extremo del peldaño: en un tramo de escalera solo
+   * lo llevan las piezas de esquina, no todas (2026-07-30, indicación directa).
+   * Los suplementos por CM recorren la pieza entera y no aparecen aquí.
+   *
+   * Un id activo sin entrada se cobra a UNA pieza; el motor rechaza valores no
+   * enteros, menores que 1 o mayores que la cantidad pedida.
+   */
+  readonly unidadesSuplemento: Readonly<Record<string, number>>;
   /** Tarifa alternativa cuando el rodapié va pintado. */
   readonly pintado: boolean;
   /**
@@ -116,6 +127,11 @@ export interface DetalleOcupacion {
   readonly numCortes: number;
   /** true si la baldosa se ha girado 90° para que la pieza quepa. */
   readonly baldosaGirada: boolean;
+  /**
+   * Piezas COMPLETAS que salen de una baldosa en la orientación elegida
+   * (empaquetado en rejilla, receta provisional §4; ≥ 1 porque la pieza cabe).
+   */
+  readonly piezasPorBaldosa: number;
 }
 
 export interface LineaManipulacion {

@@ -101,5 +101,10 @@ export function crearMaterialManual(datos: DatosMaterialManual): Material {
  * enriquecido posterior a la selección.
  */
 export function obtenerFuenteCatalogo(): FuenteCatalogo {
-  return crearFuenteIndiceCataleg();
+  // VITE_PRESTASHOP_IMG_BASE: fallback de imagen para artículos encontrados
+  // solo por referencia exacta (sin página pública → sin imagen en el índice).
+  return crearFuenteIndiceCataleg(
+    undefined,
+    import.meta.env.VITE_PRESTASHOP_IMG_BASE ?? null,
+  );
 }

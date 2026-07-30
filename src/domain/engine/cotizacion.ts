@@ -30,13 +30,20 @@
  *    Toda figura activa con tarifa genera línea de manipulación, así que se
  *    aplica siempre que el cálculo llega a su fase de manipulación.
  *
- *  - VETA (§4): todos los componentes de una pieza salen de la MISMA baldosa y
- *    no se combinan componentes de piezas distintas → baldosas de origen =
- *    cantidad de piezas. No se empaquetan varias piezas por baldosa ni se
- *    reutilizan sobrantes (fuera de la v1, §8).
+ *  - VETA (§4): todos los componentes de una pieza salen de la MISMA baldosa.
+ *    EMPAQUETADO (indicación de dirección 2026-07-28): de una baldosa pueden
+ *    salir VARIAS piezas completas (rejilla provisional, ver ocupacion.ts), así
+ *    que baldosas de origen = ceil(cantidad / piezasPorBaldosa). No se mezclan
+ *    componentes de piezas distintas en la misma fila de colocación.
  *
  *  - PINTADO: solo cambia la tarifa de figuras con regla "pintable" (rodapiés,
  *    §2). En el resto se ignora silenciosamente.
+ *
+ *  - SUPLEMENTOS POR PIEZA: no se aplican a toda la cantidad, sino a las piezas
+ *    que indique `entrada.unidadesSuplemento` (2026-07-30, indicación directa).
+ *    «Angular» remata el extremo del peldaño y en un tramo de escalera solo lo
+ *    llevan las de esquina. Sin entrada explícita se cobra UNA pieza. Los
+ *    suplementos por cm siguen aplicándose a todas.
  */
 
 import type { Configuracion, Figura } from '../config';
@@ -175,6 +182,24 @@ function validarEntrada(
         mensaje: `El suplemento «${suplemento.nombre}» no tiene precio por pieza configurado.`,
       });
     }
+    if (suplemento.tipo === 'porPieza') {
+      const unidades = entrada.unidadesSuplemento[id];
+      if (unidades !== undefined) {
+        if (!Number.isInteger(unidades) || unidades < 1) {
+          errores.push({
+            paso: 'suplementos',
+            medida: id,
+            mensaje: `Las piezas con «${suplemento.nombre}» deben ser un número entero mayor que 0.`,
+          });
+        } else if (Number.isInteger(entrada.cantidad) && unidades > entrada.cantidad) {
+          errores.push({
+            paso: 'suplementos',
+            medida: id,
+            mensaje: `No puedes aplicar «${suplemento.nombre}» a ${unidades} piezas: solo hay ${entrada.cantidad}.`,
+          });
+        }
+      }
+    }
     if (suplemento.tipo === 'porCm' && suplemento.precioMilesimasPorCm === null) {
       errores.push({
         paso: 'suplementos',
@@ -266,8 +291,8 @@ export function calcularCotizacion(entrada: EntradaCotizacion, config: Configura
   const ocupacion = evaluarOcupacion(componentes, entrada.material.formato, config.parametros);
   if (!ocupacion.ok) return { ok: false, errores: [ocupacion.error] };
 
-  // 4. Baldosas de origen y merma (veta §4: una pieza = una baldosa de origen).
-  const baldosasNecesarias = entrada.cantidad;
+  // 4. Baldosas de origen y merma (veta §4 + empaquetado: varias piezas por baldosa).
+  const baldosasNecesarias = ceilDiv(entrada.cantidad, ocupacion.detalle.piezasPorBaldosa);
   // TODO §6.1: la condición "mínimo 3" de la merma NO se implementa hasta que taller la defina.
   const mermaCentesimas = Math.round(entrada.mermaPorcentaje * 100);
   const baldosasConMerma = ceilDiv(baldosasNecesarias * (10_000 + mermaCentesimas), 10_000);
@@ -325,9 +350,11 @@ export function calcularCotizacion(entrada: EntradaCotizacion, config: Configura
     if (!suplementosActivos.has(id)) continue;
     const suplemento = config.suplementos[id];
     if (suplemento.tipo === 'porPieza' && suplemento.precioCentimos !== null) {
+      // Solo las piezas que lo lleven (ver cabecera): sin dato, una.
+      const unidades = entrada.unidadesSuplemento[id] ?? 1;
       lineas.push({
-        concepto: `${suplemento.nombre} — ${cantidad} ud.`,
-        centimos: multiplicarCentimos(suplemento.precioCentimos, cantidad),
+        concepto: `${suplemento.nombre} — ${unidades} ud.`,
+        centimos: multiplicarCentimos(suplemento.precioCentimos, unidades),
       });
     } else if (suplemento.tipo === 'porCm' && suplemento.precioMilesimasPorCm !== null) {
       const porPieza = aplicarTarifaLineal(suplemento.precioMilesimasPorCm, longitudTarifa);

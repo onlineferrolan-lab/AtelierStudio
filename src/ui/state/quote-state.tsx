@@ -13,12 +13,19 @@ import { calcularCotizacion, figuraPorId, validarMedidasCrudas } from '../../dom
 
 export interface EstadoAtelier {
   readonly material: Material | null;
+  /** Origen del material. Arranca en 'pedido' (2026-07-30, indicación directa). */
   readonly origen: OrigenMaterial;
   readonly figuraId: string | null;
   /** Medidas crudas en cm, por id de medida de la figura. */
   readonly medidas: Readonly<Record<string, string>>;
   readonly cantidad: string;
   readonly suplementos: Readonly<Record<string, boolean>>;
+  /**
+   * Piezas a las que se aplica cada suplemento POR PIEZA (texto, como cantidad).
+   * Hoy solo «Angular»: en un tramo de escalera solo rematan las de esquina, no
+   * todas (2026-07-30). Los suplementos por cm no aparecen aquí.
+   */
+  readonly unidadesSuplemento: Readonly<Record<string, string>>;
   readonly pintado: boolean;
   /** Precio de material editado por el comercial, en € (texto). '' = usar tarifa. */
   readonly precioMaterialEditadoEuros: string;
@@ -33,6 +40,7 @@ export type AccionAtelier =
   | { tipo: 'cambiarMedida'; medida: string; valor: string }
   | { tipo: 'cambiarCantidad'; cantidad: string }
   | { tipo: 'alternarSuplemento'; suplemento: string; activo: boolean }
+  | { tipo: 'cambiarUnidadesSuplemento'; suplemento: string; unidades: string }
   | { tipo: 'cambiarPintado'; pintado: boolean }
   | { tipo: 'cambiarPrecioMaterialEditado'; euros: string }
   | { tipo: 'cambiarMerma'; porcentaje: string }
@@ -41,11 +49,12 @@ export type AccionAtelier =
 export function estadoInicial(mermaPorcentajeDefecto: number): EstadoAtelier {
   return {
     material: null,
-    origen: 'stock',
+    origen: 'pedido',
     figuraId: null,
     medidas: {},
     cantidad: '1',
     suplementos: {},
+    unidadesSuplemento: {},
     pintado: false,
     precioMaterialEditadoEuros: '',
     mermaPorcentaje: String(mermaPorcentajeDefecto),
@@ -65,6 +74,7 @@ function reductor(estado: EstadoAtelier, accion: AccionAtelier): EstadoAtelier {
         figuraId: accion.figuraId,
         medidas: {},
         suplementos: {},
+        unidadesSuplemento: {},
         pintado: false,
       };
     case 'cambiarMedida':
@@ -75,6 +85,21 @@ function reductor(estado: EstadoAtelier, accion: AccionAtelier): EstadoAtelier {
       return {
         ...estado,
         suplementos: { ...estado.suplementos, [accion.suplemento]: accion.activo },
+        // Al activarlo se propone UNA pieza; el comercial ajusta cuántas.
+        unidadesSuplemento: {
+          ...estado.unidadesSuplemento,
+          [accion.suplemento]: accion.activo
+            ? (estado.unidadesSuplemento[accion.suplemento] ?? '1')
+            : '',
+        },
+      };
+    case 'cambiarUnidadesSuplemento':
+      return {
+        ...estado,
+        unidadesSuplemento: {
+          ...estado.unidadesSuplemento,
+          [accion.suplemento]: accion.unidades,
+        },
       };
     case 'cambiarPintado':
       return { ...estado, pintado: accion.pintado };
@@ -113,6 +138,16 @@ export function useAtelier(): ContextoAtelier {
 }
 
 /**
+ * Piezas a las que se aplica un suplemento por pieza. El texto vacío o no
+ * numérico se deja pasar tal cual (NaN) para que sea el motor quien produzca el
+ * mensaje de error, igual que con la cantidad: la validación vive en un sitio.
+ */
+function unidadesDeSuplemento(estado: EstadoAtelier, id: string): number {
+  const txt = (estado.unidadesSuplemento[id] ?? '').trim();
+  return txt === '' ? Number.NaN : Number.parseInt(txt, 10);
+}
+
+/**
  * Construye la entrada del motor a partir del estado crudo.
  * Devuelve null cuando faltan datos básicos (material, figura, cantidad válida).
  */
@@ -136,6 +171,10 @@ export function construirEntrada(
   const validacion = validarMedidasCrudas(figura, estado.medidas);
   if (!validacion.ok) return { ok: false, errores: validacion.errores };
 
+  const suplementosActivos = Object.entries(estado.suplementos)
+    .filter(([, activo]) => activo)
+    .map(([id]) => id);
+
   const precioEditadoTxt = estado.precioMaterialEditadoEuros.trim().replace(',', '.');
   const precioMaterialEditado =
     precioEditadoTxt === '' ? null : eurosACentimos(Number.parseFloat(precioEditadoTxt));
@@ -151,9 +190,10 @@ export function construirEntrada(
       figuraId,
       medidasMm: validacion.medidasMm,
       cantidad,
-      suplementos: Object.entries(estado.suplementos)
-        .filter(([, activo]) => activo)
-        .map(([id]) => id),
+      suplementos: suplementosActivos,
+      unidadesSuplemento: Object.fromEntries(
+        suplementosActivos.map((id) => [id, unidadesDeSuplemento(estado, id)]),
+      ),
       pintado: estado.pintado,
       precioMaterialEditado,
       mermaPorcentaje,

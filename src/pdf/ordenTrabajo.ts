@@ -25,6 +25,7 @@ import type { Configuracion, Figura } from '../domain/config';
 import type { Centimos, Material, Mm, OrigenMaterial, ResultadoCotizacion } from '../domain/types';
 import { eurosACentimos, formatearEuros } from '../domain/money';
 import { formatearCotaCm } from '../domain/units';
+import { cajaSeccion, type SeccionPieza } from '../piezas/seccionPieza';
 
 export interface DatosOrdenTrabajo {
   readonly material: Material;
@@ -33,6 +34,11 @@ export interface DatosOrdenTrabajo {
   readonly medidasMm: Readonly<Record<string, Mm>>;
   readonly cantidad: number;
   readonly suplementosActivos: readonly string[];
+  /**
+   * Piezas a las que se aplica cada suplemento POR PIEZA («Angular»). Sin
+   * entrada se entiende UNA pieza, igual que en el motor.
+   */
+  readonly unidadesSuplemento?: Readonly<Record<string, number>>;
   readonly pintado: boolean;
   readonly precioMaterialEditadoEuros: string;
   readonly mermaPorcentaje: number;
@@ -43,6 +49,12 @@ export interface DatosOrdenTrabajo {
   readonly logoDataUrl?: string | null;
   /** Foto/textura de `material.imagenUrl` como data URL; `null`/ausente = placeholder «Sin imagen». */
   readonly imagenMaterialDataUrl?: string | null;
+  /**
+   * Sección transversal de la pieza (`construirSeccion` del visor, misma fuente
+   * que el 3D) para dibujar el croquis. `null`/ausente = sin croquis: el PDF se
+   * genera igual, solo sin el dibujo.
+   */
+  readonly seccion?: SeccionPieza | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -51,10 +63,20 @@ export interface DatosOrdenTrabajo {
 
 const ROJO_MARCA: readonly [number, number, number] = [196, 7, 49]; // #C40731
 const ROJO_CLARO: readonly [number, number, number] = [252, 233, 238]; // #FCE9EE
-const GRIS_TEXTO: readonly [number, number, number] = [71, 85, 105]; // slate-600, para valores
+/**
+ * slate-600. Se usa para las ETIQUETAS; los valores van en negro. Antes era al
+ * revés y las cifras — lo que de verdad se lee en el taller — eran lo más
+ * flojo de la hoja (2026-07-29, indicación directa).
+ */
+const GRIS_TEXTO: readonly [number, number, number] = [71, 85, 105];
 const GRIS_CLARO: readonly [number, number, number] = [241, 245, 249]; // slate-100, placeholders
 
-const URL_LOGO = '/ferrolan-logo.png';
+/**
+ * Logo de Ferrolan. Cuelga de `BASE_URL` (igual que `cabecera.tsx`): la app se
+ * sirve bajo `/atelier-studio/`, así que la ruta absoluta `/ferrolan-logo.png`
+ * daba 404 en producción y el PDF caía al texto «FERROLAN» en lugar del logo.
+ */
+const URL_LOGO = `${import.meta.env.BASE_URL}ferrolan-logo.png`;
 
 // ---------------------------------------------------------------------------
 // Constantes de maquetación (A4 vertical: 210 × 297 mm)
@@ -63,14 +85,27 @@ const URL_LOGO = '/ferrolan-logo.png';
 const ANCHO_PAGINA = 210;
 const MARGEN_X = 15;
 /** Límite inferior de escritura; al superarlo se salta de página. */
-const LIMITE_Y = 280;
+const LIMITE_Y = 285;
 /** Columna donde empiezan los valores en las filas etiqueta/valor. */
 const X_VALOR = 78;
 /** Borde derecho para importes alineados a la derecha. */
 const X_DERECHA = ANCHO_PAGINA - MARGEN_X;
-const ALTO_FILA = 5.5;
+const ALTO_FILA = 5;
 /** Foto del material: caja cuadrada a la izquierda de sus datos (§ seccionMaterial). */
 const LADO_FOTO_MATERIAL = 30;
+
+/**
+ * Formateadores es-ES compartidos: construir un `Intl.*` es caro y su salida
+ * es idéntica para las mismas opciones, así que se crean una vez por módulo en
+ * lugar de en cada fila o generación.
+ */
+const FORMATO_FECHA_LARGA = new Intl.DateTimeFormat('es-ES', {
+  dateStyle: 'long',
+  timeStyle: 'short',
+});
+const FORMATO_NUMERO_CM = new Intl.NumberFormat('es-ES', { maximumFractionDigits: 1 });
+const FORMATO_MERMA = new Intl.NumberFormat('es-ES', { maximumFractionDigits: 2 });
+const FORMATO_M2 = new Intl.NumberFormat('es-ES', { maximumFractionDigits: 3 });
 
 interface Cursor {
   y: number;
@@ -112,14 +147,13 @@ function tituloSeccion(doc: jsPDF, cur: Cursor, titulo: string): void {
 
 function filaDato(doc: jsPDF, cur: Cursor, etiqueta: string, valor: string): void {
   asegurarEspacio(doc, cur, ALTO_FILA);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.setTextColor(0, 0, 0);
-  doc.text(sanearTextoPdf(etiqueta), MARGEN_X, cur.y);
   doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
   doc.setTextColor(...GRIS_TEXTO);
-  doc.text(sanearTextoPdf(valor), X_VALOR, cur.y);
+  doc.text(sanearTextoPdf(etiqueta), MARGEN_X, cur.y);
+  doc.setFont('helvetica', 'bold');
   doc.setTextColor(0, 0, 0);
+  doc.text(sanearTextoPdf(valor), X_VALOR, cur.y);
   cur.y += ALTO_FILA;
 }
 
@@ -128,14 +162,40 @@ const ANCHO_ETIQUETA_COMPACTA = 27;
 
 /** Etiqueta + valor en una sola línea, en dos columnas fijas (junto a la foto del material). */
 function filaCompacta(doc: jsPDF, y: number, x: number, etiqueta: string, valor: string): void {
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9.5);
-  doc.setTextColor(0, 0, 0);
-  doc.text(sanearTextoPdf(etiqueta), x, y);
   doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9.5);
   doc.setTextColor(...GRIS_TEXTO);
-  doc.text(sanearTextoPdf(valor), x + ANCHO_ETIQUETA_COMPACTA, y);
+  doc.text(sanearTextoPdf(etiqueta), x, y);
+  doc.setFont('helvetica', 'bold');
   doc.setTextColor(0, 0, 0);
+  doc.text(sanearTextoPdf(valor), x + ANCHO_ETIQUETA_COMPACTA, y);
+}
+
+/**
+ * Pares etiqueta/valor repartidos en dos columnas, de izquierda a derecha y de
+ * arriba abajo. Para listas de cifras cortas (recuentos de producción), que
+ * apiladas gastan el doble de alto sin leerse mejor.
+ */
+function filasEnDosColumnas(
+  doc: jsPDF,
+  cur: Cursor,
+  pares: readonly (readonly [string, string])[],
+): void {
+  const anchoColumna = (X_DERECHA - MARGEN_X) / 2;
+  const filas = Math.ceil(pares.length / 2);
+  asegurarEspacio(doc, cur, filas * ALTO_FILA);
+  pares.forEach(([etiqueta, valor], i) => {
+    const columna = i % 2;
+    const fila = Math.floor(i / 2);
+    filaCompacta(
+      doc,
+      cur.y + fila * ALTO_FILA,
+      MARGEN_X + columna * anchoColumna,
+      etiqueta,
+      valor,
+    );
+  });
+  cur.y += filas * ALTO_FILA;
 }
 
 function filaImporte(
@@ -183,6 +243,27 @@ function dosDigitos(n: number): string {
 }
 
 /** `orden-trabajo_<referencia>_<AAAAMMDD-HHmm>.pdf` (referencia saneada para nombre de archivo). */
+/**
+ * Sello fecha-hora `AAAAMMDD-HHMM`, compartido por el nombre de archivo y el
+ * código de orden visible: así la hoja impresa y el archivo se refieren
+ * siempre a lo mismo.
+ */
+function selloFecha(f: Date): string {
+  return (
+    `${f.getFullYear()}${dosDigitos(f.getMonth() + 1)}${dosDigitos(f.getDate())}` +
+    `-${dosDigitos(f.getHours())}${dosDigitos(f.getMinutes())}`
+  );
+}
+
+/**
+ * Código de orden que se imprime en la cabecera. Sin contador en servidor (§8:
+ * sin base de datos propia en la v1) el sello fecha-hora es el identificador
+ * disponible, y basta para que taller y oficina citen la misma hoja.
+ */
+export function codigoOrdenTrabajo(datos: Pick<DatosOrdenTrabajo, 'fecha'>): string {
+  return `OT-${selloFecha(datos.fecha)}`;
+}
+
 export function nombreArchivoOrdenTrabajo(
   datos: Pick<DatosOrdenTrabajo, 'material' | 'fecha'>,
 ): string {
@@ -191,14 +272,17 @@ export function nombreArchivoOrdenTrabajo(
       .trim()
       .replace(/[^A-Za-z0-9_-]+/g, '-')
       .replace(/^-+|-+$/g, '') || 'sin-referencia';
-  const f = datos.fecha;
-  const sello = `${f.getFullYear()}${dosDigitos(f.getMonth() + 1)}${dosDigitos(f.getDate())}-${dosDigitos(f.getHours())}${dosDigitos(f.getMinutes())}`;
-  return `orden-trabajo_${referencia}_${sello}.pdf`;
+  return `orden-trabajo_${referencia}_${selloFecha(datos.fecha)}.pdf`;
 }
 
 // ---------------------------------------------------------------------------
 // Construcción del documento (pura: no llama a save() ni a fetch())
 // ---------------------------------------------------------------------------
+
+/** Número de cm del croquis (1 decimal como máximo, locale es-ES). */
+function formatearNumeroCm(valor: number): string {
+  return FORMATO_NUMERO_CM.format(valor);
+}
 
 function formatearPrecioEditado(precioMaterialEditadoEuros: string): string {
   const valor = Number.parseFloat(precioMaterialEditadoEuros.trim().replace(',', '.'));
@@ -241,14 +325,17 @@ function seccionCabecera(doc: jsPDF, cur: Cursor, datos: DatosOrdenTrabajo): voi
   doc.text('Orden de trabajo — documento interno', xTexto, yTexto);
   doc.setTextColor(0, 0, 0);
 
-  const fechaTxt = new Intl.DateTimeFormat('es-ES', { dateStyle: 'long', timeStyle: 'short' }).format(
-    datos.fecha,
-  );
+  const fechaTxt = FORMATO_FECHA_LARGA.format(datos.fecha);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9);
   doc.setTextColor(...GRIS_TEXTO);
   doc.text(`Generada: ${fechaTxt}`, X_DERECHA, cur.y + 5, { align: 'right' });
+  // Código de orden: sin él la hoja impresa no se podía citar (solo el nombre
+  // del archivo lo llevaba). Ver `codigoOrdenTrabajo`.
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
   doc.setTextColor(0, 0, 0);
+  doc.text(codigoOrdenTrabajo(datos), X_DERECHA, cur.y + 11.5, { align: 'right' });
 
   cur.y += altoCabecera + 4;
   doc.setDrawColor(...ROJO_MARCA);
@@ -373,6 +460,14 @@ function seccionMaterial(doc: jsPDF, cur: Cursor, datos: DatosOrdenTrabajo): voi
 function seccionPieza(doc: jsPDF, cur: Cursor, datos: DatosOrdenTrabajo): void {
   tituloSeccion(doc, cur, 'Pieza');
   const { figura } = datos;
+  // Croquis de la sección a la derecha: el taller necesita ver la FORMA, no solo
+  // el nombre de la figura (Figuras 1–3 solo se distinguen por el grueso de la
+  // nariz). Se ancla al inicio de la sección y el texto sigue en la izquierda.
+  if (datos.seccion) {
+    asegurarEspacio(doc, cur, ALTO_CROQUIS);
+    dibujarCroquisSeccion(doc, datos.seccion, X_DERECHA - ANCHO_CROQUIS, cur.y - 3);
+  }
+
   filaDato(doc, cur, 'Figura', sanearTextoPdf(figura.nombre));
 
   // Tabla de medidas: etiquetas de la configuración de la figura + valores en cm.
@@ -397,12 +492,98 @@ function seccionPieza(doc: jsPDF, cur: Cursor, datos: DatosOrdenTrabajo): void {
     doc.text('Suplementos', MARGEN_X, cur.y);
     cur.y += ALTO_FILA;
     for (const id of datos.suplementosActivos) {
-      const nombre = datos.config.suplementos[id]?.nombre ?? id;
-      filaDato(doc, cur, `  · ${nombre}`, 'activo');
+      const suplemento = datos.config.suplementos[id];
+      const nombre = suplemento?.nombre ?? id;
+      // Los de por pieza no van en todas: se dice en cuántas (ver DatosOrdenTrabajo).
+      const detalle =
+        suplemento?.tipo === 'porPieza'
+          ? `${datos.unidadesSuplemento?.[id] ?? 1} de ${datos.cantidad} piezas`
+          : 'toda la pieza';
+      filaDato(doc, cur, `  · ${nombre}`, detalle);
     }
   } else {
     filaDato(doc, cur, 'Suplementos', 'ninguno');
   }
+}
+
+/** Caja del croquis, a la derecha de los datos de la pieza. */
+const ANCHO_CROQUIS = 84;
+const ALTO_CROQUIS = 42;
+
+/**
+ * Croquis de la sección transversal de la pieza, con el fondo y el alto acotados.
+ *
+ * Viene de `construirSeccion` — la MISMA sección que extruye el visor 3D (ver
+ * `src/piezas/seccionPieza.ts`), así que el dibujo del taller y el modelo no
+ * pueden discrepar. Se dibuja a escala, encajado en la caja, con el frente de la
+ * pieza a la derecha (como se mira de pie ante el peldaño).
+ */
+function dibujarCroquisSeccion(
+  doc: jsPDF,
+  seccion: SeccionPieza,
+  x: number,
+  y: number,
+): void {
+  const caja = cajaSeccion(seccion);
+  const anchoUtil = caja.zMax - caja.zMin || 1;
+  const altoUtil = caja.yMax - caja.yMin || 1;
+  // Margen interior para que las cotas quepan sin salirse de la caja.
+  const margen = 9;
+  const escala = Math.min(
+    (ANCHO_CROQUIS - margen * 2) / anchoUtil,
+    (ALTO_CROQUIS - margen * 2) / altoUtil,
+  );
+  const anchoDib = anchoUtil * escala;
+  const altoDib = altoUtil * escala;
+  const x0 = x + (ANCHO_CROQUIS - anchoDib) / 2;
+  const y0 = y + (ALTO_CROQUIS - altoDib) / 2;
+  // y del PDF crece hacia abajo; la sección tiene y hacia arriba.
+  const px = (z: number): number => x0 + (z - caja.zMin) * escala;
+  const py = (yc: number): number => y0 + altoDib - (yc - caja.yMin) * escala;
+
+  // Relleno gris muy tenue + contorno, para que la forma se lea de un vistazo.
+  const contorno = seccion.contorno.map(([z, yc]) => [px(z), py(yc)] as const);
+  doc.setFillColor(...GRIS_CLARO);
+  doc.setDrawColor(0, 0, 0);
+  doc.setLineWidth(0.5);
+  const [inicio, ...resto] = contorno;
+  doc.lines(
+    resto.map(([cx, cy], i) => {
+      const previo = i === 0 ? inicio : resto[i - 1];
+      return [cx - previo[0], cy - previo[1]];
+    }),
+    inicio[0],
+    inicio[1],
+    [1, 1],
+    'FD',
+    true,
+  );
+
+  // Juntas de encolado (chaflán a 45°, dientes, retorno) a trazo fino.
+  doc.setLineWidth(0.2);
+  doc.setDrawColor(120, 120, 120);
+  for (const [[z1, y1], [z2, y2]] of seccion.juntas) {
+    doc.line(px(z1), py(y1), px(z2), py(y2));
+  }
+
+  // Cotas del envolvente: fondo abajo, alto a la izquierda.
+  doc.setLineWidth(0.2);
+  doc.setDrawColor(...GRIS_TEXTO);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.5);
+  doc.setTextColor(...GRIS_TEXTO);
+  const yCota = y0 + altoDib + 4.5;
+  doc.line(x0, yCota, x0 + anchoDib, yCota);
+  doc.text(`${formatearNumeroCm(anchoUtil)} cm`, x0 + anchoDib / 2, yCota + 3, {
+    align: 'center',
+  });
+  const xCota = x0 - 4.5;
+  doc.line(xCota, y0, xCota, y0 + altoDib);
+  doc.text(`${formatearNumeroCm(altoUtil)} cm`, xCota - 1, y0 + altoDib / 2, {
+    align: 'right',
+    baseline: 'middle',
+  });
+  doc.setTextColor(0, 0, 0);
 }
 
 function seccionProduccion(doc: jsPDF, cur: Cursor, datos: DatosOrdenTrabajo): void {
@@ -413,38 +594,35 @@ function seccionProduccion(doc: jsPDF, cur: Cursor, datos: DatosOrdenTrabajo): v
   doc.setFontSize(10);
   doc.text('Componentes de la pieza', MARGEN_X, cur.y);
   cur.y += ALTO_FILA;
-  for (const c of resultado.componentes) {
-    filaDato(
-      doc,
-      cur,
-      `  ${c.id}`,
-      `${formatearCotaCm(c.largoMm)} × ${formatearCotaCm(c.anchoMm)}`,
-    );
-  }
+  filasEnDosColumnas(
+    doc,
+    cur,
+    resultado.componentes.map(
+      (c) =>
+        [`  ${c.id}`, `${formatearCotaCm(c.largoMm)} × ${formatearCotaCm(c.anchoMm)}`] as const,
+    ),
+  );
   const { ocupacion } = resultado;
   filaDato(
     doc,
     cur,
     'Ocupación en baldosa',
     `${formatearCotaCm(ocupacion.ocupacionMm)} de ${formatearCotaCm(ocupacion.dimensionUtilMm)} · ` +
-      `${ocupacion.numCortes} cortes${ocupacion.baldosaGirada ? ' · baldosa girada 90°' : ''}`,
+      `${ocupacion.numCortes} ${ocupacion.numCortes === 1 ? 'corte' : 'cortes'}` +
+      `${ocupacion.baldosaGirada ? ' · baldosa girada 90°' : ''}`,
   );
-  filaDato(doc, cur, 'Baldosas necesarias', String(resultado.baldosasNecesarias));
-  const mermaTxt = new Intl.NumberFormat('es-ES', { maximumFractionDigits: 2 }).format(
-    datos.mermaPorcentaje,
-  );
-  filaDato(
-    doc,
-    cur,
-    'Baldosas con merma',
-    `${resultado.baldosasConMerma} (merma aplicada: ${mermaTxt} %)`,
-  );
-  filaDato(doc, cur, 'Unidades facturadas', String(resultado.unidadesFacturadas));
-  filaDato(doc, cur, 'Cajas facturadas', String(resultado.cajasFacturadas));
-  const m2Txt = new Intl.NumberFormat('es-ES', { maximumFractionDigits: 3 }).format(
-    resultado.m2Facturados,
-  );
-  filaDato(doc, cur, 'm² facturados', `${m2Txt} m²`);
+  const mermaTxt = FORMATO_MERMA.format(datos.mermaPorcentaje);
+  const m2Txt = FORMATO_M2.format(resultado.m2Facturados);
+  // Cifras de recuento en dos columnas: son cortas, y apiladas empujaban el
+  // total con IVA a una segunda página casi vacía.
+  filasEnDosColumnas(doc, cur, [
+    ['Piezas/baldosa', String(ocupacion.piezasPorBaldosa)],
+    ['Baldosas', String(resultado.baldosasNecesarias)],
+    ['Con merma', `${resultado.baldosasConMerma} (+${mermaTxt} %)`],
+    ['Unidades fact.', String(resultado.unidadesFacturadas)],
+    ['Cajas fact.', String(resultado.cajasFacturadas)],
+    ['m² facturados', `${m2Txt} m²`],
+  ]);
 }
 
 function seccionCotizacion(doc: jsPDF, cur: Cursor, datos: DatosOrdenTrabajo): void {
@@ -456,7 +634,10 @@ function seccionCotizacion(doc: jsPDF, cur: Cursor, datos: DatosOrdenTrabajo): v
     filaImporte(doc, cur, linea.concepto, linea.centimos, { sangria: 6 });
   }
   filaImporte(doc, cur, 'Arranque de máquina', desglose.arranqueCentimos);
-  asegurarEspacio(doc, cur, 3);
+  // Bloque de cierre (regla + Total sin IVA + IVA + caja del total) de una pieza:
+  // reservar su alto junta evita que el total con IVA quede huérfano en otra página.
+  const ALTO_CIERRE = 4 + 2 * ALTO_FILA + 3 + 11 + 4;
+  asegurarEspacio(doc, cur, ALTO_CIERRE);
   doc.setDrawColor(210, 210, 210);
   doc.setLineWidth(0.3);
   doc.line(MARGEN_X, cur.y, X_DERECHA, cur.y);
@@ -467,7 +648,6 @@ function seccionCotizacion(doc: jsPDF, cur: Cursor, datos: DatosOrdenTrabajo): v
   // Total con IVA: caja en rojo de marca, con aire propio, para que sea
   // inequívocamente el número que importa (no una fila más del desglose).
   const altoCaja = 11;
-  asegurarEspacio(doc, cur, altoCaja + 5);
   cur.y += 3;
   doc.setFillColor(...ROJO_MARCA);
   doc.roundedRect(MARGEN_X, cur.y, X_DERECHA - MARGEN_X, altoCaja, 1.5, 1.5, 'F');
@@ -484,6 +664,32 @@ function seccionCotizacion(doc: jsPDF, cur: Cursor, datos: DatosOrdenTrabajo): v
   cur.y += altoCaja + 4;
 }
 
+/**
+ * Pie de control de taller: quién cortó la pieza, cuándo y quién lo revisó. Son
+ * campos para rellenar A MANO sobre la hoja impresa (2026-07-29, indicación
+ * directa); la app no los guarda — el flujo de estados de órdenes queda fuera
+ * del alcance de la v1 (§8).
+ */
+function pieControl(doc: jsPDF, cur: Cursor): void {
+  const ALTO_PIE = 16;
+  asegurarEspacio(doc, cur, ALTO_PIE);
+  cur.y += 6;
+  doc.setDrawColor(...GRIS_TEXTO);
+  doc.setLineWidth(0.2);
+  const campos = ['Cortado por', 'Fecha', 'Revisado por'];
+  const ancho = (X_DERECHA - MARGEN_X) / campos.length;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8.5);
+  campos.forEach((campo, i) => {
+    const x = MARGEN_X + i * ancho;
+    doc.setTextColor(...GRIS_TEXTO);
+    doc.text(campo, x, cur.y);
+    doc.line(x + doc.getTextWidth(campo) + 2, cur.y, x + ancho - 6, cur.y);
+  });
+  doc.setTextColor(0, 0, 0);
+  cur.y += ALTO_PIE - 6;
+}
+
 /** Construye el documento jsPDF de la orden de trabajo. Función pura: no descarga ni hace fetch. */
 export function construirPdfOrdenTrabajo(datos: DatosOrdenTrabajo): jsPDF {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
@@ -494,6 +700,7 @@ export function construirPdfOrdenTrabajo(datos: DatosOrdenTrabajo): jsPDF {
   seccionPieza(doc, cur, datos);
   seccionProduccion(doc, cur, datos);
   seccionCotizacion(doc, cur, datos);
+  pieControl(doc, cur);
 
   return doc;
 }
@@ -516,11 +723,68 @@ async function cargarImagenComoDataUrl(url: string): Promise<string | null> {
   }
 }
 
+/**
+ * Caché del logo a nivel de módulo: la URL es fija (`URL_LOGO`) y TODO PDF la
+ * pide, así que re-descargarla y re-codificarla a data URL en cada generación
+ * era trabajo tirado. Solo se cachea el éxito: si la descarga falla (red
+ * caída), el siguiente PDF lo reintenta, igual que antes de la caché.
+ */
+let promesaLogo: Promise<string | null> | null = null;
+
+function cargarLogo(): Promise<string | null> {
+  promesaLogo ??= cargarImagenComoDataUrl(URL_LOGO).then((dataUrl) => {
+    if (dataUrl === null) promesaLogo = null; // fallo transitorio: no cachear, reintentar la próxima vez
+    return dataUrl;
+  });
+  return promesaLogo;
+}
+
+/**
+ * Fotos de material por URL. El caso típico es regenerar el PDF de la MISMA
+ * pieza varias veces (cambiar medidas o suplementos): la foto — que puede venir
+ * de un proveedor externo — no cambia, y se ahorra el fetch. Acotada porque el
+ * catálogo tiene ~21k artículos y sin tope se acumularían data URLs en memoria
+ * durante toda la sesión. Como con el logo, los fallos no se cachean.
+ */
+const MAX_IMAGENES_MATERIAL_CACHE = 20;
+const cacheImagenesMaterial = new Map<string, Promise<string | null>>();
+
+function cargarImagenMaterial(url: string): Promise<string | null> {
+  let promesa = cacheImagenesMaterial.get(url);
+  if (promesa === undefined) {
+    if (cacheImagenesMaterial.size >= MAX_IMAGENES_MATERIAL_CACHE) {
+      // Map itera en orden de inserción: la primera clave es la más antigua.
+      const masAntigua = cacheImagenesMaterial.keys().next().value;
+      if (masAntigua !== undefined) cacheImagenesMaterial.delete(masAntigua);
+    }
+    promesa = cargarImagenComoDataUrl(url).then((dataUrl) => {
+      if (dataUrl === null) cacheImagenesMaterial.delete(url); // fallo transitorio: reintentar la próxima vez
+      return dataUrl;
+    });
+    cacheImagenesMaterial.set(url, promesa);
+  }
+  return promesa;
+}
+
+/**
+ * Vacía las cachés de imágenes. Las cachés viven a nivel de módulo y sobreviven
+ * de un test a otro, así que sin esto un caso que ya descargó el logo hace que el
+ * siguiente no pida nada y falle al contar las llamadas a `fetch`. En la app no
+ * se usa: el módulo se carga una vez por sesión y cachear es justo lo que se
+ * quiere.
+ */
+export function reiniciarCacheImagenes(): void {
+  promesaLogo = null;
+  cacheImagenesMaterial.clear();
+}
+
 /** Genera y descarga el PDF de la orden de trabajo. Devuelve el nombre del archivo guardado. */
 export async function generarPdfOrdenTrabajo(datos: DatosOrdenTrabajo): Promise<string> {
   const [logoDataUrl, imagenMaterialDataUrl] = await Promise.all([
-    cargarImagenComoDataUrl(URL_LOGO),
-    datos.material.imagenUrl ? cargarImagenComoDataUrl(datos.material.imagenUrl) : Promise.resolve(null),
+    cargarLogo(),
+    datos.material.imagenUrl
+      ? cargarImagenMaterial(datos.material.imagenUrl)
+      : Promise.resolve(null),
   ]);
   const doc = construirPdfOrdenTrabajo({ ...datos, logoDataUrl, imagenMaterialDataUrl });
   const nombre = nombreArchivoOrdenTrabajo(datos);

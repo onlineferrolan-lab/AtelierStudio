@@ -24,7 +24,8 @@ describe('smoke e2e', () => {
           piezasPorCaja: 2, m2PorCaja: 1.44, imagenUrl: null, esManual: false,
         },
         origen: 'stock', figuraId: 'figura-1', medidasMm: v.medidasMm,
-        cantidad: 10, suplementos: ['angular-f14', 'ranuras-f14'], pintado: false,
+        cantidad: 10, suplementos: ['angular-f14', 'ranuras-f14'],
+        unidadesSuplemento: { 'angular-f14': 2 }, pintado: false,
         precioMaterialEditado: null, mermaPorcentaje: 10,
       },
       config,
@@ -38,9 +39,11 @@ describe('smoke e2e', () => {
       material: d.materialCentimos, manipulacion: d.manipulacionCentimos,
       arranque: d.arranqueCentimos, sinIva: d.totalSinIvaCentimos, conIva: d.totalConIvaCentimos,
     });
-    // 10 baldosas → 11 con merma; material 11×0,72 m²×25 € = 198 €; manipulación
-    // (0,19×100 + 2 + 0,02×100)×10 = 230 €; +60 arranque; IVA 21 %.
-    expect(d.totalSinIvaCentimos).toBe(48800);
-    expect(d.totalConIvaCentimos).toBe(59048);
+    // 10 baldosas → 11 con merma; material 11×0,72 m²×25 € = 198 €.
+    // Manipulación: (0,19×100 + 0,02×100)×10 piezas = 210 €, más el angular, que
+    // solo llevan 2 piezas (2 €×2 = 4 €) = 214 €; +60 arranque; IVA 21 %.
+    expect(d.manipulacionCentimos).toBe(21400);
+    expect(d.totalSinIvaCentimos).toBe(47200);
+    expect(d.totalConIvaCentimos).toBe(57112);
   });
 });

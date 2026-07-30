@@ -6,6 +6,7 @@
 
 import { act, fireEvent, screen } from '@testing-library/react';
 import { PasoSuplementos } from '../../../../src/ui/steps/PasoSuplementos';
+import { materialPrueba } from './config-prueba';
 import { montarPasos } from './utilidades-prueba';
 
 vi.mock('../../../../src/ui/state/config-context', async (importOriginal) => {
@@ -52,5 +53,75 @@ describe('PasoSuplementos', () => {
     const { api } = montarPasos(<PasoSuplementos />);
     act(() => api().dispatch({ tipo: 'seleccionarFigura', figuraId: 'corte' }));
     expect(screen.getByText('Esta figura no tiene suplementos.')).toBeInTheDocument();
+  });
+});
+
+/**
+ * «Angular» es un remate del extremo: en un tramo de escalera solo lo llevan las
+ * piezas de esquina, así que se elige a cuántas se aplica (2026-07-30).
+ */
+describe('PasoSuplementos — piezas con suplemento por pieza', () => {
+  function conFigura1(): ReturnType<typeof montarPasos> {
+    const montaje = montarPasos(<PasoSuplementos />);
+    act(() => montaje.api().dispatch({ tipo: 'seleccionarFigura', figuraId: 'figura-1' }));
+    return montaje;
+  }
+
+  it('solo el suplemento por pieza pide unidades; los de por cm no', () => {
+    const { api } = conFigura1();
+    expect(screen.queryByLabelText(/Piezas con Angular/)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /Angular/ }));
+    expect(screen.getByLabelText(/Piezas con Angular/)).toBeInTheDocument();
+
+    // Las ranuras van por cm: recorren la pieza entera, no se eligen unidades.
+    fireEvent.click(screen.getByRole('checkbox', { name: /Tres ranuras/ }));
+    expect(screen.queryByLabelText(/Piezas con Tres ranuras/)).not.toBeInTheDocument();
+    expect(api().estado.suplementos['ranuras-f14']).toBe(true);
+  });
+
+  it('al activarlo propone UNA pieza, no todas', () => {
+    const { api } = conFigura1();
+    act(() => api().dispatch({ tipo: 'cambiarCantidad', cantidad: '12' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /Angular/ }));
+
+    expect(screen.getByLabelText(/Piezas con Angular/)).toHaveValue('1');
+    expect(api().estado.unidadesSuplemento['angular-f14']).toBe('1');
+    expect(screen.getByText('de 12')).toBeInTheDocument();
+  });
+
+  it('el comercial cambia cuántas piezas lo llevan', () => {
+    const { api } = conFigura1();
+    act(() => api().dispatch({ tipo: 'cambiarCantidad', cantidad: '12' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: /Angular/ }));
+
+    fireEvent.change(screen.getByLabelText(/Piezas con Angular/), { target: { value: '2' } });
+    expect(api().estado.unidadesSuplemento['angular-f14']).toBe('2');
+  });
+
+  it('avisa si se aplica a más piezas de las que hay', () => {
+    const { api } = conFigura1();
+    act(() => api().dispatch({ tipo: 'seleccionarMaterial', material: materialPrueba() }));
+    act(() => api().dispatch({ tipo: 'cambiarCantidad', cantidad: '3' }));
+    for (const [medida, valor] of [
+      ['longitud', '100'],
+      ['fondo', '30'],
+      ['alturaFrontal', '4'],
+    ]) {
+      act(() => api().dispatch({ tipo: 'cambiarMedida', medida, valor }));
+    }
+    fireEvent.click(screen.getByRole('checkbox', { name: /Angular/ }));
+    fireEvent.change(screen.getByLabelText(/Piezas con Angular/), { target: { value: '5' } });
+
+    expect(screen.getByText(/a 5 piezas: solo hay 3/)).toBeInTheDocument();
+  });
+
+  it('al desmarcarlo desaparece el campo', () => {
+    conFigura1();
+    const angular = screen.getByRole('checkbox', { name: /Angular/ });
+    fireEvent.click(angular);
+    expect(screen.getByLabelText(/Piezas con Angular/)).toBeInTheDocument();
+    fireEvent.click(angular);
+    expect(screen.queryByLabelText(/Piezas con Angular/)).not.toBeInTheDocument();
   });
 });

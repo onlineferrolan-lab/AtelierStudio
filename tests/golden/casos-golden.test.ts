@@ -41,6 +41,11 @@ interface CasoDorado {
   medidasCm: Record<string, string>;
   cantidad: number;
   suplementos: string[];
+  /**
+   * A cuántas piezas se aplica cada suplemento POR PIEZA (hoy solo «Angular»).
+   * Opcional: sin él, cada suplemento por pieza se cobra a UNA pieza.
+   */
+  unidadesSuplemento?: Record<string, number>;
   pintado: boolean;
   precioMaterialEditadoEuros: number | null;
   mermaPorcentaje: number;
@@ -55,6 +60,7 @@ interface CasoDorado {
     ocupacionMm?: number;
     dimensionUtilMm?: number;
     baldosaGirada?: boolean;
+    piezasPorBaldosa?: number;
     precioMaterialOriginal?: number;
     materialCentimos?: number;
     manipulacionCentimos?: number;
@@ -87,6 +93,7 @@ function camposDelResultado(r: ResultadoCotizacion): Record<string, number | boo
     ocupacionMm: r.ocupacion.ocupacionMm,
     dimensionUtilMm: r.ocupacion.dimensionUtilMm,
     baldosaGirada: r.ocupacion.baldosaGirada,
+    piezasPorBaldosa: r.ocupacion.piezasPorBaldosa,
     precioMaterialOriginal: r.precioMaterialOriginal,
     materialCentimos: r.desglose.materialCentimos,
     manipulacionCentimos: r.desglose.manipulacionCentimos,
@@ -139,6 +146,7 @@ function ejecutarCaso(caso: CasoDorado): SalidaMotor {
       medidasMm: validacion.medidasMm,
       cantidad: caso.cantidad,
       suplementos: caso.suplementos,
+      unidadesSuplemento: caso.unidadesSuplemento ?? {},
       pintado: caso.pintado,
       precioMaterialEditado:
         caso.precioMaterialEditadoEuros === null

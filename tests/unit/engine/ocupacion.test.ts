@@ -91,11 +91,51 @@ describe('evaluarOcupacion — giro de 90° (regla PROVISIONAL: se prueban ambas
       expect(r.detalle.dimensionUtilMm).toBe(1000);
     }
   });
-
   it('prefiere la orientación natural cuando cabe en ambas', () => {
     const r = evaluarOcupacion(componentesF2(500, 300, 40), formato(600, 600), parametros);
     expect(r.ok).toBe(true);
     if (r.ok) expect(r.detalle.baldosaGirada).toBe(false);
+  });
+});
+
+describe('evaluarOcupacion — empaquetado: piezas por baldosa (dirección 2026-07-28)', () => {
+  it('pieza grande que apenas cabe → 1 pieza por baldosa', () => {
+    // Figura 2 50×35,5 cm en baldosa 60×60: floor(591/346)=1 × floor(603/503)=1 → 1.
+    const r = evaluarOcupacion(componentesF2(500, 300, 40), formato(600, 600), parametros);
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.detalle.piezasPorBaldosa).toBe(1);
+  });
+
+  it('el ejemplo del encargo: piezas de 10×10 cm en baldosa 110×110 → 100 por baldosa', () => {
+    // a lo ancho floor((1100−10−2+3)/103) = 10; a lo largo floor((1100+3)/103) = 10.
+    const r = evaluarOcupacion(
+      [{ id: 'pieza', largoMm: mm(100), anchoMm: mm(100) }],
+      formato(1100, 1100),
+      parametros,
+    );
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.detalle.piezasPorBaldosa).toBe(100);
+  });
+
+  it('listones (rodapié) de 50×7,2 cm en baldosa 60×60 → 7 por baldosa', () => {
+    // a lo ancho floor((600−10−2+3)/75) = 7; a lo largo floor(603/503) = 1.
+    const r = evaluarOcupacion(
+      [{ id: 'liston', largoMm: mm(500), anchoMm: mm(72) }],
+      formato(600, 600),
+      parametros,
+    );
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.detalle.piezasPorBaldosa).toBe(7);
+  });
+
+  it('el empaquetado se calcula en la orientación elegida (también girada)', () => {
+    // Girada: colocación a lo largo (1000): floor(991/346) = 2; largos (330): floor(333/303) = 1.
+    const r = evaluarOcupacion(componentesF2(300, 300, 40), formato(1000, 330), parametros);
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(r.detalle.baldosaGirada).toBe(true);
+      expect(r.detalle.piezasPorBaldosa).toBe(2);
+    }
   });
 });
 

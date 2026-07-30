@@ -95,7 +95,10 @@ describe('resolverTarifa — tarifas del PDF por figura (§2)', () => {
   );
 
   it('figura sin tarifa (pendiente, §6) lanza error de configuración', () => {
-    expect(() => resolverTarifa(figura('figura-5'), {}, false, config)).toThrow(/no tiene tarifa/);
+    // Sin figuras pendientes en la configuración real (retiradas 2026-07-29):
+    // el caso se reproduce con una figura sintética sin regla de tarifa.
+    const sinTarifa: Figura = { ...figura('figura-2'), tarifa: null };
+    expect(() => resolverTarifa(sinTarifa, {}, false, config)).toThrow(/no tiene tarifa/);
   });
 });
 
@@ -112,6 +115,9 @@ describe('longitudTarifaMm', () => {
   });
 
   it('figura sin regla de longitud (pendiente) lanza error de configuración', () => {
-    expect(() => longitudTarifaMm(figura('pasamanos'), {})).toThrow(/no tiene regla de longitud/);
+    // Las figuras pendientes se retiraron de la galería (2026-07-29); el caso
+    // se reproduce con una figura sintética sin regla de longitud (§6.5/§6.6).
+    const sinLongitud: Figura = { ...figura('figura-2'), longitudTarifa: null };
+    expect(() => longitudTarifaMm(sinLongitud, {})).toThrow(/no tiene regla de longitud/);
   });
 });

@@ -10,7 +10,8 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
 
   return {
-    // La app vive bajo https://studio.ferrolan.es/atelier-studio/ (Plesk). Todas
+    // La app vive bajo https://studio.ferrolan.es/atelier-studio/ (Plesk sirve
+    // la subcarpeta del docroot automáticamente, sin directivas extra). Todas
     // las rutas de estáticos del código cuelgan de import.meta.env.BASE_URL.
     // Para un despliegue en raíz (p. ej. Docker con nginx.conf.template):
     // BASE_PUBLICA=/ (variable de entorno; el flag --base=/ se rompe en
@@ -38,14 +39,21 @@ export default defineConfig(({ mode }) => {
       },
     },
     build: {
-      sourcemap: true,
+      // Los sourcemaps pesaban 4,9 MB en `dist` y publicaban el código fuente.
+      // Se generan solo si se piden a propósito (SOURCEMAPS=1) para depurar un
+      // despliegue concreto.
+      sourcemap: env.SOURCEMAPS === '1',
       rollupOptions: {
         output: {
           // Separa las dependencias pesadas en chunks propios (avisos >500 kB).
+          // Solo react va en un chunk propio: es lo único que se carga siempre.
+          // three y jspdf NO se listan aquí a propósito — declararlos como
+          // manualChunks los metía en el grafo inicial y Vite les ponía un
+          // <link rel="modulepreload">, así que se descargaban en la primera
+          // pantalla pese a importarse de forma dinámica. Dejando que Rollup los
+          // parta solo, quedan como chunks asíncronos de verdad.
           manualChunks: {
             react: ['react', 'react-dom'],
-            three: ['three'],
-            jspdf: ['jspdf'],
           },
         },
       },

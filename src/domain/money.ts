@@ -63,7 +63,13 @@ export function aplicarPorcentaje(importe: Centimos, porcentaje: number): Centim
   return centimos(Math.round((importe * porcentaje) / 100));
 }
 
+/**
+ * Formateador de moneda compartido: construir un `Intl.NumberFormat` es caro
+ * (~60× más que formatear), así que se crea una sola vez por módulo.
+ */
+const formatoMoneda = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' });
+
 /** Formatea céntimos como "1.234,56 €" (es-ES). */
 export function formatearEuros(c: Centimos): string {
-  return new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' }).format(c / 100);
+  return formatoMoneda.format(c / 100);
 }
