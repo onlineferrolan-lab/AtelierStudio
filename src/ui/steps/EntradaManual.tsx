@@ -1,7 +1,8 @@
 /**
  * Subsección plegable «Entrada manual» del paso ① (§1.①): da de alta cerámica
  * que no está ni en ERP ni en PrestaShop, con los campos mínimos decididos
- * (descripción, largo × ancho en cm, precio €/unidad e imagen opcional) y la
+ * (descripción, largo × ancho en cm, precio €/unidad, piezas por caja, subfamilia
+ * opcional e imagen opcional) y la
  * selecciona como material de la cotización. El material queda marcado como
  * manual (lo crea `crearMaterialManual`, capa de datos).
  */
@@ -16,10 +17,20 @@ type CamposManual = {
   largo: string;
   ancho: string;
   precio: string;
+  piezasPorCaja: string;
+  subfamilia: string;
   imagen: string;
 };
 
-const CAMPOS_VACIOS: CamposManual = { descripcion: '', largo: '', ancho: '', precio: '', imagen: '' };
+const CAMPOS_VACIOS: CamposManual = {
+  descripcion: '',
+  largo: '',
+  ancho: '',
+  precio: '',
+  piezasPorCaja: '',
+  subfamilia: '',
+  imagen: '',
+};
 
 /** Número tecleado por el comercial (admite coma decimal). Null si no es válido. */
 function parsearNumero(texto: string): number | null {
@@ -44,6 +55,7 @@ export function EntradaManual({ alCrear }: { alCrear: (material: Material) => vo
     const largoCm = parsearNumero(campos.largo);
     const anchoCm = parsearNumero(campos.ancho);
     const precioUnidadEuros = parsearNumero(campos.precio);
+    const piezasPorCaja = parsearNumero(campos.piezasPorCaja);
 
     const nuevosErrores: Partial<Record<keyof CamposManual, string>> = {};
     if (descripcion === '') nuevosErrores.descripcion = 'La descripción es obligatoria.';
@@ -56,7 +68,19 @@ export function EntradaManual({ alCrear }: { alCrear: (material: Material) => vo
     if (precioUnidadEuros == null || precioUnidadEuros < 0) {
       nuevosErrores.precio = 'Introduce un precio en €/unidad (0 o mayor).';
     }
+    // Obligatorio: se factura por cajas completas, así que sin este dato no se cotiza.
+    if (piezasPorCaja == null || !Number.isInteger(piezasPorCaja) || piezasPorCaja < 1) {
+      nuevosErrores.piezasPorCaja = 'Introduce cuántas piezas trae la caja (entero, 1 o más).';
+    }
+    // Subfamilia: opcional y sin efecto en el cálculo, pero si se rellena tiene
+    // que ser un número entero (es un id del ERP, no texto libre).
+    const subfamiliaTxt = campos.subfamilia.trim();
+    const subfamilia = subfamiliaTxt === '' ? null : parsearNumero(subfamiliaTxt);
+    if (subfamiliaTxt !== '' && (subfamilia == null || !Number.isInteger(subfamilia) || subfamilia < 0)) {
+      nuevosErrores.subfamilia = 'La subfamilia es un número entero; déjala vacía si no la sabes.';
+    }
     setErrores(nuevosErrores);
+    // Condición explícita (no `Object.keys(...)`) para que TypeScript estreche los nulos.
     if (
       descripcion === '' ||
       largoCm == null ||
@@ -64,7 +88,11 @@ export function EntradaManual({ alCrear }: { alCrear: (material: Material) => vo
       anchoCm == null ||
       anchoCm <= 0 ||
       precioUnidadEuros == null ||
-      precioUnidadEuros < 0
+      precioUnidadEuros < 0 ||
+      piezasPorCaja == null ||
+      !Number.isInteger(piezasPorCaja) ||
+      piezasPorCaja < 1 ||
+      nuevosErrores.subfamilia != null
     ) {
       return;
     }
@@ -75,6 +103,8 @@ export function EntradaManual({ alCrear }: { alCrear: (material: Material) => vo
         largoCm,
         anchoCm,
         precioUnidadEuros,
+        piezasPorCaja,
+        subfamilia,
         imagenUrl: campos.imagen.trim() === '' ? null : campos.imagen.trim(),
       });
       alCrear(material);
@@ -105,7 +135,9 @@ export function EntradaManual({ alCrear }: { alCrear: (material: Material) => vo
         <div className="space-y-3 border-t border-slate-100 px-3 py-3">
           <p className="text-xs text-slate-500">
             Para cerámica que no está ni en ERP ni en PrestaShop (§1.①). El material se marca como
-            MANUAL y se tarifa por unidad.
+            MANUAL y se tarifa por unidad. Las piezas por caja hacen falta porque se factura por
+            cajas completas; los m² por caja se calculan solos a partir del formato. La subfamilia
+            es opcional y hoy no afecta al precio: se guarda para el margen comercial futuro.
           </p>
           <Campo etiqueta="Descripción" error={errores.descripcion}>
             <input
@@ -134,12 +166,30 @@ export function EntradaManual({ alCrear }: { alCrear: (material: Material) => vo
               />
             </Campo>
           </div>
-          <Campo etiqueta="Precio (€/unidad)" error={errores.precio}>
+          <div className="grid grid-cols-2 gap-3">
+            <Campo etiqueta="Precio (€/unidad)" error={errores.precio}>
+              <EntradaNumero
+                valor={campos.precio}
+                alCambiar={actualiza('precio')}
+                invalido={errores.precio != null}
+                placeholder="0,00"
+              />
+            </Campo>
+            <Campo etiqueta="Piezas por caja" error={errores.piezasPorCaja}>
+              <EntradaNumero
+                valor={campos.piezasPorCaja}
+                alCambiar={actualiza('piezasPorCaja')}
+                invalido={errores.piezasPorCaja != null}
+                placeholder="6"
+              />
+            </Campo>
+          </div>
+          <Campo etiqueta="Subfamilia (opcional)" error={errores.subfamilia}>
             <EntradaNumero
-              valor={campos.precio}
-              alCambiar={actualiza('precio')}
-              invalido={errores.precio != null}
-              placeholder="0,00"
+              valor={campos.subfamilia}
+              alCambiar={actualiza('subfamilia')}
+              invalido={errores.subfamilia != null}
+              placeholder="p. ej. 1420"
             />
           </Campo>
           <Campo etiqueta="Imagen (URL, opcional)">

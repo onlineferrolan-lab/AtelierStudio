@@ -44,16 +44,22 @@ export interface Material {
   readonly precioM2Centimos: Centimos | null;
   /** Precio por baldosa para material de entrada manual. */
   readonly precioUnidadCentimos: Centimos | null;
-  /** Dato logístico del ERP para material a pedido (cajas completas). */
+  /** Dato logístico para facturar por cajas completas. Obligatorio para cotizar. */
   readonly piezasPorCaja: number | null;
   readonly m2PorCaja: number | null;
+  /**
+   * Subfamilia del artículo (id numérico del ERP). **No se usa en ningún
+   * cálculo todavía** (2026-07-30): se recoge para poder aplicar el margen
+   * comercial en el futuro, que dependerá del fabricante/familia
+   * (ver PENDIENTES.md §6). Hoy solo la rellena el alta manual; los artículos
+   * del catálogo la traen a `null` porque el contrato del API no la expone.
+   */
+  readonly subfamilia: number | null;
   /** URL de la textura/imagen (web service PrestaShop). Null si no hay. */
   readonly imagenUrl: string | null;
   /** true cuando la pieza no está ni en ERP ni en PrestaShop y se da de alta a mano. */
   readonly esManual: boolean;
 }
-
-export type OrigenMaterial = 'stock' | 'pedido';
 
 // ---------------------------------------------------------------------------
 // Figuras y medidas
@@ -74,7 +80,6 @@ export type SuplementosActivos = Readonly<Record<string, boolean>>;
 
 export interface EntradaCotizacion {
   readonly material: Material;
-  readonly origen: OrigenMaterial;
   readonly figuraId: string;
   /** Medidas ya convertidas a milímetros enteros. */
   readonly medidasMm: Readonly<Record<string, Mm>>;
@@ -157,9 +162,9 @@ export interface ResultadoCotizacion {
   readonly baldosasNecesarias: number;
   /** Baldosas tras aplicar el % de merma (redondeo hacia arriba). */
   readonly baldosasConMerma: number;
-  /** Piezas (stock) o piezas dentro de cajas completas (pedido) facturadas. */
+  /** Piezas facturadas: las de las cajas completas, sobrante incluido. */
   readonly unidadesFacturadas: number;
-  /** Cajas facturadas (solo origen 'pedido'; 0 en 'stock'). */
+  /** Cajas completas facturadas; siempre ≥ 1 (se factura por cajas). */
   readonly cajasFacturadas: number;
   readonly m2Facturados: number;
   readonly lineasManipulacion: readonly LineaManipulacion[];

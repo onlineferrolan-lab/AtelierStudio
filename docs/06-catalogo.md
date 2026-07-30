@@ -64,7 +64,7 @@ se hace en el punto de entrada con `eurosACentimos` y `cmAMm`; prohibido float).
 | `formato` | `{ largoMm, anchoMm }`, enteros |
 | `precioM2Centimos` | Tarifa TARP (€/m²); `null` en material manual |
 | `precioUnidadCentimos` | Precio por baldosa; solo en material manual |
-| `piezasPorCaja` / `m2PorCaja` | Logística para material a pedido (cajas completas) |
+| `piezasPorCaja` / `m2PorCaja` | Logística de facturación: **obligatorios**, todo se factura por cajas completas |
 | `imagenUrl` | Textura/imagen; `null` si no hay |
 | `esManual` | `true` si se dio de alta a mano |
 
@@ -255,9 +255,15 @@ parte del cálculo ni afecta al determinismo), `esManual: true` y `precioM2Centi
 material manual **se tarifa por unidad, sin tarifa TARP por m²**. La UI valida los campos antes
 de llamar a la capa de datos, y si esta aún así lanza, muestra el mensaje sin romperse.
 
-Limitación conocida: el alta manual no recoge piezas/caja ni m²/caja, así que un material manual
-con origen «pedido» es hoy un error de validación. Si se permite ese flujo y con qué datos está
-pendiente de decisión (PENDIENTES.md §4, «Material manual con origen "pedido"»).
+El alta manual pide además una **subfamilia** opcional (id numérico, 2026-07-30). Hoy **no entra en
+ningún cálculo**: se recoge para poder aplicar el margen comercial en el futuro, que dependerá del
+fabricante/familia (`PENDIENTES.md` §6). Los artículos del catálogo la traen a `null` porque el
+contrato del API no la expone; si el margen va a depender de ella, habrá que pedirla al ERP.
+
+El alta manual **sí** pide «piezas por caja» (2026-07-30): al facturarse todo por cajas completas,
+sin ese dato el material no se podría cotizar. Los m²/caja no se piden, se **derivan** del formato
+(`piezas × largo × ancho`): es exacto, sobrevive a la cuantización a mm² del motor y evita que el
+comercial teclee un par de datos incoherente.
 
 ## Imágenes PrestaShop y fallback de textura
 
@@ -301,5 +307,4 @@ probar la búsqueda y el mapeo sin red.
 - [Despliegue](./11-despliegue.md) — nginx, Docker y la `location /api/cataleg/` en producción.
 - [README.md](../README.md) — puesta en marcha y variables de entorno (`.env.example`).
 - [PENDIENTES.md](../PENDIENTES.md) §4 («Datos y catálogo») — decisiones abiertas: endpoint de
-  listado/búsqueda, nombre de marca, tarifas `tarc`/`tara`/`taradc`, patrón de imágenes y material
-  manual a pedido.
+  listado/búsqueda, nombre de marca, tarifas `tarc`/`tara`/`taradc` y patrón de imágenes.

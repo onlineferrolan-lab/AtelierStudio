@@ -17,7 +17,7 @@ contenido. Empieza por el índice de abajo o por una de las rutas de lectura sug
 | [Primeros pasos](./02-primeros-pasos.md) | Instalación, arranque en local y comandos `npm` | Desarrollo |
 | [Arquitectura](./03-arquitectura.md) | Mapa del código (`src/domain`, `src/data`, `src/viewer`, `src/pdf`, `src/ui`) y reglas de oro | Desarrollo |
 | [Configuración](./04-configuracion.md) | JSON de `public/config/` (tarifas, figuras, parámetros) y variables de `.env` | Taller/dirección y desarrollo |
-| [Motor de cálculo](./05-motor-de-calculo.md) | Motor puro de `src/domain/engine/`: validación, ocupación, merma, stock/pedido y desglose | Desarrollo |
+| [Motor de cálculo](./05-motor-de-calculo.md) | Motor puro de `src/domain/engine/`: validación, ocupación, merma, facturación por cajas y desglose | Desarrollo |
 | [Catálogo](./06-catalogo.md) | Fuentes de materiales: cataleg real vía `/api/cataleg/`, índice local, PrestaShop, muestra y entrada manual | Desarrollo |
 | [Visor 3D](./07-visor-3d.md) | Visor paramétrico con three.js: geometría por figura, cotas y texturas | Desarrollo |
 | [PDF de orden de trabajo](./08-pdf-orden-trabajo.md) | Generación de la orden de trabajo con jsPDF: contenido y condiciones | Desarrollo |

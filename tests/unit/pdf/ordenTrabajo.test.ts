@@ -100,6 +100,7 @@ const material: Material = {
   precioUnidadCentimos: null,
   piezasPorCaja: 2,
   m2PorCaja: 1.44,
+  subfamilia: null,
   imagenUrl: null,
   esManual: false,
 };
@@ -118,27 +119,28 @@ const resultado: ResultadoCotizacion = {
   },
   baldosasNecesarias: 4,
   baldosasConMerma: 5,
-  unidadesFacturadas: 5,
-  cajasFacturadas: 0,
-  m2Facturados: 3.6,
+  // Coherente con la facturación por cajas: 5 baldosas / 2 por caja → 3 cajas
+  // (6 piezas, 4,32 m²). `cajasFacturadas: 0` ya no es un estado posible.
+  unidadesFacturadas: 6,
+  cajasFacturadas: 3,
+  m2Facturados: 4.32,
   lineasManipulacion: [
     { concepto: 'Figura 1 — frontal ≤ 5 cm · 1000 cm lineales', centimos: centimos(19000) },
     { concepto: 'Angular · 5 piezas', centimos: centimos(1000) },
   ],
   desglose: {
-    materialCentimos: centimos(6660),
+    materialCentimos: centimos(7992), // 4,32 m² × 18,50 €/m²
     manipulacionCentimos: centimos(20000),
     arranqueCentimos: centimos(6000),
-    totalSinIvaCentimos: centimos(32660),
-    ivaCentimos: centimos(6859),
-    totalConIvaCentimos: centimos(39519),
+    totalSinIvaCentimos: centimos(33992),
+    ivaCentimos: centimos(7138), // half-up de 339,92 × 0,21 = 71,3832
+    totalConIvaCentimos: centimos(41130),
   },
   precioMaterialOriginal: centimos(1850),
 };
 
 const datosBase: DatosOrdenTrabajo = {
   material,
-  origen: 'stock',
   figura,
   medidasMm: { longitud: mm(1000), fondo: mm(300), alturaFrontal: mm(40) },
   cantidad: 5,
@@ -198,6 +200,43 @@ describe('croquis de la pieza y código de orden', () => {
     expect(construirPdfOrdenTrabajo({ ...datosBase, seccion: null }).getNumberOfPages()).toBe(1);
   });
 
+  it('con comentarios, sigue siendo una sola página', () => {
+    const doc = construirPdfOrdenTrabajo({
+      ...datosBase,
+      comentarios:
+        'Cortar el frontal a 45° en las dos piezas de esquina. El cliente recoge el ' +
+        'viernes en Castellbisbal; avisar a Marcel. Ojo con la veta: las 12 piezas ' +
+        'tienen que salir de la misma partida y sin mezclar tonos.',
+    });
+    expect(doc.getNumberOfPages()).toBe(1);
+  });
+
+  it('sin comentarios no se imprime el bloque y cabe igual', () => {
+    expect(construirPdfOrdenTrabajo({ ...datosBase, comentarios: '' }).getNumberOfPages()).toBe(1);
+    expect(construirPdfOrdenTrabajo({ ...datosBase, comentarios: '   ' }).getNumberOfPages()).toBe(1);
+  });
+
+  it('el peor caso (4 suplementos + comentarios largos) sigue en una página', () => {
+    const doc = construirPdfOrdenTrabajo({
+      ...datosBase,
+      suplementosActivos: ['angular-f14', 'ranuras-f14', 'goteron-f14', 'espesado-f14'],
+      unidadesSuplemento: { 'angular-f14': 2 },
+      comentarios: 'Aviso largo. '.repeat(30),
+      resultado: {
+        ...resultado,
+        lineasManipulacion: [
+          ...resultado.lineasManipulacion,
+          { concepto: 'Ranura (goterón) — 50 cm × 5 ud.', centimos: centimos(500) },
+          { concepto: 'Material espesado — 50 cm × 5 ud.', centimos: centimos(1500) },
+          { concepto: 'Tres ranuras antideslizantes — 50 cm × 5 ud.', centimos: centimos(500) },
+        ],
+      },
+      logoDataUrl: PNG_1X1,
+      imagenMaterialDataUrl: PNG_1X1,
+    });
+    expect(doc.getNumberOfPages()).toBe(1);
+  });
+
   it('el código de orden usa el mismo sello fecha-hora que el nombre del archivo', () => {
     expect(codigoOrdenTrabajo(datosBase)).toBe('OT-20260609-1407');
     expect(nombreArchivoOrdenTrabajo(datosBase)).toContain('20260609-1407');
@@ -210,7 +249,7 @@ describe('construirPdfOrdenTrabajo', () => {
     expect(doc.getNumberOfPages()).toBeGreaterThanOrEqual(1);
   });
 
-  it('genera también con material manual, precio editado, origen pedido y croquis provisional', () => {
+  it('genera también con material manual, precio editado y croquis provisional', () => {
     const materialManual: Material = {
       referencia: 'MANUAL-01',
       descripcion: 'Pieza suelta de almacén',
@@ -220,13 +259,13 @@ describe('construirPdfOrdenTrabajo', () => {
       precioUnidadCentimos: eurosACentimos(9.75),
       piezasPorCaja: null,
       m2PorCaja: null,
+      subfamilia: null,
       imagenUrl: null,
       esManual: true,
     };
     const datos: DatosOrdenTrabajo = {
       ...datosBase,
       material: materialManual,
-      origen: 'pedido',
       pintado: true,
       precioMaterialEditadoEuros: '8,50',
       mermaPorcentaje: 12.5,

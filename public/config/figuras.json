@@ -21,7 +21,7 @@
         {
           "id": "alturaFrontal",
           "etiqueta": "Altura frontal (cm)",
-          "minCm": 1
+          "minCm": 4
         }
       ],
       "componentes": [
@@ -75,7 +75,7 @@
         {
           "id": "alturaFrontal",
           "etiqueta": "Altura frontal (cm)",
-          "minCm": 1
+          "minCm": 4
         }
       ],
       "componentes": [
@@ -126,7 +126,7 @@
         {
           "id": "alturaFrontal",
           "etiqueta": "Altura frontal (cm)",
-          "minCm": 1
+          "minCm": 4
         }
       ],
       "componentes": [
@@ -177,7 +177,7 @@
         {
           "id": "alturaFrontal",
           "etiqueta": "Altura frontal (cm)",
-          "minCm": 1
+          "minCm": 4
         },
         {
           "id": "retorno",
@@ -279,7 +279,7 @@
         {
           "id": "alturaFrontal",
           "etiqueta": "Altura frontal (cm)",
-          "minCm": 1
+          "minCm": 4
         }
       ],
       "componentes": [
@@ -338,7 +338,7 @@
         {
           "id": "alturaFrontal",
           "etiqueta": "Altura frontal (cm)",
-          "minCm": 1
+          "minCm": 4
         }
       ],
       "componentes": [
@@ -394,7 +394,7 @@
         {
           "id": "alturaFrontal",
           "etiqueta": "Altura frontal (cm)",
-          "minCm": 1
+          "minCm": 4
         }
       ],
       "componentes": [
@@ -450,7 +450,7 @@
         {
           "id": "alturaFrontal",
           "etiqueta": "Altura frontal (cm)",
-          "minCm": 1
+          "minCm": 4
         },
         {
           "id": "retorno",

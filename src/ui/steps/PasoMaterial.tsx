@@ -6,24 +6,20 @@
  *   es de entrada manual) con acciones «Cambiar» (abre la pestaña Catálogo
  *   del panel derecho) y «Quitar».
  * - Sin material: botón grande «Seleccionar del catálogo».
- * - Origen del material: Stock / Pedido (afecta al redondeo de la facturación,
- *   §4; se explica con tooltip).
  * - Subsección plegable «Entrada manual» para cerámica fuera de ERP/PrestaShop.
+ *
+ * Ya NO hay selector de origen (stock/pedido): desde 2026-07-30 todo se factura
+ * por cajas completas, así que el origen no cambiaba ningún importe y sobraba.
  */
 
 import type { Material } from '../../domain/types';
 import { useAtelier } from '../state/quote-state';
 import { usePanelDerecho } from '../shell/panel';
 import { usePasoCompletado, usePasos } from '../state/pasos-context';
-import { Boton, ControlSegmentado, Insignia, PasoCard } from '../components/primitivas';
-import { CampoGrupo } from './CampoGrupo';
+import { Boton, Insignia, PasoCard } from '../components/primitivas';
 import { EntradaManual } from './EntradaManual';
 import { ImagenMaterial } from './ImagenMaterial';
 import { formatoMaterialTexto, cajaMaterialTexto, precioMaterialTexto } from './materialUtil';
-
-const AYUDA_ORIGEN =
-  'Pedido: se piden cajas completas al proveedor y todo el sobrante se cobra al cliente. ' +
-  'Stock: la pieza sale de una caja ya abierta en almacén y se factura por piezas (§4).';
 
 // ---------------------------------------------------------------------------
 // Tarjeta-resumen del material seleccionado
@@ -92,24 +88,6 @@ export function PasoMaterial(): JSX.Element {
           Seleccionar del catálogo
         </Boton>
       )}
-
-      <div className="mt-4">
-        <CampoGrupo etiqueta="Origen del material" ayuda={AYUDA_ORIGEN}>
-          <div>
-            <ControlSegmentado
-              // Pedido primero y por defecto (2026-07-30, indicación directa):
-              // es el caso habitual, el de stock es la excepción.
-              opciones={[
-                { valor: 'pedido' as const, etiqueta: 'Pedido' },
-                { valor: 'stock' as const, etiqueta: 'Stock' },
-              ]}
-              valor={estado.origen}
-              alCambiar={(origen) => dispatch({ tipo: 'cambiarOrigen', origen })}
-              ariaLabel="Origen del material"
-            />
-          </div>
-        </CampoGrupo>
-      </div>
 
       <EntradaManual alCrear={(m) => dispatch({ tipo: 'seleccionarMaterial', material: m })} />
     </PasoCard>

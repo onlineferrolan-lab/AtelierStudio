@@ -1,8 +1,8 @@
 /**
  * Layout principal de Atelier Studio, fiel a Top Studio (§1):
  *
- *  - Columna izquierda (~420-480 px) con los pasos ①-④ y, debajo, el bloque
- *    COTIZACIÓN siempre visible.
+ *  - Columna izquierda (~420-480 px) con los pasos ①-④, los comentarios para
+ *    taller y, debajo, el bloque COTIZACIÓN siempre visible.
  *  - Panel derecho con pestañas Catálogo | Visor 3D (primitiva `Pestanas` +
  *    estado de `ProveedorPanel`): la pestaña Catálogo renderiza
  *    `<CatalogoPanel/>` y la pestaña Visor 3D renderiza `<VisorPieza/>` con la
@@ -19,6 +19,7 @@ import { Pestanas } from '../components/primitivas';
 import { useConfig } from '../state/config-context';
 import { useAtelier, useMedidasValidadas } from '../state/quote-state';
 import { CatalogoPanel } from '../steps/CatalogoPanel';
+import { Comentarios } from '../steps/Comentarios';
 import { PasoFigura } from '../steps/PasoFigura';
 import { PasoMaterial } from '../steps/PasoMaterial';
 import { PasoMedidas } from '../steps/PasoMedidas';
@@ -55,6 +56,7 @@ export function ShellAtelier(): JSX.Element {
             <PasoFigura />
             <PasoMedidas />
             <PasoSuplementos />
+            <Comentarios />
             <PanelCotizacion />
           </div>
           <PanelDerecho />

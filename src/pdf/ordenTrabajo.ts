@@ -22,14 +22,13 @@
 
 import { jsPDF } from 'jspdf';
 import type { Configuracion, Figura } from '../domain/config';
-import type { Centimos, Material, Mm, OrigenMaterial, ResultadoCotizacion } from '../domain/types';
+import type { Centimos, Material, Mm, ResultadoCotizacion } from '../domain/types';
 import { eurosACentimos, formatearEuros } from '../domain/money';
 import { formatearCotaCm } from '../domain/units';
 import { cajaSeccion, type SeccionPieza } from '../piezas/seccionPieza';
 
 export interface DatosOrdenTrabajo {
   readonly material: Material;
-  readonly origen: OrigenMaterial;
   readonly figura: Figura;
   readonly medidasMm: Readonly<Record<string, Mm>>;
   readonly cantidad: number;
@@ -42,6 +41,8 @@ export interface DatosOrdenTrabajo {
   readonly pintado: boolean;
   readonly precioMaterialEditadoEuros: string;
   readonly mermaPorcentaje: number;
+  /** Comentarios libres del comercial para taller ('' = no se imprime el bloque). */
+  readonly comentarios?: string;
   readonly resultado: ResultadoCotizacion;
   readonly config: Configuracion;
   readonly fecha: Date;
@@ -62,7 +63,6 @@ export interface DatosOrdenTrabajo {
 // ---------------------------------------------------------------------------
 
 const ROJO_MARCA: readonly [number, number, number] = [196, 7, 49]; // #C40731
-const ROJO_CLARO: readonly [number, number, number] = [252, 233, 238]; // #FCE9EE
 /**
  * slate-600. Se usa para las ETIQUETAS; los valores van en negro. Antes era al
  * revés y las cifras — lo que de verdad se lee en el taller — eran lo más
@@ -70,6 +70,7 @@ const ROJO_CLARO: readonly [number, number, number] = [252, 233, 238]; // #FCE9E
  */
 const GRIS_TEXTO: readonly [number, number, number] = [71, 85, 105];
 const GRIS_CLARO: readonly [number, number, number] = [241, 245, 249]; // slate-100, placeholders
+const BORDE_CAJA: readonly [number, number, number] = [203, 213, 225]; // slate-300, marcos
 
 /**
  * Logo de Ferrolan. Cuelga de `BASE_URL` (igual que `cabecera.tsx`): la app se
@@ -84,15 +85,8 @@ const URL_LOGO = `${import.meta.env.BASE_URL}ferrolan-logo.png`;
 
 const ANCHO_PAGINA = 210;
 const MARGEN_X = 15;
-/** Límite inferior de escritura; al superarlo se salta de página. */
-const LIMITE_Y = 285;
-/** Columna donde empiezan los valores en las filas etiqueta/valor. */
-const X_VALOR = 78;
 /** Borde derecho para importes alineados a la derecha. */
 const X_DERECHA = ANCHO_PAGINA - MARGEN_X;
-const ALTO_FILA = 5;
-/** Foto del material: caja cuadrada a la izquierda de sus datos (§ seccionMaterial). */
-const LADO_FOTO_MATERIAL = 30;
 
 /**
  * Formateadores es-ES compartidos: construir un `Intl.*` es caro y su salida
@@ -107,10 +101,6 @@ const FORMATO_NUMERO_CM = new Intl.NumberFormat('es-ES', { maximumFractionDigits
 const FORMATO_MERMA = new Intl.NumberFormat('es-ES', { maximumFractionDigits: 2 });
 const FORMATO_M2 = new Intl.NumberFormat('es-ES', { maximumFractionDigits: 3 });
 
-interface Cursor {
-  y: number;
-}
-
 /**
  * Las fuentes estándar de jsPDF (WinAnsi/cp1252) no cubren '≤' ni '≥'
  * (presentes en nombres de tarifa de la configuración): se sustituyen para
@@ -121,96 +111,102 @@ function sanearTextoPdf(texto: string): string {
   return texto.replace(/≤/g, '<=').replace(/≥/g, '>=');
 }
 
-function asegurarEspacio(doc: jsPDF, cur: Cursor, altoNecesario: number): void {
-  if (cur.y + altoNecesario > LIMITE_Y) {
-    doc.addPage();
-    cur.y = MARGEN_X;
-  }
-}
+const ANCHO_UTIL = X_DERECHA - MARGEN_X;
 
-/** Título de sección con acento de marca (barra roja) y regla bajo el texto. */
-function tituloSeccion(doc: jsPDF, cur: Cursor, titulo: string): void {
-  asegurarEspacio(doc, cur, 14);
-  cur.y += 4;
-  doc.setFillColor(...ROJO_MARCA);
-  doc.rect(MARGEN_X, cur.y - 3.6, 1.3, 4.6, 'F');
+/** Alto de la barra de título de una caja. */
+const ALTO_TITULO_CAJA = 6.5;
+/** Separación entre bloques. */
+const AIRE = 4;
+/** Alto de una fila de datos dentro de una caja. */
+const ALTO_FILA = 4.6;
+
+/**
+ * Caja con título: recuadro fino y barra superior tenue con el título en rojo.
+ * Devuelve la Y donde empieza el contenido.
+ *
+ * El alto se pasa ya calculado porque cada bloque sabe lo que ocupa: así el marco
+ * se dibuja ANTES del contenido y no lo tapa. La hoja es de alto fijo (una
+ * página, ver `construirPdfOrdenTrabajo`), no hay flujo entre páginas.
+ */
+function cajaTitulada(doc: jsPDF, y: number, alto: number, titulo: string): number {
+  doc.setFillColor(...GRIS_CLARO);
+  doc.rect(MARGEN_X, y, ANCHO_UTIL, ALTO_TITULO_CAJA, 'F');
+  doc.setDrawColor(...BORDE_CAJA);
+  doc.setLineWidth(0.3);
+  doc.rect(MARGEN_X, y, ANCHO_UTIL, alto);
+  doc.line(MARGEN_X, y + ALTO_TITULO_CAJA, X_DERECHA, y + ALTO_TITULO_CAJA);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
+  doc.setFontSize(8);
   doc.setTextColor(...ROJO_MARCA);
-  doc.text(sanearTextoPdf(titulo.toUpperCase()), MARGEN_X + 3.5, cur.y);
+  doc.text(sanearTextoPdf(titulo.toUpperCase()), MARGEN_X + 3, y + 4.6);
   doc.setTextColor(0, 0, 0);
-  doc.setDrawColor(...ROJO_CLARO);
-  doc.setLineWidth(0.4);
-  doc.line(MARGEN_X, cur.y + 1.8, X_DERECHA, cur.y + 1.8);
-  cur.y += 7.5;
+  return y + ALTO_TITULO_CAJA + 5;
 }
 
-function filaDato(doc: jsPDF, cur: Cursor, etiqueta: string, valor: string): void {
-  asegurarEspacio(doc, cur, ALTO_FILA);
+/**
+ * Cifra que el taller busca de un vistazo: rótulo pequeño arriba y el valor
+ * grande debajo. Es el recurso que hace legible la ficha de la pieza — antes las
+ * medidas eran una fila más de texto de 10 pt entre veinte.
+ */
+function bloqueCifra(
+  doc: jsPDF,
+  x: number,
+  y: number,
+  etiqueta: string,
+  valor: string,
+  tamValor = 14,
+): void {
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
+  doc.setFontSize(7);
   doc.setTextColor(...GRIS_TEXTO);
-  doc.text(sanearTextoPdf(etiqueta), MARGEN_X, cur.y);
+  doc.text(sanearTextoPdf(etiqueta.toUpperCase()), x, y);
   doc.setFont('helvetica', 'bold');
+  doc.setFontSize(tamValor);
   doc.setTextColor(0, 0, 0);
-  doc.text(sanearTextoPdf(valor), X_VALOR, cur.y);
-  cur.y += ALTO_FILA;
+  doc.text(sanearTextoPdf(valor), x, y + tamValor * 0.42);
 }
 
-/** Ancho fijo reservado a la etiqueta en `filaCompacta`, para que el valor no se solape con ella. */
-const ANCHO_ETIQUETA_COMPACTA = 27;
-
-/** Etiqueta + valor en una sola línea, en dos columnas fijas (junto a la foto del material). */
-function filaCompacta(doc: jsPDF, y: number, x: number, etiqueta: string, valor: string): void {
+/** Fila etiqueta/valor dentro de una caja: etiqueta gris, valor en negro. */
+function filaCaja(
+  doc: jsPDF,
+  x: number,
+  y: number,
+  anchoEtiqueta: number,
+  etiqueta: string,
+  valor: string,
+  tam = 8.5,
+): void {
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9.5);
+  doc.setFontSize(tam);
   doc.setTextColor(...GRIS_TEXTO);
   doc.text(sanearTextoPdf(etiqueta), x, y);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(0, 0, 0);
-  doc.text(sanearTextoPdf(valor), x + ANCHO_ETIQUETA_COMPACTA, y);
+  doc.text(sanearTextoPdf(valor), x + anchoEtiqueta, y);
 }
 
-/**
- * Pares etiqueta/valor repartidos en dos columnas, de izquierda a derecha y de
- * arriba abajo. Para listas de cifras cortas (recuentos de producción), que
- * apiladas gastan el doble de alto sin leerse mejor.
- */
-function filasEnDosColumnas(
-  doc: jsPDF,
-  cur: Cursor,
-  pares: readonly (readonly [string, string])[],
-): void {
-  const anchoColumna = (X_DERECHA - MARGEN_X) / 2;
-  const filas = Math.ceil(pares.length / 2);
-  asegurarEspacio(doc, cur, filas * ALTO_FILA);
-  pares.forEach(([etiqueta, valor], i) => {
-    const columna = i % 2;
-    const fila = Math.floor(i / 2);
-    filaCompacta(
-      doc,
-      cur.y + fila * ALTO_FILA,
-      MARGEN_X + columna * anchoColumna,
-      etiqueta,
-      valor,
-    );
-  });
-  cur.y += filas * ALTO_FILA;
-}
-
+/** Importe a la derecha, con su concepto a la izquierda. */
 function filaImporte(
   doc: jsPDF,
-  cur: Cursor,
+  y: number,
   concepto: string,
   importe: Centimos,
-  opciones: { negrita?: boolean; sangria?: number } = {},
+  opciones: { negrita?: boolean; sangria?: number; tam?: number } = {},
 ): void {
-  asegurarEspacio(doc, cur, ALTO_FILA);
   doc.setFont('helvetica', opciones.negrita ? 'bold' : 'normal');
-  doc.setFontSize(10);
-  doc.text(sanearTextoPdf(concepto), MARGEN_X + (opciones.sangria ?? 0), cur.y);
-  doc.text(formatearEuros(importe), X_DERECHA, cur.y, { align: 'right' });
-  cur.y += ALTO_FILA;
+  doc.setFontSize(opciones.tam ?? 8.5);
+  if (opciones.negrita) doc.setTextColor(0, 0, 0);
+  else doc.setTextColor(...GRIS_TEXTO);
+  doc.text(sanearTextoPdf(concepto), MARGEN_X + 3 + (opciones.sangria ?? 0), y);
+  doc.setTextColor(0, 0, 0);
+  doc.text(formatearEuros(importe), X_DERECHA - 3, y, { align: 'right' });
+}
+
+/** Cuántas líneas ocupará un texto al ajustarlo a un ancho. */
+function lineasDeTexto(doc: jsPDF, texto: string, ancho: number, tam: number): string[] {
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(tam);
+  return doc.splitTextToSize(sanearTextoPdf(texto), ancho) as string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -290,225 +286,239 @@ function formatearPrecioEditado(precioMaterialEditadoEuros: string): string {
   return formatearEuros(eurosACentimos(valor));
 }
 
-function seccionCabecera(doc: jsPDF, cur: Cursor, datos: DatosOrdenTrabajo): void {
-  const altoCabecera = 16;
+/**
+ * Cabecera: logo, el nombre del documento en grande y el código de orden a la
+ * derecha. El código va destacado porque es por lo que se cita la hoja.
+ */
+function seccionCabecera(doc: jsPDF, datos: DatosOrdenTrabajo): number {
+  const y = 14;
   if (datos.logoDataUrl) {
-    const { ancho, alto } = tamanoImagenEnCaja(doc, datos.logoDataUrl, 34, altoCabecera);
-    doc.addImage(
-      datos.logoDataUrl,
-      formatoDeDataUrl(datos.logoDataUrl),
-      MARGEN_X,
-      cur.y,
-      ancho,
-      alto,
-    );
+    const { ancho, alto } = tamanoImagenEnCaja(doc, datos.logoDataUrl, 30, 13);
+    doc.addImage(datos.logoDataUrl, formatoDeDataUrl(datos.logoDataUrl), MARGEN_X, y, ancho, alto);
   } else {
-    // Sin logo (no se pudo cargar): nombre de la empresa en rojo de marca, no bloquea.
+    // Sin logo (no se pudo cargar): el nombre en rojo de marca; no bloquea.
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(15);
+    doc.setFontSize(13);
     doc.setTextColor(...ROJO_MARCA);
-    doc.text('FERROLAN', MARGEN_X, cur.y + 9);
+    doc.text('FERROLAN', MARGEN_X, y + 8);
     doc.setTextColor(0, 0, 0);
   }
 
-  const xTexto = MARGEN_X + 42;
-  let yTexto = cur.y + 5;
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(14);
-  doc.setTextColor(...ROJO_MARCA);
-  doc.text('ATELIER STUDIO', xTexto, yTexto);
+  doc.setFontSize(17);
   doc.setTextColor(0, 0, 0);
-  yTexto += 6;
+  doc.text('ORDEN DE TRABAJO', MARGEN_X + 40, y + 7);
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10.5);
+  doc.setFontSize(8);
   doc.setTextColor(...GRIS_TEXTO);
-  doc.text('Orden de trabajo — documento interno', xTexto, yTexto);
+  doc.text('Atelier Studio · documento interno', MARGEN_X + 40, y + 12);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(13);
+  doc.setTextColor(...ROJO_MARCA);
+  doc.text(codigoOrdenTrabajo(datos), X_DERECHA, y + 6, { align: 'right' });
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(...GRIS_TEXTO);
+  doc.text(FORMATO_FECHA_LARGA.format(datos.fecha), X_DERECHA, y + 11.5, { align: 'right' });
   doc.setTextColor(0, 0, 0);
 
-  const fechaTxt = FORMATO_FECHA_LARGA.format(datos.fecha);
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(9);
-  doc.setTextColor(...GRIS_TEXTO);
-  doc.text(`Generada: ${fechaTxt}`, X_DERECHA, cur.y + 5, { align: 'right' });
-  // Código de orden: sin él la hoja impresa no se podía citar (solo el nombre
-  // del archivo lo llevaba). Ver `codigoOrdenTrabajo`.
+  const yRegla = y + 16;
+  doc.setDrawColor(...ROJO_MARCA);
+  doc.setLineWidth(1);
+  doc.line(MARGEN_X, yRegla, X_DERECHA, yRegla);
+  return yRegla + AIRE + 1;
+}
+
+/**
+ * Ficha de la pieza: lo primero y más grande de la hoja, porque es lo que el
+ * taller tiene que fabricar. Figura, cantidad destacada, las medidas como cifras
+ * grandes y el croquis de la sección a la derecha.
+ */
+function seccionPieza(doc: jsPDF, y: number, datos: DatosOrdenTrabajo): number {
+  const { figura } = datos;
+  const ALTO = 48;
+  const yc = cajaTitulada(doc, y, ALTO, 'Pieza a fabricar');
+  const anchoTexto = ANCHO_CROQUIS + 6;
+  const xCroquis = X_DERECHA - anchoTexto;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(15);
+  doc.text(sanearTextoPdf(figura.nombre), MARGEN_X + 3, yc + 3);
+
+  // Cantidad en negativo: es el número por el que se cuenta el trabajo.
+  const textoCantidad = `${datos.cantidad} ${datos.cantidad === 1 ? 'PIEZA' : 'PIEZAS'}`;
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(11);
+  const anchoCantidad = doc.getTextWidth(sanearTextoPdf(textoCantidad)) + 8;
+  doc.setFillColor(...ROJO_MARCA);
+  doc.roundedRect(MARGEN_X + 3, yc + 7, anchoCantidad, 8.5, 1.2, 1.2, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.text(sanearTextoPdf(textoCantidad), MARGEN_X + 3 + anchoCantidad / 2, yc + 11.4, {
+    align: 'center',
+    baseline: 'middle',
+  });
   doc.setTextColor(0, 0, 0);
-  doc.text(codigoOrdenTrabajo(datos), X_DERECHA, cur.y + 11.5, { align: 'right' });
 
-  cur.y += altoCabecera + 4;
-  doc.setDrawColor(...ROJO_MARCA);
-  doc.setLineWidth(0.8);
-  doc.line(MARGEN_X, cur.y, X_DERECHA, cur.y);
-  cur.y += 6;
+  // Medidas como cifras grandes, en el orden en que las declara la figura.
+  const medidas = figura.medidas.map((campo) => ({
+    etiqueta: campo.etiqueta.replace(/\s*\(cm\)\s*$/, ''),
+    valor:
+      datos.medidasMm[campo.id] !== undefined
+        ? formatearCotaCm(datos.medidasMm[campo.id])
+        : '—',
+  }));
+  const anchoMedidas = xCroquis - (MARGEN_X + 3) - 4;
+  const paso = medidas.length > 0 ? anchoMedidas / medidas.length : anchoMedidas;
+  medidas.forEach((m, i) => {
+    bloqueCifra(doc, MARGEN_X + 3 + i * paso, yc + 23, m.etiqueta, m.valor, 12);
+  });
+
+  if (datos.seccion) {
+    dibujarCroquisSeccion(doc, datos.seccion, xCroquis, yc - 1);
+  }
+  return y + ALTO + AIRE;
 }
 
-/** Caja de la foto/textura del material (o placeholder «Sin imagen»), lado izquierdo de la sección. */
-function dibujarFotoMaterial(doc: jsPDF, x: number, y: number, dataUrl: string | null | undefined): void {
-  doc.setDrawColor(210, 210, 210);
+/** Foto del material, o un recuadro «Sin imagen» del mismo tamaño. */
+function dibujarFotoMaterial(
+  doc: jsPDF,
+  x: number,
+  y: number,
+  lado: number,
+  dataUrl: string | null | undefined,
+): void {
+  doc.setDrawColor(...BORDE_CAJA);
   doc.setLineWidth(0.3);
   if (dataUrl) {
-    const { ancho, alto } = tamanoImagenEnCaja(doc, dataUrl, LADO_FOTO_MATERIAL, LADO_FOTO_MATERIAL);
-    // Fondo neutro (mismo criterio que ImagenMaterial en la app) para fotos con transparencia.
-    doc.setFillColor(...GRIS_CLARO);
-    doc.rect(x, y, LADO_FOTO_MATERIAL, LADO_FOTO_MATERIAL, 'F');
-    doc.addImage(
-      dataUrl,
-      formatoDeDataUrl(dataUrl),
-      x + (LADO_FOTO_MATERIAL - ancho) / 2,
-      y + (LADO_FOTO_MATERIAL - alto) / 2,
-      ancho,
-      alto,
-    );
-    doc.rect(x, y, LADO_FOTO_MATERIAL, LADO_FOTO_MATERIAL, 'S');
-  } else {
-    doc.setFillColor(...GRIS_CLARO);
-    doc.rect(x, y, LADO_FOTO_MATERIAL, LADO_FOTO_MATERIAL, 'FD');
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
-    doc.setTextColor(148, 163, 184); // slate-400, igual que el placeholder de la app
-    doc.text('Sin imagen', x + LADO_FOTO_MATERIAL / 2, y + LADO_FOTO_MATERIAL / 2, {
-      align: 'center',
-      baseline: 'middle',
-    });
-    doc.setTextColor(0, 0, 0);
+    const { ancho, alto } = tamanoImagenEnCaja(doc, dataUrl, lado, lado);
+    doc.addImage(dataUrl, formatoDeDataUrl(dataUrl), x, y, ancho, alto);
+    doc.rect(x, y, ancho, alto);
+    return;
   }
+  doc.setFillColor(...GRIS_CLARO);
+  doc.rect(x, y, lado, lado, 'FD');
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.5);
+  doc.setTextColor(...GRIS_TEXTO);
+  doc.text('Sin imagen', x + lado / 2, y + lado / 2, { align: 'center', baseline: 'middle' });
+  doc.setTextColor(0, 0, 0);
 }
 
-function seccionMaterial(doc: jsPDF, cur: Cursor, datos: DatosOrdenTrabajo): void {
-  tituloSeccion(doc, cur, 'Material');
-  const { material, origen, resultado } = datos;
+/** Material del que se corta: foto, descripción y los datos de compra. */
+function seccionMaterial(doc: jsPDF, y: number, datos: DatosOrdenTrabajo): number {
+  const { material } = datos;
+  // 33 para que la fila de marca no quede pegada al marco cuando existe.
+  const ALTO = 33;
+  const yc = cajaTitulada(doc, y, ALTO, 'Material');
+  const LADO = 18;
+  dibujarFotoMaterial(doc, MARGEN_X + 3, yc - 2, LADO, datos.imagenMaterialDataUrl);
+  const x = MARGEN_X + 3 + LADO + 4;
 
-  asegurarEspacio(doc, cur, LADO_FOTO_MATERIAL);
-  const yInicioColumnas = cur.y;
-  dibujarFotoMaterial(doc, MARGEN_X, yInicioColumnas - 4, datos.imagenMaterialDataUrl);
-
-  const xTexto = MARGEN_X + LADO_FOTO_MATERIAL + 6;
-  let yTexto = yInicioColumnas;
-  filaCompacta(doc, yTexto, xTexto, 'Descripción', material.descripcion);
-  yTexto += ALTO_FILA;
-  filaCompacta(doc, yTexto, xTexto, 'Referencia', material.referencia);
-  yTexto += ALTO_FILA;
-  filaCompacta(doc, yTexto, xTexto, 'Marca', material.marca ?? '—');
-  yTexto += ALTO_FILA;
-  filaCompacta(
-    doc,
-    yTexto,
-    xTexto,
-    'Formato',
-    `${formatearCotaCm(material.formato.largoMm)} × ${formatearCotaCm(material.formato.anchoMm)}`,
-  );
-  yTexto += ALTO_FILA;
-  if (material.esManual) {
-    doc.setFillColor(...ROJO_MARCA);
-    doc.roundedRect(xTexto, yTexto - 3.6, 26, 4.8, 1, 1, 'F');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8);
-    doc.setTextColor(255, 255, 255);
-    doc.text('ENTRADA MANUAL', xTexto + 13, yTexto - 0.4, { align: 'center' });
-    doc.setTextColor(0, 0, 0);
-    yTexto += ALTO_FILA;
-  }
-
-  // Origen y precio siguen en la MISMA columna que Descripción/Referencia/...
-  // (no a ancho completo): todos los datos del material forman un solo bloque.
-  filaCompacta(
-    doc,
-    yTexto,
-    xTexto,
-    'Origen',
-    origen === 'stock'
-      ? 'Stock — se factura por piezas (caja abierta permitida)'
-      : 'Pedido — se facturan cajas completas',
-  );
-  yTexto += ALTO_FILA;
-  // El precio editado por el comercial se muestra junto a la tarifa original (§1).
-  // formatearEuros ya añade el símbolo €, así que la unidad va sin él (evita "€ €/m²").
-  const unidadPrecio = material.esManual ? '/unidad' : '/m²';
-  if (datos.precioMaterialEditadoEuros.trim() !== '') {
-    filaCompacta(
-      doc,
-      yTexto,
-      xTexto,
-      'Precio aplicado',
-      `${formatearPrecioEditado(datos.precioMaterialEditadoEuros)}${unidadPrecio} (editado por el comercial)`,
-    );
-    yTexto += ALTO_FILA;
-    filaCompacta(
-      doc,
-      yTexto,
-      xTexto,
-      'Tarifa original',
-      `${formatearEuros(resultado.precioMaterialOriginal)}${unidadPrecio}`,
-    );
-    yTexto += ALTO_FILA;
-  } else {
-    filaCompacta(
-      doc,
-      yTexto,
-      xTexto,
-      'Precio aplicado',
-      `${formatearEuros(resultado.precioMaterialOriginal)}${unidadPrecio}`,
-    );
-    yTexto += ALTO_FILA;
-  }
-
-  cur.y = Math.max(yInicioColumnas - 4 + LADO_FOTO_MATERIAL + 3, yTexto + 1.5);
-}
-
-function seccionPieza(doc: jsPDF, cur: Cursor, datos: DatosOrdenTrabajo): void {
-  tituloSeccion(doc, cur, 'Pieza');
-  const { figura } = datos;
-  // Croquis de la sección a la derecha: el taller necesita ver la FORMA, no solo
-  // el nombre de la figura (Figuras 1–3 solo se distinguen por el grueso de la
-  // nariz). Se ancla al inicio de la sección y el texto sigue en la izquierda.
-  if (datos.seccion) {
-    asegurarEspacio(doc, cur, ALTO_CROQUIS);
-    dibujarCroquisSeccion(doc, datos.seccion, X_DERECHA - ANCHO_CROQUIS, cur.y - 3);
-  }
-
-  filaDato(doc, cur, 'Figura', sanearTextoPdf(figura.nombre));
-
-  // Tabla de medidas: etiquetas de la configuración de la figura + valores en cm.
-  asegurarEspacio(doc, cur, ALTO_FILA);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(10);
-  doc.text('Medidas', MARGEN_X, cur.y);
-  cur.y += ALTO_FILA;
-  for (const campo of figura.medidas) {
-    const valor = datos.medidasMm[campo.id];
-    const etiqueta = campo.etiqueta.replace(/\s*\(cm\)\s*$/, '');
-    filaDato(doc, cur, `  ${etiqueta}`, valor !== undefined ? formatearCotaCm(valor) : '—');
-  }
-  filaDato(doc, cur, 'Cantidad', `${datos.cantidad} ${datos.cantidad === 1 ? 'pieza' : 'piezas'}`);
-  if (figura.tienePintado) {
-    filaDato(doc, cur, 'Pintado', datos.pintado ? 'Sí' : 'No');
-  }
-  if (datos.suplementosActivos.length > 0) {
-    asegurarEspacio(doc, cur, ALTO_FILA);
+  doc.text(sanearTextoPdf(material.descripcion), x, yc + 1);
+  if (material.esManual) {
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
-    doc.text('Suplementos', MARGEN_X, cur.y);
-    cur.y += ALTO_FILA;
-    for (const id of datos.suplementosActivos) {
-      const suplemento = datos.config.suplementos[id];
-      const nombre = suplemento?.nombre ?? id;
-      // Los de por pieza no van en todas: se dice en cuántas (ver DatosOrdenTrabajo).
-      const detalle =
-        suplemento?.tipo === 'porPieza'
-          ? `${datos.unidadesSuplemento?.[id] ?? 1} de ${datos.cantidad} piezas`
-          : 'toda la pieza';
-      filaDato(doc, cur, `  · ${nombre}`, detalle);
-    }
-  } else {
-    filaDato(doc, cur, 'Suplementos', 'ninguno');
+    doc.setFontSize(6.5);
+    doc.setTextColor(...ROJO_MARCA);
+    doc.text('ENTRADA MANUAL', x, yc + 5);
+    doc.setTextColor(0, 0, 0);
   }
+
+  // Donde antes iba el origen (stock/pedido, suprimido el 2026-07-30) va el dato
+  // de caja: es lo que explica en taller por qué se facturan más piezas que las
+  // necesarias, porque se cobra la caja completa.
+  const caja =
+    material.piezasPorCaja != null
+      ? `${material.piezasPorCaja} ud./caja${material.m2PorCaja != null ? ` · ${FORMATO_M2.format(material.m2PorCaja)} m²` : ''}`
+      : '—';
+  const precio =
+    datos.precioMaterialEditadoEuros.trim() === ''
+      ? precioMaterialTarifa(material)
+      : `${formatearPrecioEditado(datos.precioMaterialEditadoEuros)} (editado; tarifa ${precioMaterialTarifa(material)})`;
+
+  const xCol2 = x + 78;
+  let yf = yc + 9;
+  filaCaja(doc, x, yf, 20, 'Referencia', material.referencia);
+  filaCaja(doc, xCol2, yf, 18, 'Formato', formatoMaterial(material));
+  yf += ALTO_FILA;
+  filaCaja(doc, x, yf, 20, 'Caja', caja);
+  filaCaja(doc, xCol2, yf, 18, 'Precio', precio);
+  yf += ALTO_FILA;
+  if (material.marca) filaCaja(doc, x, yf, 20, 'Marca', material.marca);
+  return y + ALTO + AIRE;
+}
+
+/** Formato de la baldosa en cm, tal como se lee en el catálogo. */
+function formatoMaterial(material: Material): string {
+  return `${formatearCotaCm(material.formato.largoMm)} × ${formatearCotaCm(material.formato.anchoMm)}`;
+}
+
+/** Precio de tarifa del material, con su unidad (€/m² del ERP o €/unidad manual). */
+function precioMaterialTarifa(material: Material): string {
+  if (material.esManual) {
+    return material.precioUnidadCentimos === null
+      ? '—'
+      : `${formatearEuros(material.precioUnidadCentimos)}/ud.`;
+  }
+  return material.precioM2Centimos === null
+    ? '—'
+    : `${formatearEuros(material.precioM2Centimos)}/m²`;
+}
+
+/**
+ * Operaciones añadidas (suplementos) en una sola línea corrida: son pocas y
+ * cortas, y una caja con cuatro filas gastaba media hoja. De cada una se dice a
+ * cuántas piezas alcanza, que es lo que el taller necesita saber.
+ */
+function seccionOperaciones(doc: jsPDF, y: number, datos: DatosOrdenTrabajo): number {
+  const partes = datos.suplementosActivos.map((id) => {
+    const suplemento = datos.config.suplementos[id];
+    const nombre = suplemento?.nombre ?? id;
+    if (suplemento?.tipo === 'porPieza') {
+      const unidades = datos.unidadesSuplemento?.[id] ?? 1;
+      return `${nombre} (${unidades} de ${datos.cantidad})`;
+    }
+    return `${nombre} (todas)`;
+  });
+  if (datos.figura.tienePintado && datos.pintado) partes.push('Pintado');
+  const texto = partes.length > 0 ? partes.join('  ·  ') : 'Sin operaciones adicionales.';
+
+  const lineas = lineasDeTexto(doc, texto, ANCHO_UTIL - 6, 9);
+  const ALTO = ALTO_TITULO_CAJA + 5 + lineas.length * ALTO_FILA;
+  const yc = cajaTitulada(doc, y, ALTO, 'Operaciones');
+  doc.setFont('helvetica', partes.length > 0 ? 'bold' : 'normal');
+  doc.setFontSize(9);
+  if (partes.length > 0) doc.setTextColor(0, 0, 0);
+  else doc.setTextColor(...GRIS_TEXTO);
+  lineas.forEach((linea, i) => doc.text(linea, MARGEN_X + 3, yc + i * ALTO_FILA));
+  doc.setTextColor(0, 0, 0);
+  return y + ALTO + AIRE;
+}
+
+/**
+ * Comentarios del comercial para taller. Solo se imprime si hay texto, y con
+ * fondo tenue para que se vea que es una indicación y no un dato calculado.
+ */
+function seccionComentarios(doc: jsPDF, y: number, datos: DatosOrdenTrabajo): number {
+  const texto = (datos.comentarios ?? '').trim();
+  if (texto === '') return y;
+  const lineas = lineasDeTexto(doc, texto, ANCHO_UTIL - 6, 9);
+  const ALTO = ALTO_TITULO_CAJA + 5 + lineas.length * ALTO_FILA;
+  const yc = cajaTitulada(doc, y, ALTO, 'Comentarios para taller');
+  doc.setFillColor(255, 252, 240);
+  doc.rect(MARGEN_X + 0.3, y + ALTO_TITULO_CAJA + 0.3, ANCHO_UTIL - 0.6, ALTO - ALTO_TITULO_CAJA - 0.6, 'F');
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  doc.setTextColor(0, 0, 0);
+  lineas.forEach((linea, i) => doc.text(linea, MARGEN_X + 3, yc + i * ALTO_FILA));
+  return y + ALTO + AIRE;
 }
 
 /** Caja del croquis, a la derecha de los datos de la pieza. */
-const ANCHO_CROQUIS = 84;
-const ALTO_CROQUIS = 42;
+const ANCHO_CROQUIS = 64;
+const ALTO_CROQUIS = 35;
 
 /**
  * Croquis de la sección transversal de la pieza, con el fondo y el alto acotados.
@@ -586,122 +596,133 @@ function dibujarCroquisSeccion(
   doc.setTextColor(0, 0, 0);
 }
 
-function seccionProduccion(doc: jsPDF, cur: Cursor, datos: DatosOrdenTrabajo): void {
-  tituloSeccion(doc, cur, 'Producción');
+/**
+ * Producción: de dónde sale la pieza y cuánto material se gasta. Va después de
+ * la ficha porque el taller la consulta al ir a por las baldosas, no al empezar.
+ */
+function seccionProduccion(doc: jsPDF, y: number, datos: DatosOrdenTrabajo): number {
   const { resultado } = datos;
-  asegurarEspacio(doc, cur, ALTO_FILA);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.text('Componentes de la pieza', MARGEN_X, cur.y);
-  cur.y += ALTO_FILA;
-  filasEnDosColumnas(
-    doc,
-    cur,
-    resultado.componentes.map(
-      (c) =>
-        [`  ${c.id}`, `${formatearCotaCm(c.largoMm)} × ${formatearCotaCm(c.anchoMm)}`] as const,
-    ),
-  );
   const { ocupacion } = resultado;
-  filaDato(
+  // 34, no 30: la banda de cifras del final necesita aire hasta el marco.
+  const ALTO = 34;
+  const yc = cajaTitulada(doc, y, ALTO, 'Producción');
+
+  const componentes = resultado.componentes
+    .map((c) => `${c.id} ${formatearCotaCm(c.largoMm)} × ${formatearCotaCm(c.anchoMm)}`)
+    .join('  ·  ');
+  filaCaja(doc, MARGEN_X + 3, yc + 1, 24, 'Despiece', componentes, 8.5);
+  filaCaja(
     doc,
-    cur,
-    'Ocupación en baldosa',
-    `${formatearCotaCm(ocupacion.ocupacionMm)} de ${formatearCotaCm(ocupacion.dimensionUtilMm)} · ` +
+    MARGEN_X + 3,
+    yc + 1 + ALTO_FILA,
+    24,
+    'En la baldosa',
+    `${formatearCotaCm(ocupacion.ocupacionMm)} de ${formatearCotaCm(ocupacion.dimensionUtilMm)}  ·  ` +
       `${ocupacion.numCortes} ${ocupacion.numCortes === 1 ? 'corte' : 'cortes'}` +
-      `${ocupacion.baldosaGirada ? ' · baldosa girada 90°' : ''}`,
+      `${ocupacion.baldosaGirada ? '  ·  baldosa girada 90°' : ''}`,
+    8.5,
   );
+
   const mermaTxt = FORMATO_MERMA.format(datos.mermaPorcentaje);
-  const m2Txt = FORMATO_M2.format(resultado.m2Facturados);
-  // Cifras de recuento en dos columnas: son cortas, y apiladas empujaban el
-  // total con IVA a una segunda página casi vacía.
-  filasEnDosColumnas(doc, cur, [
+  const cifras: readonly (readonly [string, string])[] = [
     ['Piezas/baldosa', String(ocupacion.piezasPorBaldosa)],
     ['Baldosas', String(resultado.baldosasNecesarias)],
-    ['Con merma', `${resultado.baldosasConMerma} (+${mermaTxt} %)`],
+    [`Con merma +${mermaTxt} %`, String(resultado.baldosasConMerma)],
     ['Unidades fact.', String(resultado.unidadesFacturadas)],
     ['Cajas fact.', String(resultado.cajasFacturadas)],
-    ['m² facturados', `${m2Txt} m²`],
-  ]);
+    ['m² fact.', `${FORMATO_M2.format(resultado.m2Facturados)} m²`],
+  ];
+  const paso = (ANCHO_UTIL - 6) / cifras.length;
+  cifras.forEach(([etiqueta, valor], i) => {
+    bloqueCifra(doc, MARGEN_X + 3 + i * paso, yc + 13, etiqueta, valor, 9.5);
+  });
+  return y + ALTO + AIRE;
 }
 
-function seccionCotizacion(doc: jsPDF, cur: Cursor, datos: DatosOrdenTrabajo): void {
-  tituloSeccion(doc, cur, 'Cotización');
+/** Importes. Es lo único de la hoja que no mira el taller: va al final. */
+function seccionImportes(doc: jsPDF, y: number, datos: DatosOrdenTrabajo): number {
   const { desglose, lineasManipulacion } = datos.resultado;
-  filaImporte(doc, cur, 'Material', desglose.materialCentimos);
-  filaImporte(doc, cur, 'Manipulación', desglose.manipulacionCentimos, { negrita: true });
-  for (const linea of lineasManipulacion) {
-    filaImporte(doc, cur, linea.concepto, linea.centimos, { sangria: 6 });
-  }
-  filaImporte(doc, cur, 'Arranque de máquina', desglose.arranqueCentimos);
-  // Bloque de cierre (regla + Total sin IVA + IVA + caja del total) de una pieza:
-  // reservar su alto junta evita que el total con IVA quede huérfano en otra página.
-  const ALTO_CIERRE = 4 + 2 * ALTO_FILA + 3 + 11 + 4;
-  asegurarEspacio(doc, cur, ALTO_CIERRE);
-  doc.setDrawColor(210, 210, 210);
-  doc.setLineWidth(0.3);
-  doc.line(MARGEN_X, cur.y, X_DERECHA, cur.y);
-  cur.y += 4;
-  filaImporte(doc, cur, 'Total sin IVA', desglose.totalSinIvaCentimos, { negrita: true });
-  filaImporte(doc, cur, `IVA (${datos.config.parametros.ivaPorcentaje} %)`, desglose.ivaCentimos);
+  // Material + Manipulación + sus líneas + Arranque + Total sin IVA + IVA.
+  const filas = 5 + lineasManipulacion.length;
+  const ALTO_TOTAL = 11;
+  // El +3 es el aire extra que separa los totales del desglose (ver más abajo).
+  const ALTO = ALTO_TITULO_CAJA + 5 + filas * ALTO_FILA + 3 + ALTO_TOTAL + 1.5;
+  const yc = cajaTitulada(doc, y, ALTO, 'Importes');
 
-  // Total con IVA: caja en rojo de marca, con aire propio, para que sea
-  // inequívocamente el número que importa (no una fila más del desglose).
-  const altoCaja = 11;
-  cur.y += 3;
+  let yf = yc + 1;
+  filaImporte(doc, yf, 'Material', desglose.materialCentimos);
+  yf += ALTO_FILA;
+  filaImporte(doc, yf, 'Manipulación', desglose.manipulacionCentimos, { negrita: true });
+  yf += ALTO_FILA;
+  for (const linea of lineasManipulacion) {
+    filaImporte(doc, yf, linea.concepto, linea.centimos, { sangria: 5, tam: 8 });
+    yf += ALTO_FILA;
+  }
+  filaImporte(doc, yf, 'Arranque de máquina', desglose.arranqueCentimos);
+  // Aire antes de los totales: la raya iba tan justa que «Total sin IVA» parecía
+  // otra línea del desglose en vez de su cierre.
+  yf += ALTO_FILA + 3;
+  doc.setDrawColor(...BORDE_CAJA);
+  doc.setLineWidth(0.3);
+  doc.line(MARGEN_X + 3, yf - 4, X_DERECHA - 3, yf - 4);
+  filaImporte(doc, yf, 'Total sin IVA', desglose.totalSinIvaCentimos, { negrita: true });
+  yf += ALTO_FILA;
+  filaImporte(doc, yf, `IVA (${datos.config.parametros.ivaPorcentaje} %)`, desglose.ivaCentimos);
+
+  // Total con IVA dentro de la caja, en negativo: el número que se cobra.
+  const yTotal = y + ALTO - ALTO_TOTAL - 1.5;
   doc.setFillColor(...ROJO_MARCA);
-  doc.roundedRect(MARGEN_X, cur.y, X_DERECHA - MARGEN_X, altoCaja, 1.5, 1.5, 'F');
-  const yCentro = cur.y + altoCaja / 2;
+  doc.rect(MARGEN_X + 1.5, yTotal, ANCHO_UTIL - 3, ALTO_TOTAL, 'F');
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(12.5);
+  doc.setFontSize(12);
   doc.setTextColor(255, 255, 255);
-  doc.text('TOTAL CON IVA', MARGEN_X + 4, yCentro, { baseline: 'middle' });
-  doc.text(formatearEuros(desglose.totalConIvaCentimos), X_DERECHA - 4, yCentro, {
+  doc.text('TOTAL CON IVA', MARGEN_X + 5, yTotal + ALTO_TOTAL / 2, { baseline: 'middle' });
+  doc.text(formatearEuros(desglose.totalConIvaCentimos), X_DERECHA - 5, yTotal + ALTO_TOTAL / 2, {
     align: 'right',
     baseline: 'middle',
   });
   doc.setTextColor(0, 0, 0);
-  cur.y += altoCaja + 4;
+  return y + ALTO + AIRE;
 }
 
 /**
- * Pie de control de taller: quién cortó la pieza, cuándo y quién lo revisó. Son
- * campos para rellenar A MANO sobre la hoja impresa (2026-07-29, indicación
- * directa); la app no los guarda — el flujo de estados de órdenes queda fuera
- * del alcance de la v1 (§8).
+ * Pie de la hoja: solo «OPERADOR:» y una raya para firmar a mano (2026-07-30,
+ * indicación directa — antes había tres campos y sobraban).
+ *
+ * Se queda al pie (286 mm) salvo que la hoja venga cargada — cuatro suplementos,
+ * muchas líneas de manipulación y comentarios largos —, en cuyo caso baja lo justo
+ * para no pisar la caja de importes. Con tope en 291 para no salirse del A4.
  */
-function pieControl(doc: jsPDF, cur: Cursor): void {
-  const ALTO_PIE = 16;
-  asegurarEspacio(doc, cur, ALTO_PIE);
-  cur.y += 6;
-  doc.setDrawColor(...GRIS_TEXTO);
-  doc.setLineWidth(0.2);
-  const campos = ['Cortado por', 'Fecha', 'Revisado por'];
-  const ancho = (X_DERECHA - MARGEN_X) / campos.length;
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(8.5);
-  campos.forEach((campo, i) => {
-    const x = MARGEN_X + i * ancho;
-    doc.setTextColor(...GRIS_TEXTO);
-    doc.text(campo, x, cur.y);
-    doc.line(x + doc.getTextWidth(campo) + 2, cur.y, x + ancho - 6, cur.y);
-  });
+function pieOperador(doc: jsPDF, yContenido: number): void {
+  const y = Math.min(291, Math.max(286, yContenido + 6));
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9);
   doc.setTextColor(0, 0, 0);
-  cur.y += ALTO_PIE - 6;
+  doc.text('OPERADOR:', MARGEN_X, y);
+  const xRaya = MARGEN_X + doc.getTextWidth('OPERADOR:') + 3;
+  doc.setDrawColor(...GRIS_TEXTO);
+  doc.setLineWidth(0.3);
+  doc.line(xRaya, y, X_DERECHA, y);
 }
 
-/** Construye el documento jsPDF de la orden de trabajo. Función pura: no descarga ni hace fetch. */
+/**
+ * Construye el documento jsPDF de la orden de trabajo. Función pura: no descarga
+ * ni hace fetch.
+ *
+ * El orden de los bloques es el del taller: qué hay que fabricar, con qué
+ * material, qué operaciones lleva, qué avisos hay, de dónde sale y — al final,
+ * porque no lo miran en el taller — cuánto cuesta.
+ */
 export function construirPdfOrdenTrabajo(datos: DatosOrdenTrabajo): jsPDF {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-  const cur: Cursor = { y: 18 };
-
-  seccionCabecera(doc, cur, datos);
-  seccionMaterial(doc, cur, datos);
-  seccionPieza(doc, cur, datos);
-  seccionProduccion(doc, cur, datos);
-  seccionCotizacion(doc, cur, datos);
-  pieControl(doc, cur);
-
+  let y = seccionCabecera(doc, datos);
+  y = seccionPieza(doc, y, datos);
+  y = seccionMaterial(doc, y, datos);
+  y = seccionOperaciones(doc, y, datos);
+  y = seccionComentarios(doc, y, datos);
+  y = seccionProduccion(doc, y, datos);
+  const yFinal = seccionImportes(doc, y, datos);
+  pieOperador(doc, yFinal - AIRE);
   return doc;
 }
 

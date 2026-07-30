@@ -14,14 +14,17 @@
  *    entera exacta; el % se cuantiza a centésimas de punto (10,25 %…) para no
  *    usar floats. La condición "mínimo 3" NO se implementa (§6.1, pendiente).
  *
- *  - FACTURACIÓN (§4): stock → piezas (caja abierta); pedido → cajas completas
- *    = ceil(baldosasConMerma / piezasPorCaja) y unidades = cajas × piezasPorCaja
- *    (todo el sobrante se cobra al cliente). Sin datos logísticos del ERP →
- *    error de validación claro. Mínimos de compra: no implementados (§6.8).
+ *  - FACTURACIÓN (§4): SIEMPRE por cajas completas, en stock y en pedido por
+ *    igual (2026-07-30, indicación directa: «facturamos por caja también en
+ *    stock»). cajas = ceil(baldosasConMerma / piezasPorCaja) y unidades =
+ *    cajas × piezasPorCaja; todo el sobrante se cobra al cliente. El origen ya
+ *    NO cambia el importe: se conserva porque le dice al taller si hay que
+ *    pedir el material o ya está en almacén. Sin datos de caja → error de
+ *    validación claro, en los dos orígenes. Mínimos de compra: §6.8.
  *
  *  - COSTE DE MATERIAL: aritmética entera mm²·céntimos/1e6 con redondeo
- *    half-up exacto. m² stock = baldosasConMerma × área baldosa; m² pedido =
- *    cajas × m2PorCaja (m2PorCaja del ERP se cuantiza a mm² enteros). Material
+ *    half-up exacto. m² facturados = cajas × m2PorCaja (m2PorCaja se cuantiza
+ *    a mm² enteros; en material manual se deriva del formato). Material
  *    manual → precioUnidad × unidades. `precioMaterialEditado` sustituye al
  *    precio unitario correspondiente (€/m² en ERP, €/unidad en manual);
  *    `precioMaterialOriginal` conserva la tarifa (o el editado si no había).
@@ -228,27 +231,23 @@ function validarEntrada(
         : `El material «${material.descripcion}» no tiene tarifa TARP (€/m²); introduce el precio manualmente.`,
     });
   }
-  if (entrada.origen === 'pedido') {
-    if (
-      material.piezasPorCaja === null ||
-      !Number.isInteger(material.piezasPorCaja) ||
-      material.piezasPorCaja < 1
-    ) {
-      errores.push({
-        paso: 'material',
-        mensaje: `El material «${material.descripcion}» no tiene el dato «piezas por caja» del ERP; no se puede facturar un pedido por cajas completas.`,
-      });
-    }
-    if (
-      material.m2PorCaja === null ||
-      !Number.isFinite(material.m2PorCaja) ||
-      material.m2PorCaja <= 0
-    ) {
-      errores.push({
-        paso: 'material',
-        mensaje: `El material «${material.descripcion}» no tiene el dato «m² por caja» del ERP; no se puede facturar un pedido por cajas completas.`,
-      });
-    }
+  // Los datos de caja hacen falta SIEMPRE, no solo en pedido: desde 2026-07-30 el
+  // stock también se factura por cajas completas.
+  if (
+    material.piezasPorCaja === null ||
+    !Number.isInteger(material.piezasPorCaja) ||
+    material.piezasPorCaja < 1
+  ) {
+    errores.push({
+      paso: 'material',
+      mensaje: `El material «${material.descripcion}» no tiene el dato «piezas por caja»; no se puede facturar por cajas completas.`,
+    });
+  }
+  if (material.m2PorCaja === null || !Number.isFinite(material.m2PorCaja) || material.m2PorCaja <= 0) {
+    errores.push({
+      paso: 'material',
+      mensaje: `El material «${material.descripcion}» no tiene el dato «m² por caja»; no se puede facturar por cajas completas.`,
+    });
   }
 
   return errores;
@@ -297,17 +296,11 @@ export function calcularCotizacion(entrada: EntradaCotizacion, config: Configura
   const mermaCentesimas = Math.round(entrada.mermaPorcentaje * 100);
   const baldosasConMerma = ceilDiv(baldosasNecesarias * (10_000 + mermaCentesimas), 10_000);
 
-  // 5. Facturación: stock → piezas; pedido → cajas completas (sobrante al cliente).
-  let unidadesFacturadas: number;
-  let cajasFacturadas: number;
-  if (entrada.origen === 'stock') {
-    unidadesFacturadas = baldosasConMerma;
-    cajasFacturadas = 0;
-  } else {
-    const piezasPorCaja = entrada.material.piezasPorCaja as number; // validado en validarEntrada
-    cajasFacturadas = ceilDiv(baldosasConMerma, piezasPorCaja);
-    unidadesFacturadas = cajasFacturadas * piezasPorCaja;
-  }
+  // 5. Facturación por CAJAS COMPLETAS, en stock y en pedido por igual
+  //    (2026-07-30, indicación directa). El sobrante se cobra al cliente.
+  const piezasPorCaja = entrada.material.piezasPorCaja as number; // validado en validarEntrada
+  const cajasFacturadas = ceilDiv(baldosasConMerma, piezasPorCaja);
+  const unidadesFacturadas = cajasFacturadas * piezasPorCaja;
 
   // 6. Coste de material (aritmética entera, redondeo half-up exacto).
   const { material } = entrada;
@@ -316,11 +309,9 @@ export function calcularCotizacion(entrada: EntradaCotizacion, config: Configura
     : material.precioM2Centimos;
   const precioUnitarioAplicado = (entrada.precioMaterialEditado ??
     precioUnitarioOriginal) as Centimos; // validado no nulo
-  const mm2PorBaldosa = material.formato.largoMm * material.formato.anchoMm;
   // m2PorCaja del ERP (float) se cuantiza a mm² enteros para mantener enteros.
   const mm2PorCaja = Math.round((material.m2PorCaja ?? 0) * 1_000_000);
-  const mm2FacturadosTotal =
-    entrada.origen === 'stock' ? baldosasConMerma * mm2PorBaldosa : cajasFacturadas * mm2PorCaja;
+  const mm2FacturadosTotal = cajasFacturadas * mm2PorCaja;
   const m2Facturados = mm2FacturadosTotal / 1_000_000;
 
   let materialCentimos: Centimos;

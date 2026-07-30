@@ -48,6 +48,7 @@ function mapearArticuloMuestra(json: ArticuloMuestraJson): Material {
     },
     precioM2Centimos: eurosACentimos(json.precioM2Euros),
     precioUnidadCentimos: null,
+    subfamilia: null,
     piezasPorCaja: json.piezasPorCaja,
     m2PorCaja: json.m2PorCaja,
     imagenUrl: json.imagen,

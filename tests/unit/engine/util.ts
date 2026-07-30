@@ -50,13 +50,21 @@ export function materialErp(overrides: Partial<Material> = {}): Material {
     precioUnidadCentimos: null,
     piezasPorCaja: 4,
     m2PorCaja: 1.44,
+    subfamilia: null,
     imagenUrl: null,
     esManual: false,
     ...overrides,
   };
 }
 
-/** Material manual de prueba: 60×60 cm a 8 €/unidad. */
+/**
+ * Material manual de prueba: 60×60 cm a 8 €/unidad, 4 piezas/caja.
+ *
+ * Lleva datos de caja porque desde 2026-07-30 se factura por cajas completas en
+ * los dos orígenes: sin ellos no se podría cotizar. Los m²/caja son los que
+ * derivaría `crearMaterialManual` (4 × 0,36 = 1,44), para que el fixture sea
+ * coherente con el formato y no afirme un imposible.
+ */
 export function materialManual(overrides: Partial<Material> = {}): Material {
   return {
     referencia: 'MANUAL-1',
@@ -65,8 +73,9 @@ export function materialManual(overrides: Partial<Material> = {}): Material {
     formato: { largoMm: mm(600), anchoMm: mm(600) },
     precioM2Centimos: null,
     precioUnidadCentimos: centimos(800),
-    piezasPorCaja: null,
-    m2PorCaja: null,
+    piezasPorCaja: 4,
+    m2PorCaja: 1.44,
+    subfamilia: null,
     imagenUrl: null,
     esManual: true,
     ...overrides,
@@ -75,12 +84,11 @@ export function materialManual(overrides: Partial<Material> = {}): Material {
 
 /**
  * Entrada base válida: Figura 2, 50×30 cm con frontal de 4 cm, 5 piezas,
- * stock, merma 10 %. Sobrescribible por test.
+ * merma 10 %. Sobrescribible por test.
  */
 export function entradaBase(overrides: Partial<EntradaCotizacion> = {}): EntradaCotizacion {
   return {
     material: materialErp(),
-    origen: 'stock',
     figuraId: 'figura-2',
     medidasMm: { longitud: mm(500), fondo: mm(300), alturaFrontal: mm(40) },
     cantidad: 5,

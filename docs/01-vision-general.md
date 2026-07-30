@@ -52,8 +52,8 @@ el layout (`src/ui/shell/shell.tsx`) es:
 - «Seleccionar del catálogo» abre la pestaña **Catálogo** del panel derecho. Con material
   elegido, el paso muestra una tarjeta-resumen (foto, descripción, referencia, marca,
   formato, datos de caja y precio) con acciones «Cambiar» y «Quitar».
-- El **origen del material** se elige aquí: **Stock** o **Pedido** (afecta a cómo se
-  factura; ver el glosario).
+- El origen del material (Stock/Pedido) **ya no existe**: desde el 2026-07-30 todo se factura por
+  cajas completas, así que dejó de cambiar el importe y se suprimió (ver el glosario).
 - Una subsección plegable «Entrada manual» permite dar de alta cerámica que no está en el
   catálogo (queda marcada con la insignia MANUAL).
 
@@ -141,7 +141,7 @@ viole es un bug:
 | **Suplemento** | Extra activable en el paso ④, asociado a cada figura: `porPieza` (céntimos por pieza, se muestra «€/peldaño») o `porCm` (milésimas por cm lineal). Ejemplos: angular, ranuras, goterón, espesado. El «pintado» de los rodapiés no es un suplemento sino una tarifa alternativa. | `tarifas.json`; `Suplemento` en `src/domain/config.ts` |
 | **Merma** | Porcentaje extra aplicado sobre las baldosas necesarias, redondeado hacia arriba (`ceil(baldosas × (1 + %))`), para cubrir roturas y recortes. El valor por defecto (10 %, §4) es de desarrollo y su editabilidad está pendiente (§6.9/§6.10). | `parametros.json`; `baldosasConMerma` en `src/domain/types.ts` |
 | **Ocupación** | Cuánta dimensión útil de la baldosa de origen consumen los componentes de la pieza al colocarlos. La receta actual (Σ anchos + (n−1)·disco + 2·saneado + tolerancia) es **provisional** (§6.4). De ella salen las baldosas necesarias, el número de cortes y si la baldosa se gira 90°. | `DetalleOcupacion` en `src/domain/types.ts`; `src/domain/engine/` |
-| **Stock / pedido** | Origen del material (§4). **Stock**: la pieza sale de una caja ya abierta en almacén y se factura por piezas. **Pedido**: se piden cajas completas al proveedor y todo el sobrante se cobra al cliente. | `OrigenMaterial` en `src/domain/types.ts` |
+| **Facturación por cajas** | El proveedor solo sirve cajas completas, así que se factura la caja entera y el sobrante se cobra al cliente (§4). Antes dependía de un origen Stock/Pedido, suprimido el 2026-07-30. | `calcularCotizacion` en `src/domain/engine/cotizacion.ts` |
 | **Cotización** | Resultado del motor para una configuración: componentes, ocupación, baldosas (necesarias y con merma), unidades/cajas facturadas, m², líneas de manipulación y desglose (material, manipulación con suplementos, arranque de máquina, IVA y totales). Si la entrada no es válida, devuelve errores concretos como valor. | `ResultadoCotizacion` / `SalidaMotor` en `src/domain/types.ts`; bloque Cotización |
 | **Caso dorado** | Cálculo real validado por taller, depositado como JSON en `tests/golden/` y ejecutado como test del motor (§5). Hoy solo hay un ejemplo **no validado**; taller debe rellenar la tabla §5. Si un caso dorado falla, el motor está mal, no el caso. | `tests/golden/`; PENDIENTES.md §3 |
 | **PROVISIONAL** | Marca exigida por la spec (§0) para todo lo pendiente de taller o dirección: parámetro configurable + marca visible + entrada en PENDIENTES.md. Inventar una regla, tarifa o geometría se considera un error. | PENDIENTES.md; `AGENTS.md` |

@@ -19,6 +19,7 @@ function materialBase(): Material {
     precioUnidadCentimos: null,
     piezasPorCaja: 6,
     m2PorCaja: 1.08,
+    subfamilia: null,
     imagenUrl: null,
     esManual: false,
   };

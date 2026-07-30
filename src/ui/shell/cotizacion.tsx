@@ -148,7 +148,6 @@ export function PanelCotizacion(): JSX.Element {
       const { generarPdfOrdenTrabajo } = await import('../../pdf/ordenTrabajo');
       await generarPdfOrdenTrabajo({
         material: construida.entrada.material,
-        origen: construida.entrada.origen,
         figura,
         medidasMm: construida.medidasMm,
         cantidad: construida.entrada.cantidad,
@@ -157,6 +156,7 @@ export function PanelCotizacion(): JSX.Element {
         pintado: construida.entrada.pintado,
         precioMaterialEditadoEuros: estado.precioMaterialEditadoEuros,
         mermaPorcentaje: construida.entrada.mermaPorcentaje,
+        comentarios: estado.comentarios,
         resultado: salida.resultado,
         config,
         fecha: new Date(),

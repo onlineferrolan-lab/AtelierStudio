@@ -377,7 +377,7 @@ function dibujarPortada(doc, fecha) {
   doc.text(sanear('Documento de uso interno · Ferrolan'), MARGEN, 240);
   doc.text(sanear(`Edición: ${fecha}`), MARGEN, 246);
   doc.text(
-    sanear('Para volver a descargar este manual desde la herramienta: Ctrl + Alt + H'),
+    sanear('Para volver a descargar este manual: botón «Manual» de la cabecera, o Ctrl + Alt + H'),
     MARGEN,
     252,
   );
@@ -542,15 +542,17 @@ function CONTENIDO(m) {
       'formato, piezas y metros por caja, y la tarifa. Con «Cambiar» eliges otro y ' +
       'con «Quitar» lo dejas vacío.',
   );
-  m.h2('Pedido o stock: lo que más cambia el precio');
+  m.h2('Siempre se factura por cajas completas');
   m.p(
-    'Es la decisión con más efecto sobre el importe del material. La herramienta ' +
-      'arranca en «Pedido», que es el caso habitual; si el material sale de una caja ya ' +
-      'abierta en almacén, cámbialo a «Stock» a mano.',
+    'El material se cobra por cajas enteras, no por baldosas sueltas: el proveedor no ' +
+      'sirve media caja. La herramienta calcula cuántas baldosas hacen falta, redondea ' +
+      'hacia arriba a cajas completas y factura todas las piezas de esas cajas, aunque ' +
+      'sobren. El sobrante se cobra al cliente.',
   );
   m.lista([
-    'Pedido (opción por defecto): hay que pedir el material al proveedor, que solo sirve cajas completas. Se factura la caja entera y el sobrante se cobra al cliente. Para esto la herramienta necesita los datos de «piezas por caja» y «m² por caja»; si el catálogo no los trae, avisa con un error.',
-    'Stock: la pieza sale de una caja ya abierta en almacén. Se factura por piezas sueltas, así que solo se cobran las baldosas que realmente se gastan. Sale más barato, así que compruébalo antes de dar un precio.',
+    'Por eso en la cotización verás más piezas facturadas que baldosas necesarias: la diferencia es el resto de la caja.',
+    'Hace falta que el artículo traiga «piezas por caja» y «m² por caja». Si el catálogo no los trae, la herramienta avisa con un error en vez de inventarlos.',
+    'Antes había un selector «Stock / Pedido» que cambiaba esto. Ya no existe: desde el 30-07-2026 se factura por cajas en los dos casos, así que no cambiaba ningún importe.',
   ]);
   m.h2('Editar el precio del material');
   m.p(
@@ -559,16 +561,13 @@ function CONTENIDO(m) {
       'original queda visible debajo y también en el PDF, para que se vea que hubo ' +
       'una modificación deliberada.',
   );
-  m.nota(
-    'Un material de alta manual no puede ir «a pedido»',
-    'El alta manual no pide los datos de caja, así que con el origen en «Pedido» verás dos ' +
-      'errores en cuanto teclees las medidas. Cambia el origen a «Stock» y seguirá adelante. ' +
-      'Que el alta manual admita pedidos (y con qué datos) está pendiente de decidir.',
-  );
   m.h2('Entrada manual');
   m.p(
     'Si el material no está en el catálogo, abre «Entrada manual» e introduce ' +
-      'descripción, formato y precio. En ese caso el precio se entiende por unidad ' +
+      'descripción, formato, precio y piezas por caja. Las piezas por caja son ' +
+      'obligatorias porque se factura por cajas completas; los metros por caja los ' +
+      'calcula la herramienta a partir del formato, no hace falta teclearlos. ' +
+      'En ese caso el precio se entiende por unidad ' +
       '(por pieza), no por metro cuadrado, y el PDF marca el material como ' +
       '«ENTRADA MANUAL». Los materiales manuales no sirven para pedidos por cajas ' +
       'completas, porque no hay datos de caja.',
@@ -703,6 +702,20 @@ function CONTENIDO(m) {
     'En la cotización se ve como «Angular — 2 ud.», con el importe de esas 2 piezas.',
     'La orden de trabajo lo indica como «2 de 12 piezas», para que taller sepa cuáles rematar.',
   ]);
+  m.h2('Comentarios para taller');
+  m.p(
+    'Debajo de los suplementos hay un campo de texto libre para lo que no cabe en ' +
+      'ninguna casilla: indicaciones de corte, plazos, quién recoge el material, avisos ' +
+      'de obra. Sale tal cual en la orden de trabajo, en un bloque propio y destacado, ' +
+      'para que en taller no se pase por alto.',
+  );
+  m.lista([
+    'Es opcional y no afecta al precio: es una anotación, no un dato de cálculo.',
+    'Caben unos 400 caracteres, que es lo que entra en la hoja sin descolocarla.',
+    'Si lo dejas vacío, el bloque no se imprime.',
+    'No se borra al cambiar de figura: es de la orden, no de la pieza.',
+  ]);
+
   m.nota(
     'Es el único suplemento que funciona así',
     'Los otros tres se cobran por centímetro lineal, recorren la pieza de punta a punta y ' +
@@ -789,13 +802,19 @@ function CONTENIDO(m) {
   m.figura('08-orden-trabajo.png', 'Figura 9. Orden de trabajo generada por la herramienta.', {
     anchoMax: 132,
   });
+  m.p(
+    'La hoja está ordenada por quien la lee: primero lo que hay que fabricar y con ' +
+      'qué, y al final el dinero, que en taller no se mira. Los bloques, de arriba abajo:',
+  );
   m.lista([
-    'Código de orden: arriba a la derecha, con el formato OT-AAAAMMDD-HHMM. Es el identificador para citar la hoja; coincide con el nombre del archivo.',
-    'Material: foto, descripción, referencia, formato, origen y precio aplicado (con la tarifa original si lo has editado).',
-    'Pieza: figura, medidas, cantidad y suplementos, más el croquis acotado de la sección. De cada suplemento se dice a qué alcanza: «toda la pieza» los de por cm, o «2 de 12 piezas» el angular.',
-    'Producción: las partes de la pieza, la ocupación en la baldosa, los cortes y el recuento de baldosas.',
-    'Cotización: el mismo desglose de la pantalla, con el total con IVA destacado.',
-    'Pie de control: «Cortado por / Fecha / Revisado por», para rellenar a mano.',
+    'Cabecera: el código de orden, arriba a la derecha y en grande, con el formato OT-AAAAMMDD-HHMM. Es el identificador para citar la hoja y coincide con el nombre del archivo.',
+    'Pieza a fabricar: el bloque más grande. Figura, la cantidad destacada en rojo, las medidas como cifras grandes en el mismo orden en que se piden, y el croquis acotado de la sección a la derecha.',
+    'Material: foto, descripción, referencia, formato, datos de caja y precio aplicado (con la tarifa original si lo has editado). Los datos de caja son los que explican en taller por qué se facturan más piezas de las necesarias.',
+    'Operaciones: los suplementos en una línea, cada uno con su alcance — «(todas)» los de por cm, «(2 de 12)» el angular.',
+    'Comentarios para taller: lo que hayas escrito en el campo de comentarios, sobre fondo tenue. Si no hay comentarios, este bloque no aparece.',
+    'Producción: el despiece de la pieza, cuánto ocupa en la baldosa, los cortes, y el recuento de baldosas y metros.',
+    'Importes: el mismo desglose de la pantalla, con el total con IVA en la banda roja.',
+    'OPERADOR: al pie, con una raya para firmar a mano quién ha hecho la pieza.',
   ]);
   m.p(
     'El archivo se guarda como orden-trabajo_REFERENCIA_AAAAMMDD-HHMM.pdf. Como la ' +
@@ -858,8 +877,8 @@ function CONTENIDO(m) {
   ]);
   m.h2('10.6 Cuánto material se factura');
   m.lista([
-    'Stock: se facturan las baldosas con merma, una a una.',
-    'Pedido: se redondea hacia arriba a cajas completas; se facturan todas las baldosas de esas cajas, aunque sobren.',
+    'Se redondea hacia arriba a cajas completas: cajas = las baldosas con merma divididas entre las piezas por caja, redondeando hacia arriba.',
+    'Se facturan todas las baldosas de esas cajas, aunque sobren; el sobrante se cobra al cliente.',
   ]);
   m.h2('10.7 El coste del material');
   m.p(
@@ -910,7 +929,8 @@ function CONTENIDO(m) {
   m.h1('Ejemplo completo, número a número');
   m.p(
     'Este es el presupuesto de las capturas de este manual, con todos los pasos ' +
-      'intermedios. Si sigues las mismas entradas en la herramienta tienes que obtener ' +
+      'intermedios. Siguiendo las mismas entradas —incluidas las piezas por caja, que ' +
+      'salen del catálogo y deciden cuánto material se factura— tienes que obtener ' +
       'exactamente estas cifras.',
   );
   m.tabla(
@@ -918,8 +938,8 @@ function CONTENIDO(m) {
     [
       ['Material', 'BALDOCER DUCALE HENNA 60X120 (ref. 77356201)'],
       ['Formato de la baldosa', '60 x 120 cm'],
+      ['Piezas por caja', '2  (1,44 m² por caja)'],
       ['Precio del material', '26,73 euros/m²'],
-      ['Origen', 'Stock (hay que cambiarlo: por defecto es Pedido)'],
       ['Figura', 'Figura 1 (peldaño en L)'],
       ['Ancho / largo / altura frontal', '33 cm / 100 cm / 4 cm'],
       ['Cantidad', '12 piezas'],
@@ -946,8 +966,10 @@ function CONTENIDO(m) {
     '3. Piezas por baldosa:  1   (la pieza ocupa casi todo el ancho útil)',
     '4. Baldosas necesarias: 12 / 1 = 12',
     '5. Baldosas con merma:  12 x 1,10 = 13,2  ->  14  (hacia arriba)',
-    '6. Al ser stock, se facturan 14 piezas y 0 cajas.',
-    '7. m² facturados: 14 x (0,60 x 1,20) = 14 x 0,72 = 10,08 m²',
+    '6. Cajas facturadas: 14 / 2 piezas por caja = 7 cajas (14 piezas).',
+    '   Aquí no sobra nada porque 14 es múltiplo de 2; si la caja fuera de 3,',
+    '   harían falta 5 cajas y se facturarían 15 piezas.',
+    '7. m² facturados: 7 cajas x 1,44 m²/caja = 10,08 m²',
   ]);
   m.formula([
     '8. Material:      10,08 m² x 26,73 euros/m²      = 269,44 euros',
@@ -998,7 +1020,7 @@ function CONTENIDO(m) {
       ],
       [
         'El material no tiene el dato «piezas por caja»; no se puede facturar un pedido por cajas completas.',
-        'Ese artículo no trae datos de caja. Cambia el origen a Stock o usa otro material.',
+        'Ese artículo no trae los datos de caja que hacen falta para facturar por cajas completas. Usa otro material, o dalo de alta a mano indicando las piezas por caja.',
       ],
       [
         'Textura no disponible',
@@ -1048,7 +1070,8 @@ function CONTENIDO(m) {
   m.h1('Atajos, referencias y dónde preguntar');
   m.h2('Atajo de teclado');
   m.lista([
-    'Ctrl + Alt + H: descarga este manual desde la propia herramienta, en cualquier momento.',
+    'Botón «Manual» en la cabecera, arriba a la derecha: descarga este manual.',
+    'Ctrl + Alt + H: lo mismo, sin soltar el teclado.',
   ]);
   m.h2('De dónde salen los datos');
   m.lista([
@@ -1064,7 +1087,7 @@ function CONTENIDO(m) {
   ]);
   m.h2('Si algo no cuadra');
   m.p(
-    'Antes de dar por buena una cifra rara: comprueba el origen (stock o pedido), la ' +
+    'Antes de dar por buena una cifra rara: comprueba las piezas por caja del material, la ' +
       'merma, y si el precio del material está editado. Esas tres cosas explican casi ' +
       'todas las diferencias. Si el problema es el cálculo en sí, guarda el PDF de la ' +
       'orden (lleva todos los datos de entrada y el código de orden) y pásalo a quien ' +

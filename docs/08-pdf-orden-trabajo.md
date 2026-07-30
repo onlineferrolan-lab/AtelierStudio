@@ -23,7 +23,7 @@ El PDF es A4 vertical y se maqueta en este orden, una sección tras otra
 | Sección | Contenido |
 |---|---|
 | Cabecera | Logo de Ferrolan (o el texto «FERROLAN» si no carga), título «ATELIER STUDIO», subtítulo «Orden de trabajo — documento interno», fecha/hora de generación en formato largo `es-ES` y el **código de orden** `OT-AAAAMMDD-HHMM` (`codigoOrdenTrabajo`, mismo sello que el nombre del archivo: sin él la hoja impresa no se podía citar). |
-| **Material** | Foto/textura del material en una caja de 30 × 30 mm (o placeholder «Sin imagen»), descripción, referencia, marca, formato de la baldosa en cm, insignia «ENTRADA MANUAL» si el material es manual, origen (`stock` — facturación por piezas, o `pedido` — cajas completas) y precio aplicado (€/m² o €/unidad). Si el comercial editó el precio, se muestran **ambos**: «Precio aplicado … (editado por el comercial)» y «Tarifa original …». |
+| **Material** | Foto/textura del material en una caja de 30 × 30 mm (o placeholder «Sin imagen»), descripción, referencia, marca, formato de la baldosa en cm, insignia «ENTRADA MANUAL» si el material es manual, datos de caja (piezas y m² por caja — es lo que explica en taller por qué se facturan más piezas de las necesarias) y precio aplicado (€/m² o €/unidad). Si el comercial editó el precio, se muestran **ambos**: «Precio aplicado … (editado por el comercial)» y «Tarifa original …». |
 | **Pieza** | Nombre de la figura, tabla de medidas con las etiquetas de la configuración (sin el sufijo «(cm)») y sus valores en cm, cantidad («1 pieza» / «N piezas»), pintado (solo si la figura `tienePintado`) y suplementos activos por nombre (o «ninguno»). A la derecha, el **croquis de la sección** a escala con el fondo y el alto acotados (`dibujarCroquisSeccion`): el taller necesita ver la FORMA, porque las Figuras 1–3 solo se distinguen por el grueso de la nariz. Sale de `datos.seccion` — la misma sección que extruye el visor 3D (`src/piezas/seccionPieza.ts`), así que dibujo y modelo no pueden discrepar. Si `seccion` es `null` el PDF se genera igual, sin croquis. |
 | **Producción** | Componentes de **una** pieza (id de la receta y medidas largo × ancho en cm) y ocupación en baldosa (`ocupación de dimensión útil · N cortes`, con «baldosa girada 90°» si aplica). Después, **en dos columnas** (`filasEnDosColumnas`): piezas/baldosa, baldosas, baldosas con merma (con el % aplicado), unidades facturadas, cajas facturadas y m² facturados. Van en dos columnas porque son cifras cortas y apiladas empujaban el total con IVA a una segunda página casi vacía. |
 | **Cotización** | Desglose con importes alineados a la derecha: Material, Manipulación (en negrita, con sus líneas de detalle sangradas — tarifa de la figura y suplementos), Arranque de máquina, Total sin IVA (negrita), IVA con el porcentaje de `parametros.ivaPorcentaje`, y el **Total con IVA** dentro de una caja roja de marca para que sea inequívoco. El cierre (regla + los dos totales + la caja) reserva su alto **junto** con un solo `asegurarEspacio`: así el total con IVA nunca queda huérfano en la página siguiente. |
@@ -76,7 +76,7 @@ El módulo separa dos responsabilidades (`src/pdf/ordenTrabajo.ts`):
 ### Entrada: `DatosOrdenTrabajo`
 
 Todos los datos entran por un único objeto (`src/pdf/ordenTrabajo.ts:29`): `material`,
-`origen`, `figura`, `medidasMm` (mm enteros), `cantidad`, `suplementosActivos` (ids),
+`figura`, `medidasMm` (mm enteros), `cantidad`, `suplementosActivos` (ids),
 `pintado`, `precioMaterialEditadoEuros` (cadena tal cual la tecleó el comercial),
 `mermaPorcentaje`, `resultado` (`ResultadoCotizacion` del motor), `config`, `fecha` y,
 opcionalmente, las dos imágenes como data URL.
@@ -149,3 +149,32 @@ El diseño está pensado para crecer por secciones. Sigue estas pautas:
   `src/domain/types.ts` (`ResultadoCotizacion`, `Mm`, `Centimos`),
   `src/domain/money.ts` y `src/domain/units.ts` (formateadores),
   `tests/unit/pdf/ordenTrabajo.test.ts` (tests del módulo).
+
+## Rediseño de 2026-07-30
+
+La hoja se rehízo entera («no se entiende nada», indicación directa). Antes era
+una lista plana de filas etiqueta/valor a 10 pt; ahora son **bloques con marco y
+título**, ordenados por quien los lee: primero lo que el taller tiene que hacer y
+al final el dinero, que allí no se mira.
+
+| Bloque | Qué lleva |
+|---|---|
+| Cabecera | Logo, «ORDEN DE TRABAJO» y el código `OT-…` destacado a la derecha |
+| Pieza a fabricar | El bloque grande: figura, cantidad en negativo sobre rojo, medidas como cifras grandes (en el orden de `figura.medidas`) y el croquis de la sección |
+| Material | Foto, descripción, referencia, formato, caja y precio |
+| Operaciones | Los suplementos en una línea, con su alcance («todas» / «2 de 12») |
+| Comentarios para taller | `datos.comentarios`, sobre fondo tenue. **No se imprime si está vacío** |
+| Producción | Despiece, ocupación y cortes, y la banda de cifras de recuento |
+| Importes | Desglose y el total con IVA en banda roja, dentro de la caja |
+| Pie | Solo `OPERADOR:` y una raya para firmar, a una Y fija (283 mm) |
+
+Primitivas de maquetación: `cajaTitulada` (marco + barra de título; recibe el alto
+ya calculado, porque el marco se dibuja antes del contenido), `bloqueCifra`
+(rótulo pequeño + valor grande) y `filaCaja` / `filaImporte`.
+
+**Cuidado al tocar alturas.** Cada bloque pasa su alto a `cajaTitulada`; si el
+contenido crece y el alto no, el texto se sale del marco sin que falle nada —
+pasó con el croquis y con la banda de producción. Hay un test del **peor caso**
+(cuatro suplementos, cinco líneas de manipulación y comentarios largos) que
+comprueba que sigue cabiendo en una página, pero **una página no detecta un
+desbordamiento dentro de la hoja**: revisa el PDF a ojo.

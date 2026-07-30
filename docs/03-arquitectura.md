@@ -36,7 +36,7 @@ Las capas de arriba conocen a las de abajo; nunca al revés (ver
 
 #### `src/domain/engine/` — motor de cálculo
 
-El motor implementa las reglas de §4 (ocupación, merma, stock/pedido, desglose). Su API
+El motor implementa las reglas de §4 (ocupación, merma, facturación por cajas, desglose). Su API
 pública es un contrato fijo exportado desde `src/domain/engine/index.ts`:
 
 | Función | Qué hace |

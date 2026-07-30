@@ -81,16 +81,17 @@ suplementos: todo se lee de `useConfig()`.
   de caja (piezas y m² por caja, si existen) y precio; insignia **MANUAL** si es de entrada
   manual. Acciones **Cambiar** (abre el catálogo) y **Quitar** (`seleccionarMaterial: null`).
   Los textos de formato/caja/precio salen de `src/ui/steps/materialUtil.ts` (solo presentación).
-- **Origen del material** (`ControlSegmentado` Pedido/Stock): **arranca en «Pedido»**, que va
-  primero en el control (2026-07-30, indicación directa): pedir cajas completas es el caso
-  habitual y el stock la excepción. Afecta al redondeo de la
-  facturación (§4); se explica con un tooltip («Stock… se factura por piezas. Pedido: cajas
-  completas…»).
+- ~~Origen del material~~ (`ControlSegmentado` Stock/Pedido): **suprimido el 2026-07-30**. Al
+  pasar a facturar por cajas completas también en stock dejó de cambiar el importe, así que
+  sobraba: fuera del estado, de la pantalla y del PDF. En su hueco de la orden de trabajo va el
+  dato de caja, que es lo que explica en taller por qué se facturan más piezas de las necesarias.
 - **Entrada manual** (`src/ui/steps/EntradaManual.tsx`): subsección plegable para cerámica que no
   está ni en ERP ni en PrestaShop (§1.①). Campos mínimos: descripción, largo × ancho en cm,
-  precio en €/unidad e imagen opcional (URL). Valida los campos antes de llamar a
-  `crearMaterialManual` (`src/data/catalogo.ts`) y selecciona el material creado, marcado como
-  manual.
+  precio en €/unidad, **piezas por caja** e imagen opcional (URL). Las piezas por caja son
+  obligatorias porque se factura por cajas completas; los m²/caja **no** se piden, se derivan del
+  formato (piezas × largo × ancho), que es exacto y evita teclear un par incoherente. Valida los
+  campos antes de llamar a `crearMaterialManual` (`src/data/catalogo.ts`) y selecciona el material
+  creado, marcado como manual.
 
 ### ② Figura (`src/ui/steps/PasoFigura.tsx`)
 
@@ -152,7 +153,7 @@ y el texto «La cotización aparecerá al completar los pasos ① Material, ② 
   suplementos), con el detalle de `lineasManipulacion` sangrado bajo ella · Arranque de máquina ·
   Total sin IVA · IVA (`config.parametros.ivaPorcentaje` %) · Total con IVA (destacado).
 - **Datos logísticos** (solo con resultado): baldosas necesarias, baldosas con merma, piezas
-  facturadas, cajas facturadas (solo si > 0, caso pedido) y m² facturados.
+  facturadas, cajas facturadas y m² facturados.
 - **Precio del material editable** por el comercial en € (§1 «Cotización»): campo filtrado al
   teclear (`/^\d{0,7}([.,]\d{0,2})?$/`, para que un texto no parseable nunca llegue al motor),
   tarifa original siempre visible junto al editado (`precioMaterialOriginal` del motor, o la
@@ -182,7 +183,6 @@ conversión a mm/céntimos pasa por el motor, nunca por los componentes.
 | Campo | Tipo | Valor inicial |
 |---|---|---|
 | `material` | `Material \| null` | `null` |
-| `origen` | `OrigenMaterial` | `'pedido'` |
 | `figuraId` | `string \| null` | `null` |
 | `medidas` | `Record<string, string>` (cm crudos, por id de medida) | `{}` |
 | `cantidad` | `string` | `'1'` |
@@ -196,7 +196,6 @@ conversión a mm/céntimos pasa por el motor, nunca por los componentes.
 | Acción | Efecto |
 |---|---|
 | `seleccionarMaterial` | Fija (o quita, con `null`) el material. |
-| `cambiarOrigen` | Pedido ↔ Stock. |
 | `seleccionarFigura` | Fija la figura y **reinicia `medidas`, `suplementos` y `pintado`** (no transferibles). |
 | `cambiarMedida` | Actualiza una medida cruda (cm). |
 | `cambiarCantidad` | Actualiza la cantidad cruda. |
@@ -274,7 +273,7 @@ paleta corporativa se define en `tailwind.config.js` (`marca` `#C40731`, `marca-
 | `PasoCard` | Tarjeta de paso numerado, plegable. Cabecera botón con círculo `bg-marca`, número, título y ▾/▸ (`aria-expanded`); cuerpo controlado por `usePasos()`. |
 | `Campo` | Etiqueta + tooltip opcional + mensaje de error, envolviendo **un** control etiquetable (`<label>`). |
 | `EntradaNumero` | `<input type="text" inputMode="decimal">` de texto crudo (la validación vive en el motor); estado `invalido` en rojo. |
-| `ControlSegmentado` | Grupo de opciones excluyentes (`role="radiogroup"`): Stock/Pedido, 7,2/8… |
+| `ControlSegmentado` | Grupo de opciones excluyentes (`role="radiogroup"`): rodapié 7,2/8 cm… |
 | `FilaConmutador` | Checkbox con etiqueta y detalle (p. ej. el precio del suplemento). |
 | `InfoTooltip` | «i» con globo al hover/focus (`tabIndex=0`, `aria-label` con el texto). |
 | `Insignia` | Etiqueta de estado con tonos `provisional`, `pendiente`, `muestra`, `manual`, `info`. |

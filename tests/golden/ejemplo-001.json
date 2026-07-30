@@ -13,7 +13,6 @@
     "m2PorCaja": 1.44,
     "esManual": false
   },
-  "origen": "stock",
   "figuraId": "figura-2",
   "medidasCm": { "longitud": "50", "fondo": "30", "alturaFrontal": "4" },
   "cantidad": 5,
@@ -26,18 +25,18 @@
     "ok": true,
     "baldosasNecesarias": 5,
     "baldosasConMerma": 6,
-    "unidadesFacturadas": 6,
-    "cajasFacturadas": 0,
-    "m2Facturados": 2.16,
+    "unidadesFacturadas": 8,
+    "cajasFacturadas": 2,
+    "m2Facturados": 2.88,
     "ocupacionMm": 355,
     "dimensionUtilMm": 600,
     "baldosaGirada": false,
     "precioMaterialOriginal": 2500,
-    "materialCentimos": 5400,
+    "materialCentimos": 7200,
     "manipulacionCentimos": 6650,
     "arranqueCentimos": 6000,
-    "totalSinIvaCentimos": 18050,
-    "ivaCentimos": 3791,
-    "totalConIvaCentimos": 21841
+    "totalSinIvaCentimos": 19850,
+    "ivaCentimos": 4169,
+    "totalConIvaCentimos": 24019
   }
 }

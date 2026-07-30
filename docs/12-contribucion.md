@@ -106,7 +106,7 @@ Detalles de ESLint (`.eslintrc.cjs`) que conviene conocer:
 
 | Qué buscas | Dónde está |
 |---|---|
-| Reglas §4 (ocupación, merma, stock/pedido, desglose) | `src/domain/engine/` |
+| Reglas §4 (ocupación, merma, facturación por cajas, desglose) | `src/domain/engine/` |
 | Contratos de dominio (no ampliar sin necesidad) | `src/domain/types.ts`, `src/domain/config.ts` |
 | Estado global (reducer, una pieza por cotización) | `src/ui/state/quote-state.tsx` |
 | Patrón visual Top Studio (primitivas) | `src/ui/components/primitivas.tsx` |

@@ -73,8 +73,9 @@ cualquiera produce errores, devuelve `{ ok: false, errores }` y no sigue calcula
 - `validarEntrada()` acumula **todos** los errores antes de fallar: cantidad entera ≥ 1, merma
   ≥ 0, medidas presentes y en rango (`revalidarMedidasMm` — el motor no confía en que la UI haya
   validado antes), referencias de la receta y la tarifa a medidas declaradas, tarifas existentes,
-  suplementos existentes/aplicables/con precio coherente, precio de material disponible y, si el
-  origen es `pedido`, datos logísticos del ERP (`piezasPorCaja` entero ≥ 1 y `m2PorCaja` > 0).
+  suplementos existentes/aplicables/con precio coherente, precio de material disponible y datos
+  de caja (`piezasPorCaja` entero ≥ 1 y `m2PorCaja` > 0), que hacen falta **siempre** porque se
+  factura por cajas completas.
 - La validación de texto crudo en la UI (`validarMedidasCrudas`) acepta coma o punto decimal
   (teclado es-ES) y genera un mensaje concreto por medida (§1.③), nunca uno genérico.
 
@@ -118,18 +119,22 @@ permite …»).
   se cuantiza a centésimas de punto (10,25 %…) para no usar floats. La condición «mínimo 3»
   **no** se implementa (§6.1, pendiente).
 
-### 5. Stock o pedido
+### 5. Facturación por cajas completas
 
-- `stock` → se factura por piezas (caja abierta): `unidadesFacturadas = baldosasConMerma`.
-- `pedido` → cajas completas: `cajasFacturadas = ceil(baldosasConMerma / piezasPorCaja)` y
-  `unidadesFacturadas = cajas × piezasPorCaja` (todo el sobrante se cobra al cliente). Los
-  mínimos de compra no están implementados (§6.8).
+Siempre por cajas completas: `cajasFacturadas = ceil(baldosasConMerma / piezasPorCaja)` y
+`unidadesFacturadas = cajas × piezasPorCaja`; todo el sobrante se cobra al cliente. Los mínimos
+de compra no están implementados (§6.8).
+
+> **Cambio del 2026-07-30 (indicación directa).** Antes había un origen de material
+> (`stock` → por piezas / `pedido` → por cajas). Ahora también el stock se factura por cajas, así
+> que el origen dejó de cambiar el importe y **se suprimió**: ni estado, ni selector, ni campo en
+> el PDF. En su hueco de la orden de trabajo va el dato de caja, que es lo que explica en taller
+> por qué se facturan más piezas de las necesarias.
 
 ### 6. Coste de material
 
-- Material del ERP: `m² = baldosasConMerma × área baldosa` (stock) o `m² = cajas × m2PorCaja`
-  (pedido; el `m2PorCaja` del ERP se cuantiza a mm² enteros). El importe es
-  `mm² × céntimos/m²` con half-up exacto.
+- Material del ERP: `m² = cajas × m2PorCaja` (el `m2PorCaja` del ERP se cuantiza a mm² enteros).
+  El importe es `mm² × céntimos/m²` con half-up exacto.
 - Material manual: `precioUnidadCentimos × unidadesFacturadas`.
 - `precioMaterialEditado` (si el comercial lo introduce) sustituye al precio unitario
   correspondiente —€/m² en ERP, €/unidad en manual—; `precioMaterialOriginal` conserva la
@@ -200,27 +205,31 @@ El caso `tests/golden/ejemplo-001.json` reproduce este cálculo contra la config
 verdad de negocio— y usa parámetros de ocupación PROVISIONALES (disco 3 mm, tolerancia 2 mm,
 saneado 5 mm/lado).
 
-Entrada: baldosa 60×60 cm (600×600 mm) a 25 €/m² (2.500 céntimos/m²), origen `stock`; Figura 2
-con longitud 50 cm, fondo 30 cm, altura frontal 4 cm; cantidad 5; suplementos `angular-f14`
-(2 €/pieza) y `ranuras-f14` (0,02 €/cm); merma 10 %.
+Entrada: baldosa 60×60 cm (600×600 mm) a 25 €/m² (2.500 céntimos/m²), 4 piezas/caja y
+1,44 m²/caja; Figura 2 con longitud 50 cm, fondo 30 cm, altura frontal 4 cm; cantidad 5;
+suplementos `angular-f14` (2 €/pieza, en **2** de las 5 piezas) y `ranuras-f14` (0,02 €/cm);
+merma 10 %.
+
+Es el mismo caso que `tests/golden/ejemplo-001.json`, a propósito: si el motor cambia, salta el
+test dorado y esta tabla se revisa con él.
 
 | Etapa | Cálculo | Resultado |
 |---|---|---|
-| Validación | medidas ≥ 1 cm, cantidad 5, tarifa y suplementos existen | sin errores |
+| Validación | caída ≥ 4 cm, cantidad 5, tarifa, suplementos y datos de caja existen | sin errores |
 | Componentes | tapa 500×300 mm, frontal 500×40 mm | 2 componentes |
 | Ocupación | (300+40) + 1×3 + 2×5 + 2 = 355 ≤ 600; largo 500 ≤ 600 | 355 mm, orientación natural |
 | Merma | ceil(5 × 11.000 / 10.000) = ceil(5,5) | 6 baldosas |
-| Stock | factura por piezas | 6 unidades, 0 cajas |
-| Material | 6 × 360.000 mm² = 2,16 m² × 2.500 céntimos/m² | 5.400 céntimos (54,00 €) |
-| Manipulación | 0,23 €/cm × 50 cm = 11,50 €/ud. × 5 = 57,50 € · Angular 2,00 € × 5 = 10,00 € · Ranuras 0,02 €/cm × 50 cm = 1,00 €/ud. × 5 = 5,00 € | 7.250 céntimos (72,50 €) |
+| Facturación | ceil(6 / 4 piezas por caja) | 2 cajas, 8 unidades |
+| Material | 2 × 1,44 m² = 2,88 m² × 2.500 céntimos/m² | 7.200 céntimos (72,00 €) |
+| Manipulación | 0,23 €/cm × 50 cm = 11,50 €/ud. × 5 = 57,50 € · Angular 2,00 € × **2** = 4,00 € · Ranuras 0,02 €/cm × 50 cm = 1,00 €/ud. × 5 = 5,00 € | 6.650 céntimos (66,50 €) |
 | Arranque | una vez por orden | 6.000 céntimos (60,00 €) |
-| Totales | 186,50 € sin IVA; IVA 21 % = round(39,165 €) | 18.650 + 3.917 = 22.567 céntimos (**225,67 €**) |
+| Totales | 198,50 € sin IVA; IVA 21 % = round(41,685 €) | 19.850 + 4.169 = 24.019 céntimos (**240,19 €**) |
 
 Las líneas de manipulación resultantes (concepto + importe) son:
 
 ```text
 Figura 2 — 50 cm × 5 ud.                         57,50 €
-Angular — 5 ud.                                  10,00 €
+Angular — 2 ud.                                   4,00 €
 Tres ranuras antideslizantes — 50 cm × 5 ud.      5,00 €
 ```
 

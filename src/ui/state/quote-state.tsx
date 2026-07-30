@@ -7,14 +7,12 @@
 
 import { createContext, useContext, useMemo, useReducer, type ReactNode } from 'react';
 import type { Configuracion } from '../../domain/config';
-import type { EntradaCotizacion, Material, Mm, OrigenMaterial, SalidaMotor } from '../../domain/types';
+import type { EntradaCotizacion, Material, Mm, SalidaMotor } from '../../domain/types';
 import { eurosACentimos } from '../../domain/money';
 import { calcularCotizacion, figuraPorId, validarMedidasCrudas } from '../../domain/engine';
 
 export interface EstadoAtelier {
   readonly material: Material | null;
-  /** Origen del material. Arranca en 'pedido' (2026-07-30, indicación directa). */
-  readonly origen: OrigenMaterial;
   readonly figuraId: string | null;
   /** Medidas crudas en cm, por id de medida de la figura. */
   readonly medidas: Readonly<Record<string, string>>;
@@ -31,11 +29,15 @@ export interface EstadoAtelier {
   readonly precioMaterialEditadoEuros: string;
   /** % de merma (texto). Se inicializa con el valor por defecto de configuración. */
   readonly mermaPorcentaje: string;
+  /**
+   * Comentarios libres del comercial para taller (indicaciones de corte, avisos
+   * de obra…). Salen tal cual en la orden de trabajo; no tocan el cálculo.
+   */
+  readonly comentarios: string;
 }
 
 export type AccionAtelier =
   | { tipo: 'seleccionarMaterial'; material: Material | null }
-  | { tipo: 'cambiarOrigen'; origen: OrigenMaterial }
   | { tipo: 'seleccionarFigura'; figuraId: string | null }
   | { tipo: 'cambiarMedida'; medida: string; valor: string }
   | { tipo: 'cambiarCantidad'; cantidad: string }
@@ -44,12 +46,12 @@ export type AccionAtelier =
   | { tipo: 'cambiarPintado'; pintado: boolean }
   | { tipo: 'cambiarPrecioMaterialEditado'; euros: string }
   | { tipo: 'cambiarMerma'; porcentaje: string }
+  | { tipo: 'cambiarComentarios'; comentarios: string }
   | { tipo: 'reiniciar'; mermaPorcentajeDefecto: number };
 
 export function estadoInicial(mermaPorcentajeDefecto: number): EstadoAtelier {
   return {
     material: null,
-    origen: 'pedido',
     figuraId: null,
     medidas: {},
     cantidad: '1',
@@ -58,6 +60,7 @@ export function estadoInicial(mermaPorcentajeDefecto: number): EstadoAtelier {
     pintado: false,
     precioMaterialEditadoEuros: '',
     mermaPorcentaje: String(mermaPorcentajeDefecto),
+    comentarios: '',
   };
 }
 
@@ -65,8 +68,6 @@ function reductor(estado: EstadoAtelier, accion: AccionAtelier): EstadoAtelier {
   switch (accion.tipo) {
     case 'seleccionarMaterial':
       return { ...estado, material: accion.material };
-    case 'cambiarOrigen':
-      return { ...estado, origen: accion.origen };
     case 'seleccionarFigura':
       // Cambiar de figura reinicia medidas y suplementos: no son transferibles.
       return {
@@ -107,6 +108,9 @@ function reductor(estado: EstadoAtelier, accion: AccionAtelier): EstadoAtelier {
       return { ...estado, precioMaterialEditadoEuros: accion.euros };
     case 'cambiarMerma':
       return { ...estado, mermaPorcentaje: accion.porcentaje };
+    case 'cambiarComentarios':
+      // Son de la orden, no de la pieza: cambiar de figura NO los borra.
+      return { ...estado, comentarios: accion.comentarios };
     case 'reiniciar':
       return estadoInicial(accion.mermaPorcentajeDefecto);
   }
@@ -186,7 +190,6 @@ export function construirEntrada(
     medidasMm: validacion.medidasMm,
     entrada: {
       material,
-      origen: estado.origen,
       figuraId,
       medidasMm: validacion.medidasMm,
       cantidad,

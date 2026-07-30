@@ -15,7 +15,7 @@ implementa con suposiciones; se deja parámetro configurable con marca PROVISION
 | 5 | Geometría, foto y tarifa de la Figura 5 (Taller) | Figura 5 **retirada de la galería** (2026-07-29, dirección): sin entrada en `figuras.json` hasta tener croquis y tarifa. |
 | 6 | Tarifas de pasamanos y vierteaguas; ¿rodapié recto = tarifa de corte? (Taller) | **Pasamanos creados (2026-07-29)** con receta espejo del peldaño equivalente y tarifa PROVISIONAL = mismo precio que el peldaño (`pasamanos-*` en `tarifas.json`), a falta de tarifa confirmada. El pasamanos admite "dos manipulaciones y un solo arranque" (§2): **sin implementar** (hoy una sola línea de tarifa por figura). Vierteaguas y rodapié recto, **retirados de la galería** (2026-07-29, dirección): sin entrada en `figuras.json`. |
 | 7 | ¿Qué es "menudio"? (Taller) | Sin referencia en el código. |
-| 8 | Formato de los mínimos de compra (Compras) | **No implementado** (material de pedido: solo cajas completas). |
+| 8 | Formato de los mínimos de compra (Compras) | **No implementado** (todo se factura por cajas completas). |
 | 9 | ¿El 10 % de merma vale para todo o varía? (Taller) | `mermaPorcentajeDefecto: 10` (valor de desarrollo de §4), visible y editable en UI. |
 | 10 | ¿El comercial puede modificar la merma? (Dirección) | `mermaEditable: true` **PROVISIONAL**; si es false, el campo se muestra bloqueado. |
 | 10b | ¿A cuántas piezas se aplica «Angular»? (Taller) | **Resuelto 2026-07-30 (indicación directa):** ya no se cobra a todas las piezas. El comercial elige cuántas la llevan (`unidadesSuplemento` en la entrada del motor, campo en el paso ④); al activarlo se propone UNA y el motor rechaza más piezas de las pedidas. Es el único suplemento con este comportamiento, por ser el único `porPieza`. |
@@ -119,7 +119,7 @@ El motor no se considera correcto hasta reproducir 10–15 cálculos reales vali
 1. **Redondeo de manipulación:** hoy se calcula por pieza (redondeo half-up único) y luego se multiplica por cantidad. ¿O se tarifa sobre la longitud total? Afecta a los casos dorados.
 2. **Arranque de máquina:** se aplica una vez por orden siempre que hay manipulación. ¿Aplica también si solo se vende material sin manipular? ¿Y si solo hay "corte de piezas"?
 3. **Corte de piezas:** se tarifa el perímetro completo 2·(largo+ancho) **PROVISIONAL**. ¿O solo los cortes nuevos respecto a la baldosa de origen?
-4. **Material manual con origen "pedido":** los campos mínimos del alta manual (§1.①) no incluyen piezas/caja ni m²/caja, así que hoy es error de validación. ¿Se permite ese flujo? ¿Con qué datos? **Más urgente desde 2026-07-30:** al pasar el origen por defecto a «Pedido», este caso ya no está escondido — quien da de alta un material a mano ve DOS errores en cuanto teclea las medidas («no tiene el dato piezas por caja», «…m² por caja») y tiene que cambiar el origen a Stock a mano. Comprobado en la app. Mientras no se decida, la salida es Stock; si se quiere que el alta manual admita pedido, hay que añadir esos dos campos al formulario. NO se cambia el origen solo al elegir un material manual: eso sería responder por suposición a esta pregunta abierta (§0).
+4. **~~Material manual con origen "pedido"~~ — RESUELTO 2026-07-30 (indicación directa).** Al pasar a facturar por cajas completas también en stock, el alta manual se quedaba sin salida (ya no valía cambiar el origen a Stock). Decidido: el formulario pide **piezas por caja** como campo obligatorio. Los m²/caja NO se piden: se derivan del formato (`piezas × largo × ancho`), exacto y sin pérdida al cuantizar a mm². El origen de material se suprimió por completo.
 5. **Validación sobre mm redondeados:** 7,15 cm → 72 mm cumple el mínimo de 7,2 cm del rodapié estándar. ¿Correcto o se rechaza antes de redondear?
 6. **Transporte 40 €** (condiciones de la tarifa PDF): no tiene línea en el desglose de §1 y no se ha incluido. ¿Se cotiza aquí o fuera?
 7. **Mensajes de "no cabe"/incompatibilidad acortados (2026-07-24), a petición directa de dirección:** ya no citan literalmente el estilo largo de §1.③ (p. ej. "La longitud pedida es X cm; este formato solo permite Y cm en la orientación necesaria." → "La pieza mide X cm; el formato solo llega a Y cm."). Si taller/spec exige el texto largo exacto, avisar antes de dar esto por definitivo.
@@ -134,7 +134,7 @@ El motor no se considera correcto hasta reproducir 10–15 cálculos reales vali
     - **Consulta directa por referencia exacta (2026-07-27):** si el texto de búsqueda es solo dígitos (≥4) y no hay coincidencia en el índice local, `fuenteIndiceCataleg.buscar()` hace UNA llamada `?accio=article&codi=…`. Así se encuentran artículos que están en el API pero no en el sitemap (sin página pública o sin imagen en ferrolan.es). Esos resultados no tienen imagen de índice (se usa el patrón PrestaShop si está configurado) y, si llegan sin mides en el API, se aplica la extracción desde la descripción (ver el punto de los artículos sin fitxa web).
     - **`idmarca` es un id numérico**, no hay nombre de marca en el contrato: `Material.marca` queda `null` para los artículos reales. Si se necesita el filtro por marca con datos reales, pedir al proveedor el nombre asociado a `idmarca` (o una tabla de marcas).
     - **~21.000 artículos CE sin fitxa web:** `llarg`/`ample` (y el resto de mides) llegan `null`. **Decidido (2026-07-27, dirección):** en ese caso `mapearArticuloCataleg` extrae el formato de la descripción (`extraerFormatoDeDescripcion`, patrón «LARGOxANCHO» en cm, p. ej. «45X45»; primer número = largo, segundo = ancho, tal como viene escrito — confirmar con taller si alguna descripción lo escribe al revés). Solo si la descripción tampoco trae formato se devuelve 'sin_medidas' y la UI ofrece «Entrada manual» conservando el precio real.
-    - **`tarc`/`tara`/`taradc`:** el contrato expone tres tarifas hermanas de `tarp` sin explicar su uso en esta herramienta. De momento solo se usa `tarp`. Preguntar si alguna de las otras aplica a Atelier Studio.
+    - **`tarc`/`tara`/`taradc`:** el contrato expone tres tarifas hermanas de `tarp` sin explicar su uso en esta herramienta. De momento solo se usa `tarp`. Preguntar si alguna de las otras aplica a Atelier Studio. **Posible pista (2026-07-30):** el encargo anuncia varios márgenes por tipo de cliente («PVP», «PP»…) que vendrán del API; podrían ser justo estas tarifas hermanas. Confirmarlo antes de inventar un campo nuevo — ver §6.
     - **Piezas por caja calculadas (2026-07-27, regla de taller):** cuando `peces_caixa` llega null, `piezasPorCaja = round(encaixat ÷ m²/pieza)` (`piezasPorCajaDesdeEncaixat`; «30x60 → 0,18 m²; 1,08/0,18 = 6»). Verificado contra datos reales: reproduce `peces_caixa` en artículos con fitxa web (7,01→7, 2,01→2). Nota: en el taller hablan de «UNIVENTA/UNICOMPRA» para los m²/caja, pero en el API ese dato es `encaixat` — `unicompra` vale siempre 1 y `univenta` no existe en el contrato de 31 campos.
     - Si el `actualitzat` de `?accio=salut` se queda antiguo (>~14 h), es un fallo de sincronización del lado del ERP: avisar al responsable (no es un bug de la app).
 9. **Imágenes PrestaShop:** patrón `<base>/<referencia>.jpg` **PROVISIONAL**. Confirmar el patrón real del web service (independiente del catálogo de cerámica; `catalogo.codigo = PrestaShop.reference`).
@@ -153,3 +153,125 @@ El motor no se considera correcto hasta reproducir 10–15 cálculos reales vali
 
 Login y roles · backoffice · offline/PWA · base de datos propia · sincronización nocturna ·
 reutilización de sobrantes · flujo de estados de órdenes · auditoría de cambios.
+
+## 6. Margen comercial (anunciado 2026-07-30, sin especificar)
+
+El encargo avisa de que material, manipulación y arranque de máquina llevarán un
+**margen** que hoy no existe: automático y no visible para el cliente, obtenido
+del API, con **varios márgenes según el tipo de cliente** («PVP», «PP»…),
+**dependiente del fabricante** y conmutable sin que el cliente lo note. Los
+detalles llegarán más adelante; **no se ha implementado nada** (§0).
+
+Lo que conviene decidir ANTES de escribir código, porque cambia el diseño:
+
+1. **Dónde se aplica y en qué orden.** El motor trabaja en enteros con un único
+   redondeo por línea (`docs/05-motor-de-calculo.md`). No da el mismo céntimo
+   aplicar el margen línea a línea y sumar, que sumar y aplicarlo al total; ni
+   aplicarlo antes o después del redondeo a cajas/merma. Hace falta la regla
+   exacta, no una aproximación. Enlaza con §4.1 (orden de redondeo de la
+   manipulación), que sigue abierto.
+2. **Interacción con el precio editado a mano.** El comercial ya puede sobrescribir
+   el precio del material (§1.①). ¿El margen se aplica también encima de ese
+   precio, o el precio editado se entiende ya con margen? Hoy no hay respuesta y
+   son importes distintos.
+3. **Qué documento ve cada uno.** La orden de trabajo actual imprime el desglose
+   completo (material, manipulación, arranque, total sin IVA, IVA). Si el margen va
+   escondido dentro de esas cifras, hay que decidir si esa hoja pasa a llevar
+   precios de venta —y entonces taller ve PVP, no coste— o si hacen falta **dos
+   documentos**: uno interno con coste y otro para el cliente con margen. Afecta
+   directamente a `src/pdf/ordenTrabajo.ts`.
+4. **De dónde sale el margen.** Si depende del fabricante, hace falta poder
+   agrupar el artículo, y con los datos del catálogo **hoy no se puede**:
+   `idmarca` es un id numérico y el contrato no da el nombre (§4.8).
+   **Avance del 2026-07-30:** el alta manual ya recoge una **subfamilia**
+   (id numérico opcional, `Material.subfamilia`), a propósito para engancharla
+   aquí. No entra en ningún cálculo todavía. Queda por resolver lo importante:
+   los artículos del **catálogo** la traen a `null` porque el API no la expone,
+   así que hay que pedir al ERP la subfamilia por artículo (o un margen ya
+   resuelto). Con solo el alta manual cubierta, el margen no se puede aplicar al
+   caso normal.
+5. **Casos dorados.** Cada caso de §3 tendrá que registrar con qué margen se
+   calculó, o los importes esperados quedan ambiguos. Los casos que se capturen
+   antes de que exista el margen valen igual, pero hay que entenderlos como
+   **casos a coste** y anotarlo en el JSON.
+
+**Una recomendación, no una decisión:** «oculto para el cliente» y «oculto para el
+comercial» no son lo mismo. Que el margen no se detalle en el documento que ve el
+cliente es normal; que el comercial no sepa cuál está activo es arriesgado —
+podría presupuestar con el margen equivocado sin enterarse. Lo prudente es que la
+herramienta muestre siempre qué margen se está aplicando (visible solo en pantalla,
+nunca en el PDF del cliente).
+
+---
+
+## 7. Merma por formato (indicación 2026-07-30, incompleta)
+
+**Lo indicado.** La merma por defecto dejará de ser un valor único (hoy 10 % en
+`parametros.json`) y pasará a depender del formato de la baldosa, «parecido al precio
+del material»: se propone un valor y el comercial puede sobrescribirlo. Además, las
+figuras **numeradas** llevan **+5 %** de merma.
+
+**Lo que sí está claro:**
+- Formatos de 30×60 o menores → **10 %**.
+- Al llegar a 120×60 → **20 %**, y ese 20 % se aplica de ahí en adelante.
+- Sigue siendo editable a mano (el campo y el override ya existen).
+
+**BLOQUEANTE — falta la tabla intermedia.** «Vamos subiendo hasta llegar a 120×60»
+no dice ni los escalones ni el criterio de ordenación. No se implementa por
+suposición (§0). Hace falta concretar:
+
+1. **Qué mide el tramo.** Los dos extremos citados (30×60 y 120×60) comparten el
+   lado de 60, así que lo que varía es el **lado mayor** (60 → 120). ¿Es eso, o es
+   la superficie de la baldosa? Con formatos no cuadrados (30×120, 75×75, 100×100)
+   las dos lecturas dan mermas distintas.
+2. **Los escalones exactos.** ¿Qué merma le toca a 60×60, 75×75, 80×80, 90×90,
+   100×100, 120×120? ¿Es una tabla de formatos concretos o tramos por lado mayor?
+   Interpolar linealmente (15 % a 90 cm) sería inventarse una regla de negocio.
+3. **Qué cuenta como «figura numerada».** Literalmente hay **ocho** figuras con un
+   número en el nombre: `figura-1..4` **y** `pasamanos-1..4`. Los pasamanos son las
+   mismas geometrías reflejadas, así que lo razonable es que también lleven el +5 %,
+   pero hay que confirmarlo. Los que **no** lo llevarían: peldaño romo, pasamanos
+   romo, los dos rodapiés y el corte.
+4. **Cómo se combina el +5 %.** ¿Es aditivo sobre el tramo (formato 10 % → 15 %) o
+   multiplicativo (10 % × 1,05 = 10,5 %)? Con el tramo al 20 % la diferencia es
+   25 % frente a 21 %.
+5. **Tope.** Si el tramo ya está en 20 % y la figura suma 5 %, ¿se queda en 25 % o
+   hay máximo?
+
+**Nota de implementación.** Cuando estén los valores, esto va en `parametros.json`
+como tabla de tramos (dato, no código), con la lista de figuras con recargo
+también en configuración. El motor ya cuantiza la merma a centésimas de punto, así
+que un 12,5 % entra sin tocar la aritmética entera.
+
+---
+
+## 8. Figura nueva: tabica (indicación 2026-07-30, incompleta)
+
+**Lo indicado.** Una **tabica** es una figura 1 con un **corte** debajo a modo de
+zócalo. El precio es la **suma de las dos** partes. Los parámetros son
+independientes **salvo el largo**, que es común a las dos.
+
+**Por qué no es una figura más.** Hoy el motor asume, de arriba abajo, que una
+cotización = **una** figura → una receta → **una** tarifa de manipulación
+(`resolverTarifa` + `longitudTarifaMm` en `src/domain/engine/cotizacion.ts`). La
+tabica es la primera figura **compuesta**, así que no se resuelve añadiendo una
+entrada a `figuras.json`: hay que decidir cómo se representa una figura con dos
+sub-piezas y dos tarifas. Toca motor, configuración, visor 3D, miniatura, PDF y
+casos dorados.
+
+**Preguntas antes de escribir código:**
+1. **Medidas del zócalo.** El corte tiene hoy `largo` y `ancho`. Si el largo es
+   común, ¿la única medida propia del zócalo es su altura? ¿Y qué medidas conserva
+   la figura 1 (ancho y caída, entiendo)?
+2. **Veta y ocupación.** §4 dice que los componentes de una pieza salen de la misma
+   baldosa. ¿La figura 1 y su zócalo tienen que salir de la **misma** baldosa —lo
+   que cambia la ocupación y puede no caber— o son piezas independientes que se
+   cotizan juntas? Es la pregunta que más mueve el importe del material.
+3. **Arranque de máquina.** Es uno por orden (§2) y eso no cambia; pero conviene
+   confirmar que una tabica es **una** orden y no dos.
+4. **Merma.** Con §7 en marcha: ¿la tabica cuenta como figura numerada (+5 %)? El
+   nombre no lleva número, pero «es una figura 1».
+5. **Suplementos.** ¿Los de la figura 1 (angular, ranuras, goterón, espesado)
+   aplican a la tabica? ¿Alguno aplica al zócalo?
+6. **Croquis.** Habrá que dibujar la sección compuesta (escuadra + zócalo) en
+   `src/piezas/seccionPieza.ts` para el visor, la miniatura y el croquis del PDF.

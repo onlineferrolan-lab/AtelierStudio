@@ -36,7 +36,6 @@ interface CasoDorado {
     m2PorCaja: number | null;
     esManual: boolean;
   };
-  origen: 'stock' | 'pedido';
   figuraId: string;
   medidasCm: Record<string, string>;
   cantidad: number;
@@ -134,6 +133,7 @@ function ejecutarCaso(caso: CasoDorado): SalidaMotor {
         : eurosACentimos(caso.material.precioUnidadEuros),
     piezasPorCaja: caso.material.piezasPorCaja,
     m2PorCaja: caso.material.m2PorCaja,
+    subfamilia: null,
     imagenUrl: null,
     esManual: caso.material.esManual,
   };
@@ -141,7 +141,6 @@ function ejecutarCaso(caso: CasoDorado): SalidaMotor {
   return calcularCotizacion(
     {
       material,
-      origen: caso.origen,
       figuraId: caso.figuraId,
       medidasMm: validacion.medidasMm,
       cantidad: caso.cantidad,

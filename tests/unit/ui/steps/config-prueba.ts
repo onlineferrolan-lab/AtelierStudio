@@ -36,6 +36,7 @@ export function materialPrueba(): Material {
     precioUnidadCentimos: null,
     piezasPorCaja: 4,
     m2PorCaja: 1.44,
+    subfamilia: null,
     imagenUrl: null,
     esManual: false,
   };
