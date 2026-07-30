@@ -7,18 +7,51 @@ su fallback de textura. Va dirigido a quien mantenga la capa `src/data/`, config
 con el API o depure problemas de búsqueda de materiales. No cubre las reglas de cotización (el
 motor de `src/domain/engine/`) ni las tarifas de manipulación de `public/config/`.
 
-## Formato del índice: tuplas, no objetos (2026-07-30)
+## Formato del índice: tuplas y el campo «imagen» (2026-07-30)
 
 `public/data/indice-cataleg.json` guarda cada artículo como **tupla compacta**
-`[referencia, titulo, imagenUrl]`, sin nombres de campo: repetidos ~33.000 veces
+`[referencia, titulo, imagen]`, sin nombres de campo: repetidos ~33.000 veces
 costaban más de 1 MB. Lo escribe así `scripts/generar-indice-cataleg.mjs` y lo lee
 `fuenteIndiceCataleg.ts`.
+
+El tercer elemento es **número o cadena**:
+
+- **Número** → id de imagen de PrestaShop. La URL se reconstruye como
+  `https://ferrolan.es/<id>/<slug(titulo)>-<referencia>.jpg`. Es el 94,6 % de los
+  artículos.
+- **Cadena** → la URL completa, para lo que no encaja en ese patrón (títulos cuyo
+  formato no coincide con el de la URL, imágenes de categoría `/c/<id>-…`).
+
+Las URL enteras eran el **62 % del índice** (2,23 MB de 3,89 MB), con 0,55 MB solo
+de prefijo repetido. Compactarlas dejó el índice en **1,84 MB** (0,29 MB en gzip,
+frente a 0,51 MB antes). La regla vive en `src/data/imagenIndice.mjs`.
+
+**Por qué ese módulo es `.mjs` y no `.ts`:** lo importan la app (por Vite) **y** el
+indexador, que es Node puro y se ejecuta en el cron de Plesk sin devDependencies.
+Así la regla existe una sola vez. Si estuviera duplicada, el indexador podría
+compactar con una regla y la app reconstruir con otra, y el síntoma serían
+imágenes rotas en todo el catálogo. Los tipos los da `imagenIndice.d.mts`.
+
+**La garantía que hace esto seguro:** el indexador solo guarda un id si la URL
+reconstruida sale **idéntica** a la real (`compactarImagen`). Si PrestaShop cambia
+su regla de slug, el índice tendrá más excepciones y pesará más; nunca imágenes
+rotas.
 
 **Si cambias el formato, regenera el índice en el mismo commit.** El lector
 desestructura la tupla, así que un índice en el formato antiguo (objetos) lanza
 `object is not iterable` y el catálogo deja de funcionar por completo — no
 degrada, se cae. Los tests usan sus propias fixtures, así que **no** detectan el
 desajuste con el archivo real: compruébalo abriendo el catálogo en el navegador.
+
+### Títulos: entidades HTML doblemente escapadas
+
+El sitemap entrega los títulos con entidades **dos veces escapadas**
+(`B&amp;amp;W`). Sin decodificarlas, el comercial veía literalmente
+«EQUIPE CAPRICE BALANCE B&amp;amp;W MATE 20X20» en pantalla (55 artículos). El
+indexador las decodifica al construir el índice (`desescaparTitulo`, decodifica
+hasta que el texto deja de cambiar), así que el título guardado ya es el bueno —
+y es además el que se usa para reconstruir la URL, así que **no se puede
+transformar al cargar** sin romper las imágenes.
 
 ## Visión general: una interfaz, tres orígenes
 

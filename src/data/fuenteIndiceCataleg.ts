@@ -39,6 +39,7 @@
 import type { Material } from '../domain/types';
 import { TAMANO_PAGINA_MAXIMO, type ConsultaCatalogo, type FuenteCatalogo, type ResultadoBusquedaCatalogo } from './catalogo';
 import { extraerTerminosBusqueda, normalizarTexto } from './busqueda';
+import { urlImagenDeIndice } from './imagenIndice.mjs';
 import { obtenerArticuloCataleg, obtenerArticulosCataleg } from './fuenteCataleg';
 
 // Cuelga de BASE_URL porque la app se sirve bajo un subpath (/atelier-studio/).
@@ -83,11 +84,20 @@ export function crearPredicadoTituloOculto(
 
 /**
  * Artículo del índice tal como se serializa en el JSON: tupla compacta
- * `[referencia, titulo, imagenUrl]`. Los nombres de campo repetidos ~33.000
+ * `[referencia, titulo, imagen]`. Los nombres de campo repetidos ~33.000
  * veces eran ~1,1 MB del índice; el orden lo fija el indexador
  * (`generar-indice-cataleg.mjs`).
+ *
+ * `imagen` es **número o cadena** a propósito (ver `imagenIndice.ts`): número =
+ * id de imagen, con la URL reconstruible del título y la referencia (el 94,6 %,
+ * y 1,97 MB menos de índice); cadena = URL completa para los casos que no se
+ * pueden reconstruir.
  */
-type ArticuloIndiceJson = readonly [referencia: string, titulo: string, imagenUrl: string];
+type ArticuloIndiceJson = readonly [
+  referencia: string,
+  titulo: string,
+  imagen: number | string,
+];
 
 interface IndiceCatalegJson {
   readonly _aviso: string;
@@ -155,10 +165,13 @@ export function crearFuenteIndiceCataleg(
       return {
         articulos: json.articulos
           .filter(([referencia, titulo]) => !ocultas.has(referencia) && !tituloOculto(titulo))
-          .map(([referencia, titulo, imagenUrl]) => ({
+          .map(([referencia, titulo, imagen]) => ({
             referencia,
             titulo,
-            imagenUrl,
+            // El índice guarda el id de imagen cuando la URL es reconstruible;
+            // se rehace aquí, al cargar, para que el resto del módulo siga
+            // trabajando con una URL normal.
+            imagenUrl: urlImagenDeIndice(imagen, titulo, referencia),
             // Cadena buscable precomputada UNA vez aquí: normalizar (NFD + sin
             // diacríticos + minúsculas) los ~33.000 títulos en cada pulsación
             // de tecla era el coste dominante de buscar(). Equivale a

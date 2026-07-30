@@ -31,15 +31,33 @@
  * `/api/cataleg/` (`enriquecerConCataleg`) al seleccionar un artículo.
  *
  * Formato del JSON: JSON compacto (sin pretty-print) y cada artículo es una
- * TUPLA `[referencia, titulo, imagenUrl]` en vez de un objeto con nombres de
+ * TUPLA `[referencia, titulo, imagen]` en vez de un objeto con nombres de
  * campo — con ~33.000 artículos, las claves repetidas eran ~1,1 MB del
  * índice. Quien lo lee es `fuenteIndiceCataleg.ts`; si cambia el formato,
  * hay que cambiarlo en los dos sitios.
+ *
+ * El campo `imagen` es NÚMERO o CADENA: número = id de imagen de PrestaShop,
+ * con la URL reconstruible como
+ * `https://ferrolan.es/<id>/<slug(titulo)>-<referencia>.jpg`; cadena = URL
+ * completa para lo que no encaja en ese patrón. Las URL enteras eran el 62 %
+ * del índice (2,23 MB de 3,89 MB) y el 94,6 % son derivables: compactarlas
+ * quita ~2 MB. La regla NO está duplicada: vive en `src/data/imagenIndice.mjs`,
+ * en JavaScript plano precisamente para que la importen tanto la app (por Vite)
+ * como este script (Node puro). Si estuviera duplicada, el indexador podría
+ * compactar con una regla y la app reconstruir con otra: imágenes rotas.
+ *
+ * IMPORTANTE: solo se guarda el id si la URL reconstruida sale IDÉNTICA a la
+ * real (`compactarImagen`). Si PrestaShop cambia su regla de slug, el índice
+ * simplemente tendrá más excepciones y pesará más; nunca imágenes rotas.
  */
 
 import { writeFile, readFile, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+// La regla de compactado vive en `src/data/imagenIndice.mjs`, compartida con la
+// app: es JavaScript plano justo para que este script (Node puro, sin
+// devDependencies en el cron de Plesk) pueda importarla sin duplicarla.
+import { compactarImagen, desescaparTitulo } from '../src/data/imagenIndice.mjs';
 
 const SITEMAP_INDEX = 'https://ferrolan.es/1_index_sitemap.xml';
 const USER_AGENT = 'AtelierStudio-indexador/1.0 (herramienta interna Ferrolan; contacto: equipo de eines)';
@@ -94,7 +112,9 @@ function extraerArticulos(xml) {
     const imagenUrl = extraerTag(imagenBloque[1], 'image:loc');
     if (!imagenUrl) continue;
     if (articulos.has(referencia)) continue; // ya visto (duplicados en el propio sitemap)
-    const titulo = extraerTag(imagenBloque[1], 'image:title') ?? '';
+    // Desescapado AQUÍ, antes de guardarlo: el título del índice y el que se usa
+    // para reconstruir la URL tienen que ser el mismo texto.
+    const titulo = desescaparTitulo(extraerTag(imagenBloque[1], 'image:title') ?? '');
     articulos.set(referencia, { referencia, titulo, imagenUrl: imagenOriginal(imagenUrl) });
   }
   return articulos;
@@ -157,21 +177,39 @@ async function main() {
   if (antes !== lista.length) {
     console.log(`Excluidos ${antes - lista.length} artículos por título oculto (config/catalogo.json).`);
   }
+  const articulosCompactados = lista.map((a) => [
+    a.referencia,
+    a.titulo,
+    compactarImagen(a.imagenUrl, a.titulo, a.referencia),
+  ]);
+  const compactados = articulosCompactados.filter(([, , img]) => typeof img === 'number').length;
   const contenido = {
     _aviso:
       'GENERADO por scripts/generar-indice-cataleg.mjs a partir del sitemap público de ' +
       'ferrolan.es (no editar a mano). Es un ÍNDICE DE BÚSQUEDA (referencia/título/imagen); ' +
       'el precio y las mides se consultan en vivo por código a /api/cataleg/ al seleccionar. ' +
-      'Cada artículo es una tupla [referencia, titulo, imagenUrl] (sin nombres de campo, ' +
-      'para que el índice pese menos).',
+      'Cada artículo es una tupla [referencia, titulo, imagen] (sin nombres de campo, ' +
+      'para que el índice pese menos). El tercer elemento es NÚMERO (id de imagen: la URL ' +
+      'se reconstruye como https://ferrolan.es/<id>/<slug(titulo)>-<referencia>.jpg) o ' +
+      'CADENA (URL completa, para lo que no encaja en el patrón). Lo reconstruye ' +
+      'src/data/imagenIndice.ts.',
     generadoEn: new Date().toISOString(),
-    articulos: lista.map((a) => [a.referencia, a.titulo, a.imagenUrl]),
+    articulos: articulosCompactados,
   };
   await writeFile(salida, JSON.stringify(contenido), 'utf8');
+  const pct = ((compactados / articulosCompactados.length) * 100).toFixed(1);
   console.log(`\nEscrito ${salida} con ${contenido.articulos.length} artículos.`);
+  console.log(
+    `Imágenes compactadas a id: ${compactados} (${pct} %); ` +
+      `${articulosCompactados.length - compactados} con URL completa.`,
+  );
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+/** Solo descarga cuando se ejecuta el script directamente, nunca al importarlo. */
+const rutaEjecutada = process.argv[1] ? path.resolve(process.argv[1]) : null;
+if (rutaEjecutada && rutaEjecutada === fileURLToPath(import.meta.url)) {
+  main().catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  });
+}
