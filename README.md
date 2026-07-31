@@ -6,6 +6,10 @@ Herramienta interna para configurar y cotizar piezas cerámicas manipuladas en t
 - **Una sola página, sin login** (uso interno), escritorio primero, idioma español.
 - Columna izquierda con pasos ① Material · ② Figura · ③ Medidas y cantidad · ④ Suplementos
   y bloque de **Cotización** siempre visible; panel derecho con pestañas **Catálogo / Visor 3D**.
+- Debajo de la cotización, el bloque **Pedido**: varias piezas en una sola orden. Las que
+  se cortan del mismo artículo **comparten caja** — se compra el material una vez en lugar
+  de una tanda de cajas por cada corte — y salen juntas en un PDF con hoja de resumen y
+  una hoja por pieza (ver PENDIENTES.md §9).
 - Especificación: `ATELIER_STUDIO_MVP.md` (entregada con el encargo). Las dudas abiertas
   viven en **[PENDIENTES.md](./PENDIENTES.md)** — léelo antes de tocar reglas de negocio.
 
@@ -140,15 +144,18 @@ src/
     units.ts         #   cm → mm enteros
     config.ts        #   carga/validación de /config (interfaz FuenteConfiguracion)
     engine/          #   MOTOR DE CÁLCULO PURO (§7.2): validación, tarifas,
-                     #   ocupación §4, merma, stock/pedido, desglose
+                     #   ocupación §4, merma, desglose
+                     #   cotizacion.ts = calcularLinea (la pieza) + facturarMaterial (el artículo)
+                     #   pedido.ts     = varias piezas, cajas compartidas por artículo
   data/              # catálogo: FuenteCatalogo (muestra, índice) + cataleg real (por código) + entrada manual
   viewer/            # visor 3D paramétrico (three.js): geometría, cotas, escena
-  pdf/               # orden de trabajo en PDF (jsPDF)
+  pdf/               # maqueta.ts (bloques comunes) + ordenTrabajo.ts (una pieza)
+                     # + ordenPedido.ts (pedido: resumen + una hoja por pieza)
   ui/
     components/      # primitivas (patrón visual Top Studio)
-    state/           # config-context + quote-state (reducer global)
+    state/           # config-context + quote-state (reducer global, incluye el carrito)
     steps/           # pasos ①-④ + CatalogoPanel
-    shell/           # layout, cabecera, panel derecho, bloque cotización
+    shell/           # layout, cabecera, panel derecho, bloques cotización y pedido
 tests/
   unit/              # Vitest por módulo
   golden/            # casos dorados de taller (§5): ver tests/golden/README.md

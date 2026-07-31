@@ -87,6 +87,7 @@ export function PanelCotizacion(): JSX.Element {
   const [generandoPdf, setGenerandoPdf] = useState(false);
 
   const resultado = salida !== null && salida.ok ? salida.resultado : null;
+  const hayPedido = estado.carrito.length > 0;
   const medidasIniciadas = medidasTecleadas(estado);
   // «Cantidad» nunca empieza vacía: su error se enseña siempre. Las medidas
   // de la figura sí empiezan vacías al elegirla (mismo criterio que PasoMedidas).
@@ -320,8 +321,23 @@ export function PanelCotizacion(): JSX.Element {
         ) : null}
 
         <div className="flex flex-col gap-2 border-t border-slate-100 pt-3">
-          <Boton onClick={() => void alGenerarPdf()} disabled={resultado === null || generandoPdf}>
-            {generandoPdf ? 'Generando PDF…' : 'Generar PDF'}
+          {/* «Añadir al pedido» va PRIMERO cuando ya hay pedido empezado: a partir
+              de la segunda pieza, lo que se quiere es seguir sumando, no sacar el
+              PDF de una sola. Con el pedido vacío manda «Generar PDF», que es el
+              flujo de siempre para quien solo hace una pieza. */}
+          <Boton
+            variante={hayPedido ? 'primario' : 'secundario'}
+            onClick={() => dispatch({ tipo: 'anadirAlPedido' })}
+            disabled={resultado === null}
+          >
+            Añadir al pedido
+          </Boton>
+          <Boton
+            variante={hayPedido ? 'secundario' : 'primario'}
+            onClick={() => void alGenerarPdf()}
+            disabled={resultado === null || generandoPdf}
+          >
+            {generandoPdf ? 'Generando PDF…' : 'Generar PDF de esta pieza'}
           </Boton>
           <Boton variante="secundario" onClick={alReiniciar}>
             Reiniciar

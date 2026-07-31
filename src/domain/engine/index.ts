@@ -27,7 +27,9 @@ import type { Configuracion, Figura } from '../config';
 
 export { validarMedidasCrudas } from './validacion';
 export { resolverTarifa, longitudTarifaMm } from './tarifas';
-export { calcularCotizacion } from './cotizacion';
+export { calcularCotizacion, calcularLinea, facturarMaterial } from './cotizacion';
+export type { LineaCalculada, FacturacionMaterial, SalidaLinea } from './cotizacion';
+export { calcularPedido, claveGrupoMaterial } from './pedido';
 export {
   mermaPorFormatoCentesimas,
   mermaSugeridaCentesimas,

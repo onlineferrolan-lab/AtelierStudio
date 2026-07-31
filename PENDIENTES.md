@@ -295,3 +295,58 @@ redondea una sola vez, en vez de encadenar redondeos.
    delantera, y no es eso). La nariz vuela y el zócalo queda metido hacia dentro.
    `croquisPendiente` sigue en `true`: las proporciones del dibujo son
    representativas, no un plano de taller.
+
+## 9. Pedido con varias piezas — IMPLEMENTADO (petición 2026-07-31)
+
+**Lo pedido:** «poder hacer varias piezas y meterlas en un carrito, generar un PDF
+grande con todas, y así optimizar el uso de cajas: no usar una caja por cada corte
+distinto sino una caja para todos los cortes mientras queden piezas en ella».
+
+**El problema que resuelve.** La caja es del ARTÍCULO, pero se estaba facturando
+por CORTE: dos piezas del mismo material que necesitan 1 baldosa cada una se
+cobraban como 2 cajas de 4 — 8 baldosas compradas para usar 2. Cotizando el
+pedido entero, las cajas se cuentan una sola vez sobre la suma de baldosas de
+todas las piezas de ese artículo.
+
+**Cómo está montado:**
+
+- `src/domain/engine/pedido.ts` (`calcularPedido`) — motor puro. Agrupa las líneas
+  por artículo (`claveGrupoMaterial`) y factura las cajas por grupo.
+- `src/domain/engine/cotizacion.ts` se partió en `calcularLinea` (lo que es de la
+  pieza) y `facturarMaterial` (lo que es del artículo). `calcularCotizacion` es
+  ahora la composición de las dos, y devuelve **exactamente lo mismo que antes**:
+  una pieza suelta es un grupo con una sola línea.
+- `src/ui/state/quote-state.tsx` — el carrito (`carrito: LineaCarrito[]`), que
+  persiste en `localStorage` (`carrito-persistencia.ts`, versionado; cualquier
+  problema al leer = pedido vacío, nunca un error en pantalla).
+- `src/pdf/ordenPedido.ts` — PDF multipágina: hoja de resumen (piezas, material y
+  cajas, importes) + una hoja por pieza. Los bloques son los mismos de
+  `ordenTrabajo.ts`, extraídos a `src/pdf/maqueta.ts`.
+
+**Decisiones tomadas que hay que CONFIRMAR con taller/dirección:**
+
+1. **Arranque de máquina: uno por MATERIAL, no uno por pedido ni uno por pieza.**
+   §2 dice «una sola vez por orden»; con un solo material el resultado es idéntico
+   al de siempre, y con varios se cobra uno por cada uno porque cambiar de baldosa
+   obliga a volver a preparar la máquina. **Es la interpretación más conservadora
+   que no cambia el comportamiento existente, pero no está confirmada:** puede que
+   taller quiera uno por corte (más caro) o uno por pedido (más barato). Es el
+   punto con más impacto en el precio de esta entrega.
+2. **Las baldosas se siguen contando POR PIEZA** y luego se suman. No se mezclan
+   cortes distintos dentro de una misma baldosa: la veta §4 y la receta de
+   ocupación siguen siendo por pieza. Lo que se comparte es la CAJA, no la
+   baldosa. Aprovechar el sobrante de una baldosa para otro corte sigue fuera de
+   alcance (§5, «reutilización de sobrantes»).
+3. **Un artículo, un precio.** Si dos piezas del mismo artículo llevan distinto
+   precio de material editado a mano o distinto margen, el pedido NO se cotiza y
+   lo dice: no hay forma no arbitraria de decidir con cuál de los dos se compran
+   las cajas.
+4. **El pedido no se numera en servidor** (§8, sin base de datos): el código es
+   `PED-<AAAAMMDD-HHMM>`, con el prefijo distinto del `OT-` de una pieza suelta.
+   Si dos comerciales sacan un pedido en el mismo minuto, el código se repite.
+5. **El PDF no lleva importes en las hojas de pieza**: van todos en el resumen.
+   Se hizo así porque las cajas son del artículo y ponerlas junto a una pieza haría
+   creer que son solo suyas. Confirmar que taller no echa de menos el precio en la
+   hoja que se lleva a la máquina.
+6. **Sigue existiendo el PDF de UNA pieza** («Generar PDF de esta pieza»), sin
+   tocar. Si el pedido lo sustituye del todo, se puede retirar.

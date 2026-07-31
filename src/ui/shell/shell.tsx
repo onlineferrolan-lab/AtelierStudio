@@ -27,6 +27,7 @@ import { PasoSuplementos } from '../steps/PasoSuplementos';
 import { useAtajoManual } from './atajoManual';
 import { Cabecera } from './cabecera';
 import { PanelCotizacion } from './cotizacion';
+import { PanelPedido } from './pedido';
 import { usePanelDerecho, type PestanaPanel } from './panel';
 
 /**
@@ -58,6 +59,7 @@ export function ShellAtelier(): JSX.Element {
             <PasoSuplementos />
             <Comentarios />
             <PanelCotizacion />
+            <PanelPedido />
           </div>
           <PanelDerecho />
         </div>
