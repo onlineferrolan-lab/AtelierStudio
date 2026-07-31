@@ -17,18 +17,37 @@ import figurasJson from '../../../../public/config/figuras.json';
 // ('activa' → string), de ahí el doble paso por unknown.
 type Args = Parameters<typeof construirConfiguracion>;
 
+/**
+ * Tabla de márgenes de prueba con la subfamilia de `materialPrueba()` **al 0 %**.
+ *
+ * Hace falta que exista: desde 2026-07-31 el motor NO cotiza si no encuentra
+ * margen para el artículo, así que con la tabla vacía estos tests de UI se
+ * quedaban sin cotización y los pasos no se abrían. Al 0 % para que ningún
+ * importe de estos tests cambie por el markup — el margen se prueba aparte, en
+ * `tests/unit/engine/margen.test.ts`.
+ */
+const margenesPrueba = {
+  longitudSubfamilia: 4,
+  subfamilias: { '9411': { nombre: 'SUBFAMILIA DE PRUEBA', pvp: 0, contratista: 0 } },
+};
+
 export function construirConfigPrueba(): Configuracion {
   return construirConfiguracion(
     parametrosJson as unknown as Args[0],
     tarifasJson as unknown as Args[1],
     figurasJson as unknown as Args[2],
+    margenesPrueba,
   );
 }
 
-/** Material ficticio 60×60 para los tests (no requiere la capa de datos). */
+/**
+ * Material ficticio 60×60 para los tests (no requiere la capa de datos).
+ * La referencia empieza por 9411 a propósito: es la subfamilia de la tabla de
+ * márgenes de prueba, y sin margen no habría cotización.
+ */
 export function materialPrueba(): Material {
   return {
-    referencia: 'PRU-600',
+    referencia: '94110600',
     descripcion: 'Baldosa de prueba 60×60',
     marca: 'Marca Prueba',
     formato: { largoMm: mm(600), anchoMm: mm(600) },

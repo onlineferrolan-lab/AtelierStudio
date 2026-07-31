@@ -210,6 +210,35 @@ a petición del maestro): misma receta que su peldaño equivalente con la manipu
 lado opuesto (`frontal-trasero`, `retorno-trasero`, doble media caña). Su tarifa repite
 **PROVISIONALMENTE** el precio del peldaño equivalente hasta que taller confirme (§6.6).
 
+## `margenes.json` — margen comercial por subfamilia (2026-07-31)
+
+**Generado, no editable a mano.** `npm run margenes -- <csv>` convierte el CSV de
+subfamilias del ERP (`datos-fuente/marge-subfami.csv`) a `public/config/margenes.json`.
+El CSV viene en **cp1252**, no en UTF-8: leerlo como UTF-8 parte las Ñ y los acentos, y el
+script lo decodifica explícitamente.
+
+```json
+{
+  "longitudSubfamilia": 4,
+  "subfamilias": { "9411": { "nombre": "CASA INFINITA", "pvp": 6600, "contratista": 6600 } }
+}
+```
+
+- La **clave es la subfamilia**: los **4 primeros dígitos de la referencia** del artículo.
+  La referencia `94111301` es de la subfamilia `9411`. Cubre el 98,3 % de los 28.732
+  artículos del índice.
+- `pvp` es **MTP** y `contratista` es **MTC**, en **centésimas de punto enteras**
+  (44,93 % → 4493). En las 726 filas MTC ≤ MTP.
+- Es un margen **sobre coste**: `precio = coste × (1 + m/100)`. Se deduce del dato — hay
+  subfamilias con MTP de 100 y hasta 200, y un margen sobre precio de venta del 100 %
+  sería una división por cero.
+- Las filas con `ACTIVA` distinto de `T` se **omiten**: si el ERP dio de baja una
+  subfamilia, no debe cotizarse con su margen sin que nadie lo revise.
+
+Si un artículo no tiene subfamilia en la tabla, **no se cotiza**: la herramienta lo dice y
+el margen se indica a mano en «Parámetros avanzados». Ver
+[PENDIENTES.md](../PENDIENTES.md) §6.
+
 ## `parametros.json` — parámetros de taller
 
 Fuente: `public/config/parametros.json`. Los valores **PROVISIONAL** están pendientes de

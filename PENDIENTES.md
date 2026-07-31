@@ -154,53 +154,71 @@ El motor no se considera correcto hasta reproducir 10–15 cálculos reales vali
 Login y roles · backoffice · offline/PWA · base de datos propia · sincronización nocturna ·
 reutilización de sobrantes · flujo de estados de órdenes · auditoría de cambios.
 
-## 6. Margen comercial (anunciado 2026-07-30, sin especificar)
+## 6. Margen comercial — IMPLEMENTADO (indicación 2026-07-31)
 
-El encargo avisa de que material, manipulación y arranque de máquina llevarán un
-**margen** que hoy no existe: automático y no visible para el cliente, obtenido
-del API, con **varios márgenes según el tipo de cliente** («PVP», «PP»…),
-**dependiente del fabricante** y conmutable sin que el cliente lo note. Los
-detalles llegarán más adelante; **no se ha implementado nada** (§0).
+**La regla.** Cada artículo pertenece a una **subfamilia**, que son los **4 primeros
+dígitos de su referencia** (la referencia `94111301` es de la subfamilia `9411`,
+CASA INFINITA). La tabla del ERP da para cada subfamilia dos márgenes:
 
-Lo que conviene decidir ANTES de escribir código, porque cambia el diseño:
+- **MTP** → margen PVP. Es el que sale por defecto.
+- **MTC** → margen contratista. En las 726 filas MTC ≤ MTP.
 
-1. **Dónde se aplica y en qué orden.** El motor trabaja en enteros con un único
-   redondeo por línea (`docs/05-motor-de-calculo.md`). No da el mismo céntimo
-   aplicar el margen línea a línea y sumar, que sumar y aplicarlo al total; ni
-   aplicarlo antes o después del redondeo a cajas/merma. Hace falta la regla
-   exacta, no una aproximación. Enlaza con §4.1 (orden de redondeo de la
-   manipulación), que sigue abierto.
-2. **Interacción con el precio editado a mano.** El comercial ya puede sobrescribir
-   el precio del material (§1.①). ¿El margen se aplica también encima de ese
-   precio, o el precio editado se entiende ya con margen? Hoy no hay respuesta y
-   son importes distintos.
-3. **Qué documento ve cada uno.** La orden de trabajo actual imprime el desglose
-   completo (material, manipulación, arranque, total sin IVA, IVA). Si el margen va
-   escondido dentro de esas cifras, hay que decidir si esa hoja pasa a llevar
-   precios de venta —y entonces taller ve PVP, no coste— o si hacen falta **dos
-   documentos**: uno interno con coste y otro para el cliente con margen. Afecta
-   directamente a `src/pdf/ordenTrabajo.ts`.
-4. **De dónde sale el margen.** Si depende del fabricante, hace falta poder
-   agrupar el artículo, y con los datos del catálogo **hoy no se puede**:
-   `idmarca` es un id numérico y el contrato no da el nombre (§4.8).
-   **Avance del 2026-07-30:** el alta manual ya recoge una **subfamilia**
-   (id numérico opcional, `Material.subfamilia`), a propósito para engancharla
-   aquí. No entra en ningún cálculo todavía. Queda por resolver lo importante:
-   los artículos del **catálogo** la traen a `null` porque el API no la expone,
-   así que hay que pedir al ERP la subfamilia por artículo (o un margen ya
-   resuelto). Con solo el alta manual cubierta, el margen no se puede aplicar al
-   caso normal.
-5. **Casos dorados.** Cada caso de §3 tendrá que registrar con qué margen se
-   calculó, o los importes esperados quedan ambiguos. Los casos que se capturen
-   antes de que exista el margen valen igual, pero hay que entenderlos como
-   **casos a coste** y anotarlo en el JSON.
+Se aplica a **material, manipulación (suplementos incluidos) y arranque de
+máquina**: a todo lo que se factura.
 
-**Una recomendación, no una decisión:** «oculto para el cliente» y «oculto para el
-comercial» no son lo mismo. Que el margen no se detalle en el documento que ve el
-cliente es normal; que el comercial no sepa cuál está activo es arriesgado —
-podría presupuestar con el margen equivocado sin enterarse. Lo prudente es que la
-herramienta muestre siempre qué margen se está aplicando (visible solo en pantalla,
-nunca en el PDF del cliente).
+**Es un margen SOBRE COSTE (markup):** `precio = coste × (1 + m/100)`. No es una
+suposición: 77 subfamilias tienen MTP ≥ 100 y llegan a 200, y un margen sobre
+precio de venta del 100 % sería una división por cero.
+
+**Dónde vive.** `scripts/generar-margenes.mjs` (`npm run margenes`) convierte el
+CSV del ERP —que viene en **cp1252**, no UTF-8— a `public/config/margenes.json`,
+con los márgenes en centésimas de punto enteras. La lógica está en
+`src/domain/engine/margen.ts`; el selector, en «Parámetros avanzados».
+
+### Decisiones tomadas (indicación directa, 2026-07-31)
+
+1. **Orden de redondeo:** el margen se aplica **línea a línea**, cada una con un
+   único redondeo half-up, no sobre el total. Es lo que hace que el desglose que
+   se ve en pantalla y en la orden de trabajo **sume** el total: aplicándolo al
+   total, la suma de las líneas no cuadraría con el subtotal. Efecto a tener
+   presente: el importe de una línea pasa por **dos** redondeos (el del coste y
+   el del margen), así que puede quedar a un céntimo de lo que daría una fórmula
+   con el margen incorporado. Si taller quiere el céntimo exacto de la otra
+   forma, hay que meter el margen dentro de `aplicarTarifaLineal` y del cálculo
+   de material, y volver a capturar los casos dorados.
+2. **Precio editado a mano:** es **coste**, el margen va encima. Igual que la
+   tarifa.
+3. **Orden de trabajo:** lleva **los mismos importes que la pantalla**, ya con
+   margen. Un solo documento. Nota: eso significa que taller ve precios de venta.
+   El PDF **no imprime** el porcentaje ni el tipo de margen, para que la hoja
+   pueda enseñarse sin delatar el margen.
+4. **Artículos sin subfamilia en la tabla** (486 de 28.732, el 1,7 %): **no se
+   cotizan**. La herramienta lo dice con la referencia y el prefijo concretos, y
+   el margen se puede indicar a mano en «Parámetros avanzados» —en un bloque
+   aparte, no debajo del selector de tipo— hasta que la subfamilia se añada a la
+   tabla. No se inventa un margen ni se cotiza a coste sin avisar.
+5. **Subfamilia obligatoria en el alta manual.** Antes era un campo opcional «para
+   el futuro»; ahora es la clave del margen, así que sin ella no hay precio.
+6. **Casos dorados:** el JSON admite `margenCentesimas` y `tipoMargen`. Sin ellos
+   el caso se entiende **a coste** (margen 0), que es lo que son los capturados
+   antes de esta fecha; `ejemplo-001.json` lo dice explícitamente.
+
+### Lo que sigue abierto
+
+- **Los 486 artículos sin subfamilia.** Conviene pasar la lista al ERP para que
+  complete la tabla; mientras, cada uno exige teclear el margen a mano. Los
+  prefijos que más aparecen: 2511, 2501, 2603, 2520, 2367, 1158, 1529.
+- **Qué margen usar con material de alta manual** cuya subfamilia tecleada no
+  esté en la tabla: hoy cae en el mismo camino del margen a mano.
+- **§4.8 deja de ser bloqueante para esto.** El margen ya no depende de resolver
+  `idmarca`: la subfamilia sale de la referencia, que sí tenemos para todos los
+  artículos. La duda del nombre de marca sigue abierta, pero solo afecta al
+  filtro por marca del catálogo.
+
+**Se mantiene la recomendación, y está implementada:** «oculto para el cliente» y
+«oculto para el comercial» no son lo mismo. «Parámetros avanzados» va plegado y al
+final, pero cuando se abre dice siempre qué margen se está aplicando y de qué
+subfamilia sale, para que nadie presupueste con el margen equivocado sin enterarse.
 
 ---
 
@@ -277,36 +295,3 @@ redondea una sola vez, en vez de encadenar redondeos.
    delantera, y no es eso). La nariz vuela y el zócalo queda metido hacia dentro.
    `croquisPendiente` sigue en `true`: las proporciones del dibujo son
    representativas, no un plano de taller.
-
----
-
-## 8. Figura nueva: tabica (indicación 2026-07-30, incompleta)
-
-**Lo indicado.** Una **tabica** es una figura 1 con un **corte** debajo a modo de
-zócalo. El precio es la **suma de las dos** partes. Los parámetros son
-independientes **salvo el largo**, que es común a las dos.
-
-**Por qué no es una figura más.** Hoy el motor asume, de arriba abajo, que una
-cotización = **una** figura → una receta → **una** tarifa de manipulación
-(`resolverTarifa` + `longitudTarifaMm` en `src/domain/engine/cotizacion.ts`). La
-tabica es la primera figura **compuesta**, así que no se resuelve añadiendo una
-entrada a `figuras.json`: hay que decidir cómo se representa una figura con dos
-sub-piezas y dos tarifas. Toca motor, configuración, visor 3D, miniatura, PDF y
-casos dorados.
-
-**Preguntas antes de escribir código:**
-1. **Medidas del zócalo.** El corte tiene hoy `largo` y `ancho`. Si el largo es
-   común, ¿la única medida propia del zócalo es su altura? ¿Y qué medidas conserva
-   la figura 1 (ancho y caída, entiendo)?
-2. **Veta y ocupación.** §4 dice que los componentes de una pieza salen de la misma
-   baldosa. ¿La figura 1 y su zócalo tienen que salir de la **misma** baldosa —lo
-   que cambia la ocupación y puede no caber— o son piezas independientes que se
-   cotizan juntas? Es la pregunta que más mueve el importe del material.
-3. **Arranque de máquina.** Es uno por orden (§2) y eso no cambia; pero conviene
-   confirmar que una tabica es **una** orden y no dos.
-4. **Merma.** Con §7 en marcha: ¿la tabica cuenta como figura numerada (+5 %)? El
-   nombre no lleva número, pero «es una figura 1».
-5. **Suplementos.** ¿Los de la figura 1 (angular, ranuras, goterón, espesado)
-   aplican a la tabica? ¿Alguno aplica al zócalo?
-6. **Croquis.** Habrá que dibujar la sección compuesta (escuadra + zócalo) en
-   `src/piezas/seccionPieza.ts` para el visor, la miniatura y el croquis del PDF.

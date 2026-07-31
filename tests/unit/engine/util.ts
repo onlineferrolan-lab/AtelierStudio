@@ -18,6 +18,7 @@ import { mm } from '../../../src/domain/units';
 import parametrosJson from '../../../public/config/parametros.json';
 import tarifasJson from '../../../public/config/tarifas.json';
 import figurasJson from '../../../public/config/figuras.json';
+import margenesJson from '../../../public/config/margenes.json';
 
 type ArgsConfiguracion = Parameters<typeof construirConfiguracion>;
 
@@ -29,6 +30,9 @@ export function cargarConfigReal(): Configuracion {
     parametrosJson as unknown as ArgsConfiguracion[0],
     tarifasJson as unknown as ArgsConfiguracion[1],
     figurasJson as unknown as ArgsConfiguracion[2],
+    // La tabla REAL de márgenes, no una de prueba: así los tests que la usan
+    // detectan que `margenes.json` se ha regenerado mal.
+    margenesJson as unknown as ArgsConfiguracion[3],
   );
   const errores = validarConfiguracion(config);
   if (errores.length > 0) {
@@ -85,6 +89,12 @@ export function materialManual(overrides: Partial<Material> = {}): Material {
 /**
  * Entrada base válida: Figura 2, 50×30 cm con frontal de 4 cm, 5 piezas,
  * merma 10 %. Sobrescribible por test.
+ *
+ * **Margen 0 A PROPÓSITO.** Estos tests comprueban la aritmética de COSTE
+ * (ocupación, merma, cajas, tarifas, redondeos), y con un margen real todos los
+ * importes esperados llevarían el markup encima y dejarían de leerse. El margen
+ * tiene sus propios tests en `margen.test.ts`. Se pone como margen MANUAL porque
+ * la referencia del material de prueba no es numérica y no tiene subfamilia.
  */
 export function entradaBase(overrides: Partial<EntradaCotizacion> = {}): EntradaCotizacion {
   return {
@@ -97,6 +107,8 @@ export function entradaBase(overrides: Partial<EntradaCotizacion> = {}): Entrada
     pintado: false,
     precioMaterialEditado: null,
     mermaPorcentaje: 10,
+    tipoMargen: 'pvp',
+    margenManualCentesimas: 0,
     ...overrides,
   };
 }

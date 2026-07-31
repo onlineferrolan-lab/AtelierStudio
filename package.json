@@ -15,6 +15,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "indice:cataleg": "node scripts/generar-indice-cataleg.mjs",
+    "margenes": "node scripts/generar-margenes.mjs",
     "manual": "node scripts/generar-manual.mjs"
   },
   "dependencies": {

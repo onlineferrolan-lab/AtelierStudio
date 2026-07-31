@@ -72,12 +72,13 @@ export function EntradaManual({ alCrear }: { alCrear: (material: Material) => vo
     if (piezasPorCaja == null || !Number.isInteger(piezasPorCaja) || piezasPorCaja < 1) {
       nuevosErrores.piezasPorCaja = 'Introduce cuántas piezas trae la caja (entero, 1 o más).';
     }
-    // Subfamilia: opcional y sin efecto en el cálculo, pero si se rellena tiene
-    // que ser un número entero (es un id del ERP, no texto libre).
+    // Subfamilia OBLIGATORIA desde 2026-07-31: es la clave del margen comercial
+    // y sin ella el material no se puede cotizar. Son 4 dígitos, los mismos con
+    // los que empieza la referencia de un artículo del catálogo.
     const subfamiliaTxt = campos.subfamilia.trim();
-    const subfamilia = subfamiliaTxt === '' ? null : parsearNumero(subfamiliaTxt);
-    if (subfamiliaTxt !== '' && (subfamilia == null || !Number.isInteger(subfamilia) || subfamilia < 0)) {
-      nuevosErrores.subfamilia = 'La subfamilia es un número entero; déjala vacía si no la sabes.';
+    const subfamilia = parsearNumero(subfamiliaTxt);
+    if (subfamilia == null || !Number.isInteger(subfamilia) || subfamilia < 0) {
+      nuevosErrores.subfamilia = 'Indica la subfamilia (4 dígitos): de ella sale el margen.';
     }
     setErrores(nuevosErrores);
     // Condición explícita (no `Object.keys(...)`) para que TypeScript estreche los nulos.
@@ -92,7 +93,9 @@ export function EntradaManual({ alCrear }: { alCrear: (material: Material) => vo
       piezasPorCaja == null ||
       !Number.isInteger(piezasPorCaja) ||
       piezasPorCaja < 1 ||
-      nuevosErrores.subfamilia != null
+      subfamilia == null ||
+      !Number.isInteger(subfamilia) ||
+      subfamilia < 0
     ) {
       return;
     }
@@ -137,7 +140,8 @@ export function EntradaManual({ alCrear }: { alCrear: (material: Material) => vo
             Para cerámica que no está ni en ERP ni en PrestaShop (§1.①). El material se marca como
             MANUAL y se tarifa por unidad. Las piezas por caja hacen falta porque se factura por
             cajas completas; los m² por caja se calculan solos a partir del formato. La subfamilia
-            es opcional y hoy no afecta al precio: se guarda para el margen comercial futuro.
+            son los 4 dígitos con los que empieza la referencia en el ERP: de ella sale el margen
+            comercial, así que sin ella no se puede dar precio.
           </p>
           <Campo etiqueta="Descripción" error={errores.descripcion}>
             <input
@@ -184,12 +188,12 @@ export function EntradaManual({ alCrear }: { alCrear: (material: Material) => vo
               />
             </Campo>
           </div>
-          <Campo etiqueta="Subfamilia (opcional)" error={errores.subfamilia}>
+          <Campo etiqueta="Subfamilia (4 dígitos)" error={errores.subfamilia}>
             <EntradaNumero
               valor={campos.subfamilia}
               alCambiar={actualiza('subfamilia')}
               invalido={errores.subfamilia != null}
-              placeholder="p. ej. 1420"
+              placeholder="p. ej. 9411"
             />
           </Campo>
           <Campo etiqueta="Imagen (URL, opcional)">

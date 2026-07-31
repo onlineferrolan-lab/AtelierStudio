@@ -288,10 +288,11 @@ parte del cálculo ni afecta al determinismo), `esManual: true` y `precioM2Centi
 material manual **se tarifa por unidad, sin tarifa TARP por m²**. La UI valida los campos antes
 de llamar a la capa de datos, y si esta aún así lanza, muestra el mensaje sin romperse.
 
-El alta manual pide además una **subfamilia** opcional (id numérico, 2026-07-30). Hoy **no entra en
-ningún cálculo**: se recoge para poder aplicar el margen comercial en el futuro, que dependerá del
-fabricante/familia (`PENDIENTES.md` §6). Los artículos del catálogo la traen a `null` porque el
-contrato del API no la expone; si el margen va a depender de ella, habrá que pedirla al ERP.
+El alta manual pide además la **subfamilia**, y desde 2026-07-31 es **obligatoria**: son los 4
+dígitos con los que empieza la referencia en el ERP y de ella sale el **margen comercial**, así que
+sin ella no se puede dar precio. Para los artículos del catálogo no hace falta pedirla —se deduce
+del prefijo de su propia referencia—, así que `Material.subfamilia` solo la rellena el alta manual.
+Ver [Configuración](./04-configuracion.md#margenesjson--margen-comercial-por-subfamilia-2026-07-31).
 
 El alta manual **sí** pide «piezas por caja» (2026-07-30): al facturarse todo por cajas completas,
 sin ese dato el material no se podría cotizar. Los m²/caja no se piden, se **derivan** del formato

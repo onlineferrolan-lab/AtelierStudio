@@ -102,10 +102,60 @@ export interface EntradaCotizacion {
   /**
    * Precio de material editado por el comercial (céntimos/m² o céntimos/unidad
    * según el tipo de material). Null = usar la tarifa TARP por defecto.
+   *
+   * Es un COSTE: el margen comercial se aplica encima (2026-07-31, indicación
+   * directa), igual que sobre la tarifa.
    */
   readonly precioMaterialEditado: Centimos | null;
   /** % de merma aplicado (visible/editable en UI; valor por defecto de config). */
   readonly mermaPorcentaje: number;
+  /**
+   * Qué margen comercial se aplica: PVP (MTP) o contratista (MTC). Se elige en
+   * «Parámetros avanzados»; por defecto PVP (2026-07-31, indicación directa).
+   */
+  readonly tipoMargen: TipoMargen;
+  /**
+   * Margen indicado A MANO, en centésimas de punto, para los artículos cuya
+   * subfamilia no está en la tabla del ERP (486 de 28.732). Null = usar el de la
+   * tabla; si la tabla no lo tiene y esto es null, el motor NO cotiza y lo dice.
+   */
+  readonly margenManualCentesimas: MargenCentesimas | null;
+}
+
+// ---------------------------------------------------------------------------
+// Margen comercial por subfamilia (2026-07-31)
+// ---------------------------------------------------------------------------
+
+/** Margen en centésimas de punto porcentual: 66 % = 6600, 44,93 % = 4493. */
+export type MargenCentesimas = number;
+
+/** Los dos márgenes que da el ERP: MTP (PVP) y MTC (contratista). */
+export type TipoMargen = 'pvp' | 'contratista';
+
+export interface MargenSubfamilia {
+  readonly nombre: string;
+  /** MTP, margen PVP. */
+  readonly pvp: MargenCentesimas;
+  /** MTC, margen contratista. */
+  readonly contratista: MargenCentesimas;
+}
+
+export interface TablaMargenes {
+  /** Cuántos dígitos de la referencia forman la subfamilia (4 hoy). */
+  readonly longitudSubfamilia: number;
+  readonly subfamilias: Readonly<Record<string, MargenSubfamilia>>;
+}
+
+/** Margen efectivamente aplicado, para poder mostrarlo y auditarlo. */
+export interface MargenAplicado {
+  readonly tipo: TipoMargen;
+  /** Centésimas de punto: 6600 = 66 %. */
+  readonly centesimas: MargenCentesimas;
+  /** Subfamilia de la que sale, o null si es un margen indicado a mano. */
+  readonly subfamilia: string | null;
+  readonly nombreSubfamilia: string | null;
+  /** true si lo ha escrito el comercial porque la subfamilia no está en la tabla. */
+  readonly manual: boolean;
 }
 
 /** Error de validación con mensaje concreto para el comercial (§1.③). */
@@ -171,6 +221,11 @@ export interface ResultadoCotizacion {
   readonly desglose: DesgloseCotizacion;
   /** Precio de tarifa antes de la edición del comercial (para mostrarlo junto al editado). */
   readonly precioMaterialOriginal: Centimos;
+  /**
+   * Margen aplicado a los importes de este resultado. Todos los importes del
+   * desglose y de las líneas ya lo llevan incorporado.
+   */
+  readonly margen: MargenAplicado;
 }
 
 /**

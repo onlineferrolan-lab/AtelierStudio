@@ -62,11 +62,11 @@ export interface DatosMaterialManual {
   /** Piezas por caja: obligatorio desde 2026-07-30 (se factura por cajas completas). */
   readonly piezasPorCaja: number;
   /**
-   * Subfamilia (id numérico). OPCIONAL y sin efecto en el cálculo: se guarda
-   * para el margen comercial futuro (PENDIENTES.md §6). Se deja opcional a
-   * propósito — exigir hoy un dato que no hace nada bloquearía el alta.
+   * Subfamilia (4 dígitos, los mismos con los que empieza la referencia en el
+   * ERP). OBLIGATORIA desde 2026-07-31: es la clave del margen comercial y sin
+   * ella el material no se puede cotizar.
    */
-  readonly subfamilia: number | null;
+  readonly subfamilia: number;
   readonly imagenUrl: string | null;
 }
 
@@ -93,11 +93,8 @@ export function crearMaterialManual(datos: DatosMaterialManual): Material {
   if (!Number.isInteger(datos.piezasPorCaja) || datos.piezasPorCaja < 1) {
     throw new Error('Material manual: las piezas por caja deben ser un entero mayor que 0');
   }
-  if (
-    datos.subfamilia !== null &&
-    (!Number.isInteger(datos.subfamilia) || datos.subfamilia < 0)
-  ) {
-    throw new Error('Material manual: la subfamilia debe ser un número entero (o quedar vacía)');
+  if (!Number.isInteger(datos.subfamilia) || datos.subfamilia < 0) {
+    throw new Error('Material manual: la subfamilia es obligatoria (entero de 4 dígitos)');
   }
   const largoMm = cmAMm(datos.largoCm);
   const anchoMm = cmAMm(datos.anchoCm);

@@ -48,6 +48,13 @@ interface CasoDorado {
   pintado: boolean;
   precioMaterialEditadoEuros: number | null;
   mermaPorcentaje: number;
+  /**
+   * Margen comercial del caso, en centésimas de punto (6600 = 66 %). Opcional:
+   * sin él el caso se entiende **A COSTE** (margen 0), que es como están los
+   * capturados antes de que existiera el margen. Ver PENDIENTES.md §6.
+   */
+  margenCentesimas?: number;
+  tipoMargen?: 'pvp' | 'contratista';
   esperado: {
     ok: boolean;
     errores?: string[];
@@ -152,6 +159,8 @@ function ejecutarCaso(caso: CasoDorado): SalidaMotor {
           ? null
           : eurosACentimos(caso.precioMaterialEditadoEuros),
       mermaPorcentaje: caso.mermaPorcentaje,
+      tipoMargen: caso.tipoMargen ?? 'pvp',
+      margenManualCentesimas: caso.margenCentesimas ?? 0,
     },
     config,
   );

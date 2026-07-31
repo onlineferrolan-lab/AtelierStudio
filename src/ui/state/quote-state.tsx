@@ -7,7 +7,13 @@
 
 import { createContext, useContext, useMemo, useReducer, type ReactNode } from 'react';
 import type { Configuracion } from '../../domain/config';
-import type { EntradaCotizacion, Material, Mm, SalidaMotor } from '../../domain/types';
+import type {
+  EntradaCotizacion,
+  Material,
+  Mm,
+  SalidaMotor,
+  TipoMargen,
+} from '../../domain/types';
 import { eurosACentimos } from '../../domain/money';
 import {
   calcularCotizacion,
@@ -41,6 +47,18 @@ export interface EstadoAtelier {
    */
   readonly mermaEditadaPorcentaje: string;
   /**
+   * Margen comercial elegido en «Parámetros avanzados». Arranca en 'pvp'
+   * (2026-07-31, indicación directa): es el más alto de los dos, así que por
+   * defecto nunca se presupuesta por debajo del precio de público.
+   */
+  readonly tipoMargen: TipoMargen;
+  /**
+   * Margen escrito a mano (texto, en puntos porcentuales) para los artículos cuya
+   * subfamilia no está en la tabla del ERP. '' = usar el de la tabla. Vive
+   * SEPARADO del selector de tipo en la UI, no debajo de él.
+   */
+  readonly margenManualPorcentaje: string;
+  /**
    * Comentarios libres del comercial para taller (indicaciones de corte, avisos
    * de obra…). Salen tal cual en la orden de trabajo; no tocan el cálculo.
    */
@@ -58,6 +76,8 @@ export type AccionAtelier =
   | { tipo: 'cambiarPrecioMaterialEditado'; euros: string }
   | { tipo: 'cambiarMerma'; porcentaje: string }
   | { tipo: 'cambiarComentarios'; comentarios: string }
+  | { tipo: 'cambiarTipoMargen'; tipoMargen: TipoMargen }
+  | { tipo: 'cambiarMargenManual'; porcentaje: string }
   | { tipo: 'reiniciar' };
 
 export function estadoInicial(): EstadoAtelier {
@@ -71,6 +91,8 @@ export function estadoInicial(): EstadoAtelier {
     pintado: false,
     precioMaterialEditadoEuros: '',
     mermaEditadaPorcentaje: '',
+    tipoMargen: 'pvp',
+    margenManualPorcentaje: '',
     comentarios: '',
   };
 }
@@ -122,6 +144,10 @@ function reductor(estado: EstadoAtelier, accion: AccionAtelier): EstadoAtelier {
     case 'cambiarComentarios':
       // Son de la orden, no de la pieza: cambiar de figura NO los borra.
       return { ...estado, comentarios: accion.comentarios };
+    case 'cambiarTipoMargen':
+      return { ...estado, tipoMargen: accion.tipoMargen };
+    case 'cambiarMargenManual':
+      return { ...estado, margenManualPorcentaje: accion.porcentaje };
     case 'reiniciar':
       return estadoInicial();
   }
@@ -159,6 +185,18 @@ export function useAtelier(): ContextoAtelier {
 function unidadesDeSuplemento(estado: EstadoAtelier, id: string): number {
   const txt = (estado.unidadesSuplemento[id] ?? '').trim();
   return txt === '' ? Number.NaN : Number.parseInt(txt, 10);
+}
+
+/**
+ * Margen escrito a mano, en centésimas de punto. Null si está vacío, que es lo
+ * que le dice al motor «usa el de la tabla». Un texto no numérico también cuenta
+ * como vacío: el motor dará el error de «falta el margen», que es lo que procede.
+ */
+function margenManualCentesimas(estado: EstadoAtelier): number | null {
+  const txt = estado.margenManualPorcentaje.trim().replace(',', '.');
+  if (txt === '') return null;
+  const valor = Number.parseFloat(txt);
+  return Number.isFinite(valor) && valor >= 0 ? Math.round(valor * 100) : null;
 }
 
 /**
@@ -214,6 +252,9 @@ export function construirEntrada(
         suplementosActivos.map((id) => [id, unidadesDeSuplemento(estado, id)]),
       ),
       pintado: estado.pintado,
+      tipoMargen: estado.tipoMargen,
+      // El margen a mano se guarda en puntos y el motor lo quiere en centésimas.
+      margenManualCentesimas: margenManualCentesimas(estado),
       precioMaterialEditado,
       mermaPorcentaje,
     },

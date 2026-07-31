@@ -21,8 +21,9 @@
  */
 
 import type { Suplemento } from '../../domain/config';
-import { figuraPorId } from '../../domain/engine';
+import { aplicarMargen, figuraPorId } from '../../domain/engine';
 import { formatearEuros } from '../../domain/money';
+import type { Centimos, MargenCentesimas } from '../../domain/types';
 import { useConfig } from '../state/config-context';
 import { useAtelier, useSalidaMotor } from '../state/quote-state';
 import { usePasos } from '../state/pasos-context';
@@ -33,18 +34,34 @@ import { FilaConmutador, InfoTooltip, PasoCard } from '../components/primitivas'
  * convierten a € SOLO para presentación (el cálculo sigue en enteros en el
  * motor). «€/peldaño» sigue el ejemplo de la spec (§1.④); los suplementos
  * porPieza actuales aplican a peldaños.
+ *
+ * **Con el MARGEN aplicado** (2026-07-31, indicación directa: los precios de los
+ * suplementos de este paso también lo llevan). Si aquí se enseñara el coste, el
+ * comercial leería un precio y luego vería otro en la cotización.
+ *
+ * `margen` es null mientras no haya cotización (sin material o sin margen
+ * resoluble): entonces se muestra el precio de tarifa, que es lo único que se
+ * sabe.
  */
-function precioSuplementoTexto(suplemento: Suplemento): string {
+function precioSuplementoTexto(suplemento: Suplemento, margen: MargenCentesimas | null): string {
+  const conMargen = (centimos: Centimos): Centimos =>
+    margen === null ? centimos : aplicarMargen(centimos, margen);
+
   if (suplemento.tipo === 'porPieza' && suplemento.precioCentimos != null) {
-    return `+${formatearEuros(suplemento.precioCentimos)}/peldaño`;
+    return `+${formatearEuros(conMargen(suplemento.precioCentimos))}/peldaño`;
   }
   if (suplemento.tipo === 'porCm' && suplemento.precioMilesimasPorCm != null) {
-    const euros = suplemento.precioMilesimasPorCm / 1000;
+    // Las milésimas se escalan con el mismo factor; se redondea a milésimas para
+    // no arrastrar decimales que no se muestran.
+    const milesimas =
+      margen === null
+        ? suplemento.precioMilesimasPorCm
+        : Math.round((suplemento.precioMilesimasPorCm * (10_000 + margen)) / 10_000);
     const texto = new Intl.NumberFormat('es-ES', {
       style: 'currency',
       currency: 'EUR',
       maximumFractionDigits: 3,
-    }).format(euros);
+    }).format(milesimas / 1000);
     return `+${texto}/cm`;
   }
   return '';
@@ -130,6 +147,8 @@ export function PasoSuplementos(): JSX.Element {
       : undefined;
 
   const figura = estado.figuraId ? figuraPorId(config, estado.figuraId) : undefined;
+  // Margen del resultado, para mostrar los precios de venta y no los de coste.
+  const margen = salida != null && salida.ok ? salida.resultado.margen.centesimas : null;
 
   let contenido: JSX.Element;
   if (!figura) {
@@ -147,7 +166,7 @@ export function PasoSuplementos(): JSX.Element {
             <div key={idSuplemento}>
               <FilaConmutador
                 etiqueta={suplemento.nombre}
-                detalle={precioSuplementoTexto(suplemento)}
+                detalle={precioSuplementoTexto(suplemento, margen)}
                 activo={activo}
                 alCambiar={(marcado) =>
                   dispatch({ tipo: 'alternarSuplemento', suplemento: idSuplemento, activo: marcado })

@@ -31,6 +31,7 @@ import type { Centimos } from '../../domain/types';
 import { construirSeccion, rasgosDeSuplementos } from '../../piezas/piezaDeFigura';
 import { Boton, Campo, EntradaNumero } from '../components/primitivas';
 import { useConfig } from '../state/config-context';
+import { ParametrosAvanzados } from './ParametrosAvanzados';
 import { construirEntrada, medidasTecleadas, useAtelier, useSalidaMotor } from '../state/quote-state';
 
 // Filtros de tecleo: solo números positivos con hasta 2 decimales. Sin ellos,
@@ -302,6 +303,11 @@ export function PanelCotizacion(): JSX.Element {
             </p>
           ) : null}
         </div>
+
+        <ParametrosAvanzados
+          margenAplicado={resultado?.margen ?? null}
+          faltaMargen={erroresMotor.some((e) => e.mensaje.includes('margen'))}
+        />
 
         {erroresMotor.length > 0 ? (
           <div role="alert" className="rounded-md border border-red-200 bg-red-50 p-3">

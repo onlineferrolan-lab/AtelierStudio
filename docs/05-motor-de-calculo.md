@@ -147,6 +147,24 @@ de compra no están implementados (§6.8).
   tarifa previa para mostrarla junto al editado. Que TARP sea €/m² es una hipótesis
   documentada (§6; ver `PENDIENTES.md` §4, «Datos y catálogo»).
 
+### 6 bis. Margen comercial (2026-07-31)
+
+Se resuelve **antes de calcular nada**: sin margen no hay precio que dar. La subfamilia
+sale de los **4 primeros dígitos de la referencia** del artículo (el material de alta
+manual la trae en su propio campo, obligatorio), y de ahí salen los dos márgenes del ERP:
+**MTP** (PVP, el de por defecto) y **MTC** (contratista).
+
+Es un **markup sobre coste**: `precio = coste × (1 + m/100)`. Se aplica al **material**, a
+**cada línea de manipulación** —suplementos incluidos— y al **arranque de máquina**.
+
+Se aplica **línea a línea**, no sobre el total, para que el desglose de la pantalla y de la
+orden de trabajo **sume** el total exacto. A cambio, cada línea pasa por dos redondeos (el
+del coste y el del margen). Ver `engine/margen.ts` y `PENDIENTES.md` §6.
+
+Si la subfamilia del artículo no está en la tabla, el motor **no cotiza** y devuelve un
+error de paso `material` que dice la referencia, el prefijo y dónde indicar el margen a
+mano. No se inventa un margen ni se cotiza a coste en silencio (§0).
+
 ### 7. Manipulación y suplementos
 
 - `resolverTarifa()` aplica la regla de la figura: `fija`, `porUmbral` (Figura 1: frontal

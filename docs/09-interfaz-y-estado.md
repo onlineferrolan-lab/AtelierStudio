@@ -87,7 +87,8 @@ suplementos: todo se lee de `useConfig()`.
   dato de caja, que es lo que explica en taller por qué se facturan más piezas de las necesarias.
 - **Entrada manual** (`src/ui/steps/EntradaManual.tsx`): subsección plegable para cerámica que no
   está ni en ERP ni en PrestaShop (§1.①). Campos mínimos: descripción, largo × ancho en cm,
-  precio en €/unidad, **piezas por caja** e imagen opcional (URL). Las piezas por caja son
+  precio en €/unidad, **piezas por caja**, **subfamilia** e imagen opcional (URL). La subfamilia
+  es obligatoria desde 2026-07-31: es la clave del margen comercial. Las piezas por caja son
   obligatorias porque se factura por cajas completas; los m²/caja **no** se piden, se derivan del
   formato (piezas × largo × ancho), que es exacto y evita teclear un par incoherente. Valida los
   campos antes de llamar a `crearMaterialManual` (`src/data/catalogo.ts`) y selecciona el material
@@ -159,10 +160,20 @@ y el texto «La cotización aparecerá al completar los pasos ① Material, ② 
   tarifa original siempre visible junto al editado (`precioMaterialOriginal` del motor, o la
   tarifa del material) y botón **Restablecer a tarifa** cuando hay valor editado. La unidad
   mostrada es €/m², o €/unidad en material manual.
-- **Merma sobre baldosas (%)**: visible para el comercial (§4), con el valor por defecto de
-  `parametros.mermaPorcentajeDefecto`; editable solo si `parametros.mermaEditable`. Valor y
-  editabilidad son **PROVISIONALES** (§6.9/§6.10, pendientes de taller/dirección): se indica en
-  el tooltip de ayuda, sin insignia (decisión de UI: no añadir ruido visual junto al campo).
+- **Merma sobre baldosas (%)**: visible para el comercial (§4). El valor se **sugiere** a partir
+  del formato de la baldosa (lado mayor: 60 cm o menos → 10 %, 120 cm o más → 20 %) más el extra
+  de las figuras numeradas, y el estado guarda solo la EDICIÓN del comercial, de modo que la
+  sugerencia se recalcula al cambiar de material o de figura. Editable solo si
+  `parametros.mermaEditable` (**PROVISIONAL** §6.10, se indica en el tooltip de ayuda).
+- **«Parámetros avanzados»** (`src/ui/shell/ParametrosAvanzados.tsx`): sección **plegada** al final
+  de la cotización, a propósito fuera de la vista principal (2026-07-31, indicación directa).
+  Contiene dos cosas **separadas**:
+  1. El **tipo de margen**, MTP (PVP) o MTC (contratista), con PVP por defecto. Al abrirla se
+     indica siempre qué margen se aplica y de qué subfamilia sale — plegado no es lo mismo que
+     oculto: si el comercial no sabe con qué margen presupuesta, puede equivocarse sin notarlo.
+  2. En su **propio bloque**, no debajo del selector (indicación expresa), el **margen a mano**
+     para los artículos cuya subfamilia no está en la tabla del ERP. Si falta el margen la sección
+     se despliega sola y el campo se marca: es lo único que desbloquea el precio.
 - **Errores de validación del motor**: lista `role="alert"` con los mensajes concretos. Los del
   paso ③ se ocultan hasta que hay algo tecleado ahí (`medidasTecleadas`, mismo criterio que
   `PasoMedidas`); el de cantidad se muestra siempre.

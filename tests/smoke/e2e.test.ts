@@ -28,6 +28,8 @@ describe('smoke e2e', () => {
         cantidad: 10, suplementos: ['angular-f14', 'ranuras-f14'],
         unidadesSuplemento: { 'angular-f14': 2 }, pintado: false,
         precioMaterialEditado: null, mermaPorcentaje: 10,
+        // Margen 0: el smoke comprueba el coste, no el markup (ver util.ts).
+        tipoMargen: 'pvp', margenManualCentesimas: 0,
       },
       config,
     );

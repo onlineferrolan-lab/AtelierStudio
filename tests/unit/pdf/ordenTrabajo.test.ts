@@ -96,6 +96,7 @@ const config: Configuracion = {
     },
   },
   figuras: [figura],
+  margenes: { longitudSubfamilia: 4, subfamilias: {} },
 };
 
 const material: Material = {
@@ -144,6 +145,13 @@ const resultado: ResultadoCotizacion = {
     totalConIvaCentimos: centimos(41130),
   },
   precioMaterialOriginal: centimos(1850),
+  margen: {
+    tipo: 'pvp',
+    centesimas: 6600,
+    subfamilia: '9411',
+    nombreSubfamilia: 'CASA INFINITA',
+    manual: false,
+  },
 };
 
 const datosBase: DatosOrdenTrabajo = {

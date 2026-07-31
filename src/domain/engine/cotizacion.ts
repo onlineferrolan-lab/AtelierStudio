@@ -77,6 +77,7 @@ import {
   resolverTarifa,
   tarifasReferenciadas,
 } from './tarifas';
+import { aplicarMargen, resolverMargen } from './margen';
 import { revalidarMedidasMm } from './validacion';
 
 /** División entera hacia arriba (a ≥ 0, b > 0, enteros seguros). */
@@ -285,6 +286,33 @@ export function calcularCotizacion(entrada: EntradaCotizacion, config: Configura
   const errores = validarEntrada(entrada, config, figura);
   if (errores.length > 0) return { ok: false, errores };
 
+  // 1 bis. MARGEN COMERCIAL. Se resuelve antes de calcular nada: sin margen no
+  //        hay precio que dar. Si la subfamilia del artículo no está en la tabla
+  //        del ERP, la cotización se detiene aquí y el mensaje dice qué falta y
+  //        dónde ponerlo (2026-07-31, indicación directa).
+  const resuelto = resolverMargen(
+    entrada.material,
+    config.margenes,
+    entrada.tipoMargen,
+    entrada.margenManualCentesimas,
+  );
+  if (!resuelto.ok) {
+    const cual =
+      resuelto.subfamilia !== null
+        ? `la subfamilia ${resuelto.subfamilia} del artículo «${entrada.material.referencia}» no está en la tabla de márgenes`
+        : `no se puede deducir la subfamilia del artículo «${entrada.material.referencia}»`;
+    return {
+      ok: false,
+      errores: [
+        {
+          paso: 'material',
+          mensaje: `No se puede calcular el precio: ${cual}. Indica el margen a mano en «Parámetros avanzados».`,
+        },
+      ],
+    };
+  }
+  const { margen } = resuelto;
+
   // 2. Componentes de UNA pieza desde la receta de la figura.
   const componentes = construirComponentes(figura, entrada.medidasMm);
 
@@ -372,14 +400,24 @@ export function calcularCotizacion(entrada: EntradaCotizacion, config: Configura
     }
   }
 
-  const manipulacionCentimos = sumarCentimos(...lineas.map((l) => l.centimos));
+  // 8. MARGEN COMERCIAL (2026-07-31). Se aplica a material, manipulación
+  //    —suplementos incluidos— y arranque: a todo lo que se factura.
+  //
+  //    Línea a línea, no sobre el total, para que el desglose que se ve en
+  //    pantalla y en la orden SUME el total exacto. Ver `margen.ts`.
+  const lineasConMargen = lineas.map((l) => ({
+    concepto: l.concepto,
+    centimos: aplicarMargen(l.centimos, margen.centesimas),
+  }));
+  const manipulacionCentimos = sumarCentimos(...lineasConMargen.map((l) => l.centimos));
+  const materialConMargen = aplicarMargen(materialCentimos, margen.centesimas);
 
-  // 8. Arranque de máquina: una vez por orden cuando hay manipulación (§2).
-  const arranqueCentimos = config.parametros.arranqueCentimos;
+  // Arranque de máquina: una vez por orden cuando hay manipulación (§2).
+  const arranqueCentimos = aplicarMargen(config.parametros.arranqueCentimos, margen.centesimas);
 
   // 9. Totales: sin IVA, IVA (21 % configurable), con IVA.
   const totalSinIvaCentimos = sumarCentimos(
-    materialCentimos,
+    materialConMargen,
     manipulacionCentimos,
     arranqueCentimos,
   );
@@ -396,9 +434,10 @@ export function calcularCotizacion(entrada: EntradaCotizacion, config: Configura
       unidadesFacturadas,
       cajasFacturadas,
       m2Facturados,
-      lineasManipulacion: lineas,
+      lineasManipulacion: lineasConMargen,
+      margen,
       desglose: {
-        materialCentimos,
+        materialCentimos: materialConMargen,
         manipulacionCentimos,
         arranqueCentimos,
         totalSinIvaCentimos,

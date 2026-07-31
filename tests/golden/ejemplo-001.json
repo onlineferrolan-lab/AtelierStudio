@@ -21,6 +21,8 @@
   "pintado": false,
   "precioMaterialEditadoEuros": null,
   "mermaPorcentaje": 10,
+  "margenCentesimas": 0,
+  "_notaMargen": "CASO A COSTE: margen 0. Se capturó antes de que existiera el margen comercial (2026-07-31), así que sus importes son de coste, no de venta. Los casos nuevos deben indicar el margen con el que se calcularon.",
   "esperado": {
     "ok": true,
     "baldosasNecesarias": 5,

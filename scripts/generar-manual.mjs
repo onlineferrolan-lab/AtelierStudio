@@ -554,6 +554,25 @@ function CONTENIDO(m) {
     'Hace falta que el artículo traiga «piezas por caja» y «m² por caja». Si el catálogo no los trae, la herramienta avisa con un error en vez de inventarlos.',
     'Antes había un selector «Stock / Pedido» que cambiaba esto. Ya no existe: desde el 30-07-2026 se factura por cajas en los dos casos, así que no cambiaba ningún importe.',
   ]);
+  m.h2('El margen comercial');
+  m.p(
+    'Los precios que da la herramienta son de VENTA: llevan ya el margen aplicado ' +
+      'al material, a la manipulación (suplementos incluidos) y al arranque de ' +
+      'máquina. El margen sale de la subfamilia del artículo, que son los cuatro ' +
+      'primeros dígitos de su referencia, y lo mantiene el ERP.',
+  );
+  m.lista([
+    'Hay dos: PVP y contratista. Por defecto se aplica el de PVP, que es el más alto de los dos.',
+    'Se cambia en «Parámetros avanzados», al final de la cotización. Está plegado para que no se toque sin querer, pero al abrirlo te dice siempre qué margen se está aplicando y de qué subfamilia sale: conviene mirarlo antes de dar un precio.',
+    'Si el artículo no está en la tabla de márgenes, la herramienta NO calcula el precio: lo dice y te deja escribir el margen a mano en ese mismo apartado.',
+  ]);
+  m.nota(
+    'El precio que tecleas a mano es COSTE',
+    'Si negocias un precio de material y lo escribes en «Precio del material», se ' +
+      'entiende como precio de compra: la herramienta le suma el margen encima, igual ' +
+      'que a la tarifa. No escribas ahí el precio de venta.',
+  );
+
   m.h2('Editar el precio del material');
   m.p(
     'Bajo la cotización hay un campo «Precio del material». Si negocias un precio ' +

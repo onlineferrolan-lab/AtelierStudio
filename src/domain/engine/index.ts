@@ -33,6 +33,15 @@ export {
   mermaSugeridaCentesimas,
   mermaSugeridaPorcentaje,
 } from './merma';
+export {
+  aplicarMargen,
+  margenDeSubfamilia,
+  nombreDeSubfamilia,
+  subfamiliaDeMaterial,
+  subfamiliaDeNumero,
+  subfamiliaDeReferencia,
+  resolverMargen,
+} from './margen';
 
 /** Busca una figura por id en la configuración. */
 export function figuraPorId(config: Configuracion, figuraId: string): Figura | undefined {

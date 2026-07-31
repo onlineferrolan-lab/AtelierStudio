@@ -23,7 +23,7 @@ const DATOS: DatosMaterialManual = {
   anchoCm: 25,
   precioUnidadEuros: 4.5,
   piezasPorCaja: 8,
-  subfamilia: null,
+  subfamilia: 9411,
   imagenUrl: null,
 };
 
@@ -63,18 +63,20 @@ describe('crearMaterialManual', () => {
   });
 
   /**
-   * La subfamilia se recoge hoy y no se usa: es el enganche del margen comercial
-   * futuro (PENDIENTES.md §6). Se comprueba que se GUARDA —si se perdiera, el
-   * campo del formulario no serviría para nada— y que es opcional.
+   * La subfamilia es la clave del MARGEN comercial, así que desde 2026-07-31 es
+   * obligatoria: sin ella el material no se puede cotizar. Antes se recogía como
+   * opcional «para el futuro»; ese futuro ya llegó.
    */
-  it('guarda la subfamilia cuando se indica, y admite que falte', () => {
+  it('guarda la subfamilia, que es de donde sale el margen', () => {
     expect(crearMaterialManual({ ...DATOS, subfamilia: 1420 }).subfamilia).toBe(1420);
-    expect(crearMaterialManual({ ...DATOS, subfamilia: null }).subfamilia).toBeNull();
   });
 
-  it('rechaza una subfamilia que no sea un entero', () => {
+  it('rechaza una subfamilia ausente o que no sea un entero', () => {
     expect(() => crearMaterialManual({ ...DATOS, subfamilia: 12.5 })).toThrow(/subfamilia/);
     expect(() => crearMaterialManual({ ...DATOS, subfamilia: -3 })).toThrow(/subfamilia/);
+    expect(() =>
+      crearMaterialManual({ ...DATOS, subfamilia: null as unknown as number }),
+    ).toThrow(/subfamilia/);
   });
 
   it('genera referencias locales únicas MANUAL-<timestamp>', () => {

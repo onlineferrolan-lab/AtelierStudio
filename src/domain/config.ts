@@ -11,7 +11,7 @@
  * y se muestran marcados como PROVISIONAL en la interfaz.
  */
 
-import type { Centimos, Milesimas, Mm } from './types';
+import type { Centimos, MargenSubfamilia, Milesimas, Mm, TablaMargenes } from './types';
 import { centimos, eurosACentimos, eurosAMilesimas } from './money';
 import { mm } from './units';
 
@@ -167,6 +167,11 @@ export interface Configuracion {
   readonly tarifas: Readonly<Record<string, TarifaLineal>>;
   readonly suplementos: Readonly<Record<string, Suplemento>>;
   readonly figuras: readonly Figura[];
+  /**
+   * Márgenes comerciales por subfamilia (2026-07-31). Generado del CSV del ERP
+   * por `scripts/generar-margenes.mjs`; ver `engine/margen.ts`.
+   */
+  readonly margenes: TablaMargenes;
 }
 
 export interface FuenteConfiguracion {
@@ -349,18 +354,20 @@ export function crearFuenteConfiguracionJson(
 ): FuenteConfiguracion {
   return {
     async cargar(): Promise<Configuracion> {
-      const [parametrosRes, tarifasRes, figurasRes] = await Promise.all([
+      const [parametrosRes, tarifasRes, figurasRes, margenesRes] = await Promise.all([
         fetch(`${baseUrl}/parametros.json`),
         fetch(`${baseUrl}/tarifas.json`),
         fetch(`${baseUrl}/figuras.json`),
+        fetch(`${baseUrl}/margenes.json`),
       ]);
-      for (const res of [parametrosRes, tarifasRes, figurasRes]) {
+      for (const res of [parametrosRes, tarifasRes, figurasRes, margenesRes]) {
         if (!res.ok) throw new Error(`No se pudo cargar la configuración: ${res.url}`);
       }
       const config: Configuracion = {
         parametros: parsearParametros((await parametrosRes.json()) as ParametrosJson),
         ...parsearTarifas((await tarifasRes.json()) as TarifasJson),
         figuras: parsearFiguras((await figurasRes.json()) as FigurasJson),
+        margenes: parsearMargenes((await margenesRes.json()) as MargenesJson),
       };
       const errores = validarConfiguracion(config);
       if (errores.length > 0) {
@@ -376,12 +383,36 @@ export function construirConfiguracion(
   parametrosJson: ParametrosJson,
   tarifasJson: TarifasJson,
   figurasJson: FigurasJson,
+  margenesJson?: MargenesJson,
 ): Configuracion {
   return {
     parametros: parsearParametros(parametrosJson),
     ...parsearTarifas(tarifasJson),
     figuras: parsearFiguras(figurasJson),
+    margenes: parsearMargenes(margenesJson),
   };
+}
+
+interface MargenesJson {
+  longitudSubfamilia?: number;
+  subfamilias?: Record<string, { nombre?: string; pvp: number; contratista: number }>;
+}
+
+/**
+ * Parsea la tabla de márgenes. Sin fichero (o vacío) devuelve una tabla VACÍA,
+ * no un margen 0: el motor distingue «no hay margen para esta subfamilia» —que
+ * bloquea la cotización hasta que se indique a mano— de «margen del 0 %».
+ */
+function parsearMargenes(json: MargenesJson | undefined): TablaMargenes {
+  const subfamilias: Record<string, MargenSubfamilia> = {};
+  for (const [codigo, fila] of Object.entries(json?.subfamilias ?? {})) {
+    subfamilias[codigo] = {
+      nombre: fila.nombre ?? codigo,
+      pvp: fila.pvp,
+      contratista: fila.contratista,
+    };
+  }
+  return { longitudSubfamilia: json?.longitudSubfamilia ?? 4, subfamilias };
 }
 
 /** Guarda de tipo para evitar `any` al leer importes sueltos. */

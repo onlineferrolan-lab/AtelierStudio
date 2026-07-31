@@ -33,11 +33,17 @@ import type { Figura } from '../../domain/config';
 // (2026-07-29, indicación directa): la pieza real puede ser de cualquier
 // material, así que la miniatura no le presupone color. Se conserva el orden
 // tonal del dibujo original — testa y cantos redondeados claros, cara superior
-// media, frontal un punto más oscura — para que el pliegue se lea a 96 px, donde
-// el trazo es un pelo.
+// media, frontal un punto más oscura, y una cuarta para lo retranqueado (ver
+// SOMBRA) — para que el pliegue se lea a 96 px, donde el trazo es un pelo.
 const SUPERIOR = '#BFC8D3';
 const FRONTAL = '#A3AEBC';
 const CLARA = '#D8DEE6';
+// Un paso más oscura que el frontal, para las caras que quedan RETRANQUEADAS
+// detrás de otra (hoy solo el zócalo de la tabica). Con el mismo gris que el
+// frontal las dos bandas se fundían en una sola mancha y el retranqueo —lo único
+// que distingue una tabica de un frontal alto— no se veía; en sombra del vuelo
+// de la nariz, que es donde está de verdad, se lee de un vistazo.
+const SOMBRA = '#8794A6';
 const TRAZO = '#0F172A';
 const ANCHO_TRAZO = 0.9;
 
@@ -47,15 +53,33 @@ const ALTO = 3; // alto total del peldaño (tapa + frontal), como en la tarifa
 const FONDO = 11; // fondo de la tapa
 const LARGO = 9; // largo dibujado de la pieza
 const RETORNO = 2; // profundidad del retorno (Figura 4 y Pasamanos 4)
-// Tabica. La tapa se dibuja IGUAL que en las demás figuras (mismo LARGO y
-// FONDO): lo único que cambia es lo que cuelga por delante. Con un zócalo de 3
-// el dibujo mide 89×61 px y cabe en el viewBox de 96×64; con 4 ya se sale por
-// abajo, y encogerle la tapa para ganar hueco la deformaba respecto al resto.
-const ALTO_ZOCALO = 3; // lo que baja el zócalo bajo la cara inferior de la tapa
-const CAIDA_TABICA = 2; // la nariz, igual que el frontal de la figura 1
-// El zócalo se dibuja con DOS grosores de espesor, no con uno. Es exageración a
-// propósito, como el resto de estas miniaturas: con un grosor real quedaba una
-// pestaña de un píxel y el frente parecía una aleta suelta en vez de un panel.
+// TABICA. La tapa se dibuja IGUAL que en las demás figuras (mismo LARGO y
+// FONDO): lo único que se dimensiona aquí es lo que CUELGA de ella.
+//
+// El presupuesto vertical va contado, porque el viewBox no perdona y no hay
+// autoescala. Con esta cámara el alto proyectado son tres sumandos (en unidades
+// de dibujo):  LARGO·0,45 + z_del_punto_más_bajo·0,4 + alto_total.
+// La figura 1 gasta 4,05 + 11·0,4 + 3 = 11,45 ud → 56,1 px. La tabica gana algo
+// porque su punto más bajo es la base del ZÓCALO, que está retranqueada y no en
+// el canto delantero: 4,05 + 10·0,4 + 4,2 = 12,25 ud → 60,0 px de alto por 89,3
+// de ancho. Queda 2 px de aire por lado en los 64 del viewBox, y 60 frente a los
+// 56,1 de la figura 1 es la misma altura aparente de la familia — con la pieza
+// real pasa igual, cuelga algo más que un peldaño y se le nota.
+//
+// Reparto de los 3,2 ud que cuelgan: en la pieza real la relación caída/zócalo
+// es 4/15, o sea que la nariz apenas asoma. Aquí se abre a 0,8/3,2 = 1/4, lo
+// justo para que la nariz siga siendo un labio corto (4 px, 9 px contando el
+// canto de la tapa que va en la misma banda) y el zócalo baje 12 px más que
+// ella. Antes la caída era de 2 ud y el zócalo de 3: solo 1 ud de diferencia, y
+// el panel parecía una pestaña mal cortada en vez de una contrahuella.
+const ALTO_ZOCALO = 3.2; // lo que baja el zócalo bajo la cara inferior de la tapa
+const CAIDA_TABICA = 0.8; // la nariz: corta a propósito, es la que vuela
+// El retranqueo del zócalo NO se exagera: vale un grosor de baldosa, como en la
+// pieza real (el zócalo se pega contra la cara trasera de la nariz, que es de un
+// grosor). Son 4,5 px de escalón, suficientes porque además hay salto de tono.
+// El ESPESOR dibujado del zócalo sí va al doble, por la misma razón que el fondo
+// va a 8 grosores y no a los 19 de la tarifa: a un grosor el panel quedaba en una
+// aleta de 4 px y en la testa no se leía como panel. Con tres parecía una viga.
 const GRUESO_ZOCALO = 2;
 const ALTO_RODAPIE = 5;
 const LARGO_RODAPIE = 14;
@@ -80,7 +104,7 @@ const VISTA_ALTO = 64;
 type Punto = readonly [number, number];
 
 /** Qué cara lateral genera un tramo del contorno (null = no se ve). */
-type Cara = 'superior' | 'frontal' | 'canto' | null;
+type Cara = 'superior' | 'frontal' | 'canto' | 'sombra' | null;
 
 /**
  * Tramo del contorno. Su último punto es el primero del tramo siguiente, y el
@@ -102,6 +126,7 @@ const RELLENO: Readonly<Record<Exclude<Cara, null>, string>> = {
   superior: SUPERIOR,
   frontal: FRONTAL,
   canto: CLARA,
+  sombra: SOMBRA,
 };
 
 /**
@@ -342,40 +367,63 @@ const ESCUADRA = (dientes: number, retorno = false, espejo = false): Seccion =>
   seccionEscuadra({ dientes, retorno, espejo });
 
 /**
- * Tabica: figura 1 con el zócalo colgando POR DETRÁS del frontal, con su borde
- * superior tocando la cara inferior de la tapa (2026-07-31). La nariz vuela y el
- * zócalo queda retranqueado un grosor: es lo que distingue la tabica de un
- * frontal alto, así que la miniatura tiene que dejarlo claro.
+ * Tabica: figura 1 con un zócalo colgado POR DETRÁS de la nariz, con su borde
+ * superior tocando la cara inferior de la tapa (2026-07-31, indicación directa;
+ * la forma buena vive en `seccionTabica` de `src/piezas/seccionPieza.ts` y esta
+ * es su versión esquemática). Dos cosas y solo dos tiene que contar el dibujo:
+ * la nariz es CORTA y VUELA, y el zócalo va RETRANQUEADO y baja MÁS. Si esas dos
+ * no se leen, la tarjeta es indistinguible de un peldaño con frontal alto.
+ *
+ *      fondo                       frente
+ *        +===========================+     tapa (LARGO y FONDO estándar)
+ *                          |    |####|     nariz: cae CAIDA_TABICA y vuela
+ *                    +-----+####+----+
+ *                    |ZZZZZ|                zócalo: retranqueado un grosor y
+ *                    +-----+                bajando hasta ALTO_ZOCALO
  */
 function seccionTabica(): Seccion {
-  const alto = ALTO_ZOCALO + G; // la tapa se apoya sobre el zócalo, que es lo más largo
+  // De la cara inferior de la tapa cuelgan las dos piezas, así que la altura
+  // total la marca la más larga (el zócalo).
+  const alto = ALTO_ZOCALO + G;
   const bajoTapa = alto - G;
-  const yFrontal = bajoTapa - CAIDA_TABICA;
-  const zFrontal = FONDO - G; // cara vista del zócalo: retranqueada un grosor
-  const zZocalo = zFrontal - GRUESO_ZOCALO; // su cara trasera
+  const yNariz = bajoTapa - CAIDA_TABICA; // base de la nariz: por encima del suelo
+  const zNariz = FONDO - G; // cara trasera de la nariz = cara vista del zócalo
+  const zZocalo = zNariz - GRUESO_ZOCALO; // cara trasera del zócalo
 
-  // El recorrido va de ATRÁS hacia ADELANTE a propósito. Este dibujo no calcula
-  // oclusión: pinta los tramos en orden, así que el último tapa al anterior. Con
-  // el contorno al revés, la cara del zócalo —que está DETRÁS— se pintaba encima
-  // de la nariz y parecía estar delante. Es el mismo orden que usa la escuadra:
-  // la cara frontal antes que la superior.
+  // El contorno se recorre de ATRÁS hacia ADELANTE (empezando por el canto
+  // trasero de la tapa y terminando en el delantero), y esto no es cosmética:
+  //  1. El motor no calcula oclusión, pinta los tramos en el orden del array y
+  //     el último tapa al anterior. Las caras del zócalo y de la nariz se solapan
+  //     en pantalla (van en planos paralelos separados un escalón), así que el
+  //     zócalo tiene que ir ANTES para que la nariz, que está delante, quede
+  //     encima. Con el recorrido al revés la nariz aparecía cortada por el panel
+  //     que tiene detrás.
+  //  2. Estos mismos puntos, en este mismo orden, forman el polígono de la testa.
+  // Es el orden que usa `seccionEscuadra`: primero el frontal, la superior al final.
   const tramos: Tramo[] = [
-    { puntos: [[0, alto], [0, bajoTapa]], cara: null },
-    { puntos: [[0, bajoTapa], [zZocalo, bajoTapa]], cara: null },
-    { puntos: [[zZocalo, bajoTapa], [zZocalo, 0]], cara: null },
-    { puntos: [[zZocalo, 0], [zFrontal, 0]], cara: null },
-    // Cara vista del zócalo, retranqueada un grosor respecto a la nariz.
-    { puntos: [[zFrontal, 0], [zFrontal, yFrontal]], cara: 'frontal' },
-    { puntos: [[zFrontal, yFrontal], [FONDO, yFrontal]], cara: null },
-    // Nariz: se pinta DESPUÉS del zócalo porque está delante.
-    { puntos: [[FONDO, yFrontal], [FONDO, alto]], cara: 'frontal' },
+    { puntos: [[0, alto], [0, bajoTapa]], cara: null }, // canto trasero, de espaldas
+    { puntos: [[0, bajoTapa], [zZocalo, bajoTapa]], cara: null }, // cara inferior de la tapa
+    { puntos: [[zZocalo, bajoTapa], [zZocalo, 0]], cara: null }, // trasera del zócalo
+    { puntos: [[zZocalo, 0], [zNariz, 0]], cara: null }, // base del zócalo, mira al suelo
+    // Cara vista del zócalo: en sombra bajo el vuelo de la nariz, de ahí el gris
+    // más oscuro. Solo se ve de la base de la nariz hacia abajo; por encima está
+    // pegada contra ella.
+    { puntos: [[zNariz, 0], [zNariz, yNariz]], cara: 'sombra' },
+    { puntos: [[zNariz, yNariz], [FONDO, yNariz]], cara: null }, // el vuelo, visto por debajo
+    // Nariz + canto de la tapa, en un solo frontal como en las demás figuras.
+    { puntos: [[FONDO, yNariz], [FONDO, alto]], cara: 'frontal' },
     { puntos: [[FONDO, alto], [0, alto]], cara: 'superior' },
   ];
 
-  // Junta tapa/nariz y junta nariz/zócalo, donde se tocan.
+  // Juntas de encolado sobre la testa: cara inferior de la tapa sobre la nariz, y
+  // cara trasera de la nariz contra el zócalo. Son exactamente las dos que declara
+  // `seccionTabica` en `seccionPieza.ts`, y aquí además refuerzan el escalón, que
+  // es el detalle que hay que ver. NO se añade el chaflán a 45° tapa/frontal que
+  // sí llevan las escuadras: la sección confirmada de la tabica no lo declara y
+  // las miniaturas no pueden contradecirla (§0, no inventar geometría).
   const juntas: (readonly [Punto, Punto])[] = [
-    [[zFrontal, bajoTapa], [FONDO, bajoTapa]],
-    [[zFrontal, yFrontal], [zFrontal, bajoTapa]],
+    [[zNariz, bajoTapa], [FONDO, bajoTapa]],
+    [[zNariz, yNariz], [zNariz, bajoTapa]],
   ];
 
   return { tramos, juntas, largo: LARGO };
