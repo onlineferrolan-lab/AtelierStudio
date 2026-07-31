@@ -77,9 +77,7 @@ export function Comentarios(): JSX.Element {
           >
             Comentarios para taller
           </label>
-          <p className="pt-0.5 text-xs text-slate-500">
-            Opcional. Sale tal cual en la orden de trabajo; no afecta al precio.
-          </p>
+          <p className="pt-0.5 text-xs text-slate-500">Opcional.</p>
         </div>
         <button
           type="button"

@@ -136,13 +136,6 @@ export function EntradaManual({ alCrear }: { alCrear: (material: Material) => vo
       </button>
       {abierto ? (
         <div className="space-y-3 border-t border-slate-100 px-3 py-3">
-          <p className="text-xs text-slate-500">
-            Para cerámica que no está ni en ERP ni en PrestaShop (§1.①). El material se marca como
-            MANUAL y se tarifa por unidad. Las piezas por caja hacen falta porque se factura por
-            cajas completas; los m² por caja se calculan solos a partir del formato. La subfamilia
-            son los 4 dígitos con los que empieza la referencia en el ERP: de ella sale el margen
-            comercial, así que sin ella no se puede dar precio.
-          </p>
           <Campo etiqueta="Descripción" error={errores.descripcion}>
             <input
               type="text"
