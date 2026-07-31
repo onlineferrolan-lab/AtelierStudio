@@ -94,7 +94,7 @@ Tarifas actuales (€/cm, sin IVA): `f1-frontal-le5` 0,19 · `f1-frontal-gt5` 0,
 `figura-2` 0,23 · `figura-3` 0,25 · `figura-4` 0,29 · `peldano-romo` 0,045 ·
 `rodapie-estandar` 0,017 · `rodapie-no-estandar` 0,034 · `corte` 0,017.
 
-Las cuatro de rodapié las comparten las **nueve** figuras de rodapié: se tarifa por
+Las dos de rodapié las comparten las **nueve** figuras de rodapié: se tarifa por
 ALTURA (7,2 y 8 van juntas; «a medida» aparte), nunca por canto, porque el canto recto
 «no tiene incremento» (2026-07-31, indicación directa). Por eso sus `nombre` no citan
 ningún canto: salen tal cual en el desglose y en la orden de trabajo.
@@ -254,6 +254,12 @@ script lo decodifica explícitamente.
 Si un artículo no tiene subfamilia en la tabla, **no se cotiza**: la herramienta lo dice y
 el margen se indica a mano en «Parámetros avanzados». Ver
 [PENDIENTES.md](../PENDIENTES.md) §6.
+
+**Todos los precios que se enseñan son de venta**, no solo los de la cotización: los
+suplementos del paso ④ y las tarjetas del catálogo y del paso ① llevan el margen aplicado
+(las del catálogo, cada una el de su propia subfamilia). Un precio de coste en pantalla se
+leería como precio de venta. Ver
+[Interfaz y estado](./09-interfaz-y-estado.md#pestaña-catálogo-srcuistepscatalogopaneltsx).
 
 ## `parametros.json` — parámetros de taller
 

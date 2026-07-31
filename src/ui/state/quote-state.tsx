@@ -16,6 +16,7 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -28,6 +29,7 @@ import type {
   ErrorLineaPedido,
   Material,
   Mm,
+  ResolucionMargen,
   SalidaMotor,
   SalidaPedido,
   TipoMargen,
@@ -38,6 +40,7 @@ import {
   calcularPedido,
   figuraPorId,
   mermaSugeridaPorcentaje,
+  resolverMargen,
   validarMedidasCrudas,
   validarMedidasPorMetros,
   type ModoMedida,
@@ -568,6 +571,27 @@ export function usePedido(config: Configuracion): {
       entradas: construidas.entradas,
     };
   }, [estado.carrito, estado.tipoMargen, config]);
+}
+
+/**
+ * Margen que le toca a un material CUALQUIERA, con la misma regla que usará el
+ * motor al cotizarlo (`resolverMargen`): manda el margen escrito a mano si lo hay
+ * y, si no, el de la subfamilia del artículo con el tipo elegido.
+ *
+ * Existe para las tarjetas del CATÁLOGO (2026-07-31, indicación directa: «en las
+ * cerámicas de la derecha no has aplicado los márgenes»). No sirve el margen del
+ * resultado —como en el paso ④, donde todos los suplementos son de la pieza que se
+ * está cotizando—: en el catálogo hay hasta 48 artículos a la vez y cada uno puede
+ * ser de una subfamilia distinta, así que el margen se resuelve POR ARTÍCULO.
+ */
+export function useMargenDeMaterial(config: Configuracion): (material: Material) => ResolucionMargen {
+  const { estado } = useAtelier();
+  const { tipoMargen } = estado;
+  const manual = margenManualCentesimas(estado);
+  return useCallback(
+    (material: Material) => resolverMargen(material, config.margenes, tipoMargen, manual),
+    [config, tipoMargen, manual],
+  );
 }
 
 /**

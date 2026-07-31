@@ -53,6 +53,18 @@ preseleccionada (decisión de producto). El paso ① usa `abrirCatalogo()` en su
 - Cada tarjeta (`TarjetaCatalogo`) muestra foto, descripción, referencia, marca y precio; la
   selección despacha `seleccionarMaterial`. Las tarjetas seleccionadas llevan anillo
   `ring-marca/40` (`aria-pressed`).
+- **El precio de la tarjeta es de VENTA, con margen** (2026-07-31, indicación directa: «en las
+  cerámicas de la derecha no has aplicado los márgenes»). Hasta entonces se enseñaba la tarifa
+  pelada, que es coste: el comercial leía un precio en el catálogo y luego otro, más alto, en la
+  cotización. El margen se resuelve **por artículo** con `useMargenDeMaterial(config)`, que aplica
+  la misma regla que el motor (`resolverMargen`) — no vale el margen del resultado, como en el paso
+  ④, porque en el catálogo hay hasta 48 artículos a la vez y cada uno puede ser de otra subfamilia.
+  Cambiar de PVP a contratista, o escribir un margen a mano, recalcula todas las tarjetas.
+- El artículo cuya subfamilia **no está** en la tabla del ERP (486 de 28.732) no enseña su tarifa:
+  pone **«Precio sin margen»** en ámbar, con el motivo y dónde ponerlo en el `title`. Enseñar la
+  tarifa ahí sería dar un coste con pinta de precio de venta, que es justo lo que la regla del
+  margen prohíbe; el motor se niega igual a cotizarlo. Ver
+  [Configuración](./04-configuracion.md#margenesjson--margen-comercial-por-subfamilia-2026-07-31).
 - Los fallos de carga de la fuente (red, índice ausente) se muestran como error recuperable con
   botón **Reintentar**, sin romper el resto de la aplicación. Si una búsqueda no da resultados,
   el propio mensaje sugiere la «Entrada manual» del paso ①.
@@ -80,7 +92,9 @@ suplementos: todo se lee de `useConfig()`.
 - Con material: tarjeta-resumen con foto, descripción, referencia, marca, formato en cm, datos
   de caja (piezas y m² por caja, si existen) y precio; insignia **MANUAL** si es de entrada
   manual. Acciones **Cambiar** (abre el catálogo) y **Quitar** (`seleccionarMaterial: null`).
-  Los textos de formato/caja/precio salen de `src/ui/steps/materialUtil.ts` (solo presentación).
+  Los textos de formato/caja/precio salen de `src/ui/steps/materialUtil.ts`. El precio es el
+  **mismo que enseña la tarjeta del catálogo** —de venta, con margen (2026-07-31)—: si aquí se
+  viera la tarifa, la misma baldosa tendría dos precios distintos en la misma pantalla.
 - ~~Origen del material~~ (`ControlSegmentado` Stock/Pedido): **suprimido el 2026-07-30**. Al
   pasar a facturar por cajas completas también en stock dejó de cambiar el importe, así que
   sobraba: fuera del estado, de la pantalla y del PDF. En su hueco de la orden de trabajo va el
@@ -239,6 +253,9 @@ conversión a mm/céntimos pasa por el motor, nunca por los componentes.
   configuración).
 - `useSalidaMotor(config)`: ejecuta el motor memoizado sobre el estado actual; `null` = aún no
   hay datos suficientes. Es la única vía por la que la UI lee precios y errores.
+- `useMargenDeMaterial(config)`: devuelve una función `(material) => ResolucionMargen` con el
+  margen que le toca a un material CUALQUIERA, con la misma regla que usará el motor al cotizarlo.
+  La usan las tarjetas del catálogo y la tarjeta-resumen del paso ①, que muestran precio de venta.
 - `useMedidasValidadas(estado, config)`: medidas en mm para el visor 3D (`null` mientras no sean
   válidas).
 - `medidasTecleadas(estado)`: `true` si hay alguna medida tecleada desde que se eligió la figura;

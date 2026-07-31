@@ -18,10 +18,11 @@
 import { useEffect, useRef, useState } from 'react';
 import type { Material } from '../../domain/types';
 import { obtenerFuenteCatalogo, type FuenteCatalogo } from '../../data/catalogo';
-import { useAtelier } from '../state/quote-state';
+import { useConfig } from '../state/config-context';
+import { useAtelier, useMargenDeMaterial } from '../state/quote-state';
 import { Insignia } from '../components/primitivas';
 import { ImagenMaterial } from './ImagenMaterial';
-import { precioMaterialTexto } from './materialUtil';
+import { precioMaterialVista, type PrecioMaterialVista } from './materialUtil';
 
 function mensajeDe(error: unknown): string {
   return error instanceof Error ? error.message : 'Error desconocido';
@@ -38,10 +39,13 @@ const TAMANO_PAGINA_DEFECTO = 24;
 
 function TarjetaCatalogo({
   material,
+  precio,
   seleccionado,
   alSeleccionar,
 }: {
   material: Material;
+  /** Precio de venta ya resuelto por el panel (margen de SU subfamilia). */
+  precio: PrecioMaterialVista;
   seleccionado: boolean;
   alSeleccionar: () => void;
 }): JSX.Element {
@@ -61,8 +65,13 @@ function TarjetaCatalogo({
           Ref. {material.referencia}
           {material.marca ? ` · ${material.marca}` : ''}
         </p>
-        <p className="flex items-center gap-2 text-sm font-semibold text-marca">
-          {precioMaterialTexto(material)}
+        <p
+          className={`flex items-center gap-2 text-sm font-semibold ${
+            precio.aviso ? 'text-amber-700' : 'text-marca'
+          }`}
+          title={precio.aviso ?? undefined}
+        >
+          {precio.texto}
           {material.esManual ? <Insignia tono="manual">Manual</Insignia> : null}
         </p>
       </div>
@@ -76,6 +85,10 @@ function TarjetaCatalogo({
 
 export function CatalogoPanel(): JSX.Element {
   const { estado, dispatch } = useAtelier();
+  const config = useConfig();
+  // Los precios de las tarjetas son de VENTA: cada artículo con el margen de su
+  // propia subfamilia (2026-07-31). Cambiar de PVP a contratista los recalcula.
+  const margenDe = useMargenDeMaterial(config);
 
   const [fuente, setFuente] = useState<FuenteCatalogo | null>(null);
   const [errorFuente, setErrorFuente] = useState<string | null>(null);
@@ -231,6 +244,7 @@ export function CatalogoPanel(): JSX.Element {
               <TarjetaCatalogo
                 key={material.referencia}
                 material={material}
+                precio={precioMaterialVista(material, margenDe(material))}
                 seleccionado={estado.material?.referencia === material.referencia}
                 alSeleccionar={() => dispatch({ tipo: 'seleccionarMaterial', material })}
               />

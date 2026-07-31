@@ -95,11 +95,17 @@ se hace en el punto de entrada con `eurosACentimos` y `cmAMm`; prohibido float).
 | `referencia` | `codigo` del catálogo, o `MANUAL-<timestamp>` en entrada manual |
 | `descripcion` / `marca` | Texto libre; la marca es `null` con datos reales (ver más abajo) |
 | `formato` | `{ largoMm, anchoMm }`, enteros |
-| `precioM2Centimos` | Tarifa TARP (€/m²); `null` en material manual |
-| `precioUnidadCentimos` | Precio por baldosa; solo en material manual |
+| `precioM2Centimos` | Tarifa TARP (€/m²); `null` en material manual. Es **coste**: ver abajo |
+| `precioUnidadCentimos` | Precio por baldosa; solo en material manual. También coste |
 | `piezasPorCaja` / `m2PorCaja` | Logística de facturación: **obligatorios**, todo se factura por cajas completas |
 | `imagenUrl` | Textura/imagen; `null` si no hay |
 | `esManual` | `true` si se dio de alta a mano |
+
+Los precios de `Material` son **de coste**: la tarifa del ERP tal cual. Ninguna pantalla los
+enseña así — las tarjetas del catálogo y del paso ① les aplican el **margen comercial** de la
+subfamilia del artículo (`precioMaterialVista` en `src/ui/steps/materialUtil.ts`), y si el
+artículo no tiene margen dicen que falta en vez de mostrar el coste. Ver
+[Configuración](./04-configuracion.md#margenesjson--margen-comercial-por-subfamilia-2026-07-31).
 
 ## Catálogo real: índice local + API del catàleg
 

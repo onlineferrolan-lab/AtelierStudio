@@ -30,6 +30,7 @@ module.exports = {
           'construirEntradasPedido',
           'useSalidaMotor',
           'usePedido',
+          'useMargenDeMaterial',
           'useMedidasValidadas',
           'medidasTecleadas',
           'usePasos',
