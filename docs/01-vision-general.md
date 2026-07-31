@@ -106,7 +106,10 @@ devuelve el motor:
 - **Merma (%)** visible; editable solo si `parametros.mermaEditable` (pendiente de
   dirección, §6.10).
 - **Errores de validación** del motor listados con sus mensajes concretos.
-- Botones **Generar PDF** (deshabilitado sin cotización válida) y **Reiniciar**.
+- Botones: **Generar PDF de esta pieza** a lo ancho (deshabilitado sin cotización válida) y,
+  debajo compartiendo fila, **Añadir al pedido** y **Reiniciar**. El énfasis sigue al flujo:
+  con el pedido vacío destaca «Generar PDF»; en cuanto hay una pieza en el pedido destaca
+  «Añadir al pedido», porque a partir de la segunda lo que se quiere es seguir sumando.
 
 ### Panel derecho: Catálogo y Visor 3D
 

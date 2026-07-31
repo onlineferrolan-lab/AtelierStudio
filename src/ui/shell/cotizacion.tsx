@@ -290,17 +290,14 @@ export function PanelCotizacion(): JSX.Element {
         ) : null}
 
         <div className="flex flex-col gap-2 border-t border-slate-100 pt-3">
-          {/* «Añadir al pedido» va PRIMERO cuando ya hay pedido empezado: a partir
-              de la segunda pieza, lo que se quiere es seguir sumando, no sacar el
-              PDF de una sola. Con el pedido vacío manda «Generar PDF», que es el
-              flujo de siempre para quien solo hace una pieza. */}
-          <Boton
-            variante={hayPedido ? 'primario' : 'secundario'}
-            onClick={() => dispatch({ tipo: 'anadirAlPedido' })}
-            disabled={resultado === null}
-          >
-            Añadir al pedido
-          </Boton>
+          {/* «Generar PDF» arriba y a lo ancho: es el final del flujo de una
+              pieza, el caso normal. Debajo, «Añadir al pedido» y «Reiniciar»
+              comparten fila — las dos sacan de esta pieza, una guardándola y la
+              otra tirándola, así que se leen juntas (2026-07-31).
+
+              El énfasis sí sigue al flujo: en cuanto hay pedido empezado manda
+              «Añadir al pedido», porque a partir de la segunda pieza lo que se
+              quiere es seguir sumando y no sacar el PDF de una sola. */}
           <Boton
             variante={hayPedido ? 'secundario' : 'primario'}
             onClick={() => void alGenerarPdf()}
@@ -308,9 +305,18 @@ export function PanelCotizacion(): JSX.Element {
           >
             {generandoPdf ? 'Generando PDF…' : 'Generar PDF de esta pieza'}
           </Boton>
-          <Boton variante="secundario" onClick={alReiniciar}>
-            Reiniciar
-          </Boton>
+          <div className="grid grid-cols-2 gap-2">
+            <Boton
+              variante={hayPedido ? 'primario' : 'secundario'}
+              onClick={() => dispatch({ tipo: 'anadirAlPedido' })}
+              disabled={resultado === null}
+            >
+              Añadir al pedido
+            </Boton>
+            <Boton variante="secundario" onClick={alReiniciar}>
+              Reiniciar
+            </Boton>
+          </div>
           {errorPdf !== null ? (
             <p role="alert" className="text-sm text-red-600">
               {errorPdf}
