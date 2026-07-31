@@ -489,8 +489,7 @@ function CONTENIDO(m) {
       'de esta versión y se decidirán después de usarla en real:',
   );
   m.lista([
-    'Una pieza por presupuesto: si un cliente pide un peldaño y un rodapié, son dos presupuestos.',
-    'No guarda histórico: al cerrar o recargar la página se pierde lo introducido. El PDF es el único registro, guárdalo.',
+    'No guarda histórico: no hay lista de presupuestos anteriores ni forma de recuperar uno de ayer. El PDF es el único registro, guárdalo. (El pedido en curso sí aguanta una recarga: ver el capítulo del pedido.)',
     'No hay usuarios ni permisos: quien abre la herramienta puede hacer todo.',
     'No aprovecha recortes: no reutiliza el sobrante de una baldosa para otro presupuesto.',
     'No pide material al proveedor ni toca el ERP: solo lee el catálogo.',
@@ -575,18 +574,29 @@ function CONTENIDO(m) {
     'Ningún precio de la pantalla es de coste: llevan margen la cotización, los suplementos del paso 4 y también las tarjetas del catálogo y del paso 1. Al cambiar de PVP a contratista se recalculan todas.',
   ]);
   m.nota(
-    'El precio que tecleas a mano es COSTE',
-    'Si negocias un precio de material y lo escribes en «Precio del material», se ' +
-      'entiende como precio de compra: la herramienta le suma el margen encima, igual ' +
-      'que a la tarifa. No escribas ahí el precio de venta.',
+    'El precio que tecleas en un alta manual es COSTE',
+    'El precio de un material dado de alta en «Entrada manual» se entiende como precio ' +
+      'de compra: la herramienta le suma el margen encima, igual que a la tarifa del ' +
+      'catálogo. No escribas ahí el precio de venta.',
   );
 
-  m.h2('Editar el precio del material');
+  m.h2('Cuando el cliente trae las baldosas');
   m.p(
-    'Bajo la cotización hay un campo «Precio del material». Si negocias un precio ' +
-      'distinto del de tarifa, escríbelo ahí: se usará para el cálculo y la tarifa ' +
-      'original queda visible debajo y también en el PDF, para que se vea que hubo ' +
-      'una modificación deliberada.',
+    'Bajo la cotización hay una casilla «Azulejos no incluidos». Márcala cuando el ' +
+      'cliente aporta él la cerámica y solo se le cobra el trabajo del taller: el ' +
+      'material sale a 0 y la línea del desglose lo dice, igual que en el PDF.',
+  );
+  m.p(
+    'El resto del cálculo NO cambia: se siguen dando las baldosas necesarias, la ' +
+      'merma y las cajas. Es a propósito, porque es justo lo que el cliente tiene que ' +
+      'traer; si te pide seis cajas y aparece que hacen falta siete, esa cifra sigue ' +
+      'ahí para decírselo antes de empezar.',
+  );
+  m.nota(
+    'Antes había un campo para editar el precio',
+    'Se podía escribir un precio de material distinto del de tarifa. Ya no existe: en la ' +
+      'práctica lo que hacía falta no era retocar la tarifa, sino dejar el material fuera ' +
+      'del presupuesto, y para eso está esta casilla.',
   );
   m.h2('Entrada manual');
   m.p(
@@ -765,6 +775,13 @@ function CONTENIDO(m) {
     'En la cotización se ve como «Angular — 2 ud.», con el importe de esas 2 piezas.',
     'La orden de trabajo lo indica como «2 de 12 piezas», para que taller sepa cuáles rematar.',
   ]);
+  m.nota(
+    'Es el único suplemento que funciona así',
+    'Los otros tres se cobran por centímetro lineal, recorren la pieza de punta a punta y ' +
+      'se aplican a todas las unidades. El angular es el único que se cobra por pieza, y ' +
+      'por eso es el único que pregunta a cuántas.',
+  );
+
   m.h2('Comentarios para taller');
   m.p(
     'Debajo de los suplementos hay un campo de texto libre para lo que no cabe en ' +
@@ -779,12 +796,24 @@ function CONTENIDO(m) {
     'No se borra al cambiar de figura: es de la orden, no de la pieza.',
   ]);
 
-  m.nota(
-    'Es el único suplemento que funciona así',
-    'Los otros tres se cobran por centímetro lineal, recorren la pieza de punta a punta y ' +
-      'se aplican a todas las unidades. El angular es el único que se cobra por pieza, y ' +
-      'por eso es el único que pregunta a cuántas.',
+  m.h2('Adjuntar documentos');
+  m.p(
+    'El clip que hay junto a «Comentarios para taller» engancha documentos a la orden: ' +
+      'el plano que ha mandado el cliente, una foto de la obra, la captura de una ' +
+      'medición. Caben 6 documentos y hasta 5 MB cada uno.',
   );
+  m.p(
+    'Todos se citan por su nombre en la hoja, y los que son IMAGEN salen además como ' +
+      'página completa al final del PDF. Los que no son imagen —un PDF, por ejemplo— solo ' +
+      'se pueden citar, y aparecen marcados «(aparte)»: la herramienta no sabe fusionar ' +
+      'documentos, así que en taller tienen que saber que existe un archivo que no está ' +
+      'impreso ahí y hay que pedirlo a oficina.',
+  );
+  m.lista([
+    'Son de la orden, no de la pieza: no se borran al cambiar de figura, y en un pedido de varias piezas van una sola vez.',
+    'Solo viven en la sesión: si recargas la página se pierden (a diferencia del pedido). Adjúntalos justo antes de generar el PDF.',
+    'Si una imagen sale ilegible, el PDF se genera igual: se salta esa página y el nombre sigue citado en la hoja.',
+  ]);
 
   // === 7 ====================================================================
   m.h1('La cotización');
@@ -837,6 +866,60 @@ function CONTENIDO(m) {
   );
 
   // === 8 ====================================================================
+  m.h1('Varias piezas en un pedido');
+  m.p(
+    'Un presupuesto puede llevar VARIAS piezas. Si el cliente pide un peldaño y un ' +
+      'rodapié, no hace falta hacer dos presupuestos: configuras la primera pieza como ' +
+      'siempre y pulsas «Añadir al pedido», que está bajo «Generar PDF». La pieza pasa a ' +
+      'una lista y el editor se queda libre para la siguiente.',
+  );
+  m.p(
+    'Al añadir una pieza se CONSERVA el material: lo normal es encadenar varios cortes ' +
+      'de la misma cerámica, y volver a buscarla en el catálogo cada vez sería trabajo ' +
+      'tirado. Cambiarlo es un clic; volver a elegirlo, media docena.',
+  );
+
+  m.h2('Por qué sale más barato que hacerlos por separado');
+  m.p(
+    'Es la razón de que exista el pedido. El material se factura por CAJAS COMPLETAS, y ' +
+      'las piezas del mismo artículo comparten caja: se cuentan las baldosas de todas ' +
+      'juntas y se compran las cajas una sola vez. El arranque de máquina también se cobra ' +
+      'una vez por artículo, no una por pieza.',
+  );
+  m.p(
+    'Dos cortes de la misma cerámica que por separado habrían pedido una caja cada uno, ' +
+      'juntos pueden salir de una sola. El PDF del pedido remata diciendo cuántas cajas se ' +
+      'ahorran y cuánto dinero es, para que la cifra se pueda enseñar al cliente.',
+  );
+  m.nota(
+    'Todas las piezas de un mismo artículo se cotizan igual',
+    'Si dos piezas salen de la misma cerámica, tienen que llevar el mismo margen y la misma ' +
+      'respuesta a «Azulejos no incluidos»: como comparten caja, no hay forma de comprarla ' +
+      'medio incluida. Si no coinciden, la herramienta no cotiza y te dice qué línea revisar.',
+  );
+
+  m.h2('La lista del pedido');
+  m.lista([
+    'Cada línea se puede quitar, duplicar o volver a editar: al editarla vuelve al editor y sale de la lista.',
+    'El pedido SOBREVIVE a una recarga de la página. Un carrito de diez piezas es media mañana, así que se guarda en el navegador; lo que no se guarda es la pieza a medio configurar del editor, ni los comentarios, ni los adjuntos.',
+    '«Reiniciar» limpia la pieza del editor, los comentarios y los adjuntos, pero NO el pedido: vaciar diez piezas por un clic de más sería un accidente caro. Para eso está «Vaciar pedido», que pide confirmación.',
+    'Los comentarios y los adjuntos son del pedido entero, no de cada pieza: se escriben una vez.',
+  ]);
+
+  m.h2('El PDF del pedido');
+  m.p(
+    'Con piezas en la lista, el botón genera la ORDEN DEL PEDIDO: una primera hoja de ' +
+      'resumen con la tabla de piezas, el material agrupado por artículo, los comentarios ' +
+      'y los importes del pedido completo, y después UNA HOJA POR PIEZA con su ficha, su ' +
+      'croquis y su producción, igual que la orden de una pieza sola.',
+  );
+  m.lista([
+    'El código del documento empieza por PED- en vez de OT-, para que por teléfono se sepa si se está mirando un pedido o la orden de una pieza.',
+    'Las cajas NO se repiten en la hoja de cada pieza: son del artículo y van en el resumen. La hoja de pieza recuerda de qué caja sale y con qué otras piezas la comparte.',
+    'Si hay adjuntos, sus páginas van al final, detrás de las hojas de pieza: son del pedido entero, no de una pieza concreta.',
+  ]);
+
+  // === 9 ====================================================================
   m.h1('El visor 3D');
   m.p(
     'La pestaña «Visor 3D» del panel derecho dibuja la pieza con las medidas que has ' +
@@ -872,7 +955,7 @@ function CONTENIDO(m) {
       'aprecia mejor, porque queda recortado en el canto de abajo del frontal.',
   );
 
-  // === 9 ====================================================================
+  // === 10 ================================================================
   m.h1('La orden de trabajo en PDF');
   m.p(
     'El botón «Generar PDF» descarga la orden de trabajo: una hoja A4 con todo lo ' +
@@ -889,20 +972,26 @@ function CONTENIDO(m) {
   m.lista([
     'Cabecera: el código de orden, arriba a la derecha y en grande, con el formato OT-AAAAMMDD-HHMM. Es el identificador para citar la hoja y coincide con el nombre del archivo.',
     'Pieza a fabricar: el bloque más grande. Figura, la cantidad destacada en rojo, las medidas como cifras grandes en el mismo orden en que se piden, y el croquis acotado de la sección a la derecha.',
-    'Material: foto, descripción, referencia, formato, datos de caja y precio aplicado (con la tarifa original si lo has editado). Los datos de caja son los que explican en taller por qué se facturan más piezas de las necesarias.',
+    'Material: foto, descripción, referencia, formato, datos de caja y precio de tarifa. Si has marcado «Azulejos no incluidos», en lugar del precio pone NO INCLUIDOS (aporta cliente), que es lo que explica que el material no aparezca cobrado. Los datos de caja son los que explican en taller por qué se facturan más piezas de las necesarias.',
     'Operaciones: los suplementos en una línea, cada uno con su alcance — «(todas)» los de por cm, «(2 de 12)» el angular.',
-    'Comentarios para taller: lo que hayas escrito en el campo de comentarios, sobre fondo tenue. Si no hay comentarios, este bloque no aparece.',
+    'Comentarios para taller: lo que hayas escrito en el campo de comentarios, sobre fondo tenue, con la lista de adjuntos citados por nombre debajo. Si no hay ni comentarios ni adjuntos, este bloque no aparece.',
     'Producción: el despiece de la pieza, cuánto ocupa en la baldosa, los cortes, y el recuento de baldosas y metros.',
     'Importes: el mismo desglose de la pantalla, con el total con IVA en la banda roja.',
     'OPERADOR: al pie, con una raya para firmar a mano quién ha hecho la pieza.',
+    'Páginas de adjunto: si has enganchado imágenes, cada una sale al final a página completa, con su nombre y el código de la orden en la cabecera.',
   ]);
   m.p(
     'El archivo se guarda como orden-trabajo_REFERENCIA_AAAAMMDD-HHMM.pdf. Como la ' +
       'herramienta no guarda histórico, este PDF es el único registro del presupuesto: ' +
       'archívalo donde corresponda.',
   );
+  m.p(
+    'Con varias piezas en el pedido el botón genera un documento distinto, la orden del ' +
+      'PEDIDO, con una hoja de resumen y una hoja por pieza: se explica en el capítulo ' +
+      '«Varias piezas en un pedido».',
+  );
 
-  // === 10 ===================================================================
+  // === 11 ================================================================
   m.h1('Cómo calcula el programa');
   m.p(
     'Este capítulo explica el cálculo completo, en el mismo orden en que lo hace la ' +
@@ -1006,7 +1095,7 @@ function CONTENIDO(m) {
     'total con IVA = total sin IVA + IVA',
   ]);
 
-  // === 11 ===================================================================
+  // === 12 ================================================================
   m.h1('Ejemplo completo, número a número');
   m.p(
     'Este es el presupuesto de las capturas de este manual, con todos los pasos ' +
@@ -1070,7 +1159,7 @@ function CONTENIDO(m) {
       'manipulación pasaría a 276,00 euros y el total con IVA a 732,60 euros.',
   );
 
-  // === 12 ===================================================================
+  // === 13 ================================================================
   m.h1('Mensajes de error y qué hacer');
   m.tabla(
     ['Mensaje', 'Qué pasa y cómo se resuelve'],
@@ -1096,8 +1185,8 @@ function CONTENIDO(m) {
         'Has puesto más piezas con angular que unidades pedidas. Baja las piezas con angular, o sube la cantidad.',
       ],
       [
-        'El material no tiene tarifa TARP (euros/m²); introduce el precio manualmente.',
-        'El catálogo no trae precio para ese artículo. Escríbelo en «Precio del material».',
+        'El material ... no tiene tarifa TARP (euros/m²): no se puede cotizar el material. Marca «Azulejos no incluidos» si los aporta el cliente.',
+        'El catálogo no trae precio para ese artículo, y no hay precio que teclear a mano. Si el cliente aporta la cerámica, marca la casilla y se cotiza solo el trabajo; si no, elige otro artículo o dalo de alta en «Entrada manual» con su precio.',
       ],
       [
         'El material no tiene el dato «piezas por caja»; no se puede facturar un pedido por cajas completas.',
@@ -1115,7 +1204,7 @@ function CONTENIDO(m) {
     [0.37, 0.63],
   );
 
-  // === 13 ===================================================================
+  // === 14 ================================================================
   m.h1('Valores provisionales y límites conocidos');
   m.p(
     'Hay decisiones que todavía están pendientes de taller o de dirección. La ' +
@@ -1147,7 +1236,7 @@ function CONTENIDO(m) {
       'resultado con taller antes de comprometer el precio con el cliente.',
   );
 
-  // === 14 ===================================================================
+  // === 15 ================================================================
   m.h1('Atajos, referencias y dónde preguntar');
   m.h2('Atajo de teclado');
   m.lista([
@@ -1169,8 +1258,8 @@ function CONTENIDO(m) {
   m.h2('Si algo no cuadra');
   m.p(
     'Antes de dar por buena una cifra rara: comprueba las piezas por caja del material, la ' +
-      'merma, y si el precio del material está editado. Esas tres cosas explican casi ' +
-      'todas las diferencias. Si el problema es el cálculo en sí, guarda el PDF de la ' +
+      'merma, el margen que se está aplicando y si está marcado «Azulejos no incluidos». ' +
+      'Esas cosas explican casi todas las diferencias. Si el problema es el cálculo en sí, guarda el PDF de la ' +
       'orden (lleva todos los datos de entrada y el código de orden) y pásalo a quien ' +
       'mantenga la herramienta: con ese PDF se puede reproducir el caso exacto.',
   );

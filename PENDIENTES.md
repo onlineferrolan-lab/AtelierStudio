@@ -177,7 +177,14 @@ El motor no se considera correcto hasta reproducir 10–15 cálculos reales vali
     nombre** en la hoja, marcados «(aparte)» — jsPDF no fusiona documentos. Topes provisionales:
     6 documentos × 5 MB (`src/orden/adjuntos.ts`). **Pendiente de dirección:** ¿hace falta
     archivarlos o enviarlos de verdad (correo/ERP)? Eso requiere servidor. ¿Y aceptar HEIC del
-    móvil, que hoy no se incrusta?
+    móvil, que hoy no se incrusta? **Desde 2026-07-31 van también en la orden del PEDIDO**, al
+    final y detrás de las hojas de pieza (son del pedido entero, no de una pieza).
+17. **Capturas del manual de usuario desatrasadas (2026-07-31):** el texto de
+    `scripts/generar-manual.mjs` ya cubre el pedido, los adjuntos y «azulejos no incluidos», pero
+    las nueve imágenes de `docs/manual-usuario/img/` son de ANTES de esos cambios: se hacen a mano
+    y no hay forma de generarlas desde el repo. Las que más cantan son `01-vista-general.png` y
+    `06-cotizacion.png` (la botonera cambió y falta la casilla de azulejos), y no hay ninguna del
+    pedido ni del clip de adjuntos. **Pendiente:** rehacerlas con la app en marcha.
 
 ## 5. Fuera de alcance de la v1 (§8) — no construido, se retoma tras validación en uso real
 
