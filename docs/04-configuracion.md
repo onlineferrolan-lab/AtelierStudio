@@ -92,6 +92,11 @@ Tarifas actuales (€/cm, sin IVA): `f1-frontal-le5` 0,19 · `f1-frontal-gt5` 0,
 `rodapie-estandar` 0,017 · `rodapie-estandar-pintado` 0,025 · `rodapie-no-estandar` 0,034
 · `rodapie-no-estandar-pintado` 0,042 · `corte` 0,017.
 
+Las cuatro de rodapié las comparten las **nueve** figuras de rodapié: se tarifa por
+ALTURA (7,2 y 8 van juntas; «a medida» aparte), nunca por canto, porque el canto recto
+«no tiene incremento» (2026-07-31, indicación directa). Por eso sus `nombre` no citan
+ningún canto: salen tal cual en el desglose y en la orden de trabajo.
+
 ### `suplementos[]` — suplementos opcionales del paso ④
 
 | Campo | Tipo | Unidad | Descripción |
@@ -126,6 +131,7 @@ el croquis acotado oficial (§3, ver [PENDIENTES.md](../PENDIENTES.md)).
 | `longitudTarifa` | objeto \| null | A qué longitud se aplica la tarifa (ver abajo); `null` en pendientes. |
 | `suplementos` | string[] | Ids de suplementos de `tarifas.json` aplicables a esta figura. |
 | `tienePintado` | boolean | `true` si la tarifa depende del conmutador «Pintado» del paso ④ (rodapiés). |
+| `medidaPorMetros` | string \| null | Opcional (`null` por defecto). Id de la medida que puede deducirse de los metros pedidos: habilita el segundo modo de cálculo del paso ③ (metros + unidades → largo por pieza). Hoy `"longitud"` en los nueve rodapiés y `null` en el resto. Debe existir en `medidas[]`. |
 
 ### `medidas[]` — campos de entrada en cm
 
@@ -135,7 +141,8 @@ el croquis acotado oficial (§3, ver [PENDIENTES.md](../PENDIENTES.md)).
 | `etiqueta` | string | — | Etiqueta de UI, p. ej. `Largo (cm)`. Es lo único que ve el comercial: los `id` internos pueden no coincidir (el id `longitud` se rotula «Largo (cm)» y `fondo`, «Ancho (cm)»; 2026-07-30). El ORDEN del array es el orden en que se piden en el paso ③ y en el PDF — hoy el ancho antes que el largo. |
 | `minCm` | number | cm | Mínimo admitido (admite decimales, p. ej. `7.2`). |
 | `maxCm` | number \| null | cm | Opcional; máximo admitido. Si se omite, queda `null` (sin tope). |
-| `opcionesCm` | number[] \| null | cm | Opcional; si está presente, la medida solo puede tomar uno de esos valores (p. ej. altura del rodapié estándar: `[7.2, 8]`). |
+| `opcionesCm` | number[] \| null | cm | Opcional; si está presente, la medida solo puede tomar uno de esos valores (se dibuja como control segmentado). **Hoy no lo usa ninguna figura**: la altura de los rodapiés dejó de ser una elección el 2026-07-31 y pasó a ir en el nombre de la figura. |
+| `valorFijoCm` | number \| null | cm | Opcional; medida que NO teclea el comercial porque la fija la propia figura (altura de los rodapiés de 7,2 y de 8). La UI la enseña en solo lectura y el motor la da por puesta. Tiene que cumplir el `minCm`/`maxCm`/`opcionesCm` del propio campo (lo valida `validarConfiguracion` al cargar). |
 
 ### `componentes[]` — receta de la figura
 
@@ -144,6 +151,7 @@ el croquis acotado oficial (§3, ver [PENDIENTES.md](../PENDIENTES.md)).
 | `id` | string | Nombre del componente (`tapa`, `frontal`, `retorno`, `liston`, `pieza`). |
 | `largoDe` | string | Id de la medida de la que sale el largo del componente. |
 | `anchoDe` | string | Id de la medida de la que sale el ancho del componente. |
+| `canto` | string \| null | Opcional, solo el componente `liston`: `recto`, `microbiselado` o `romado`. Cambia el remate superior que se dibuja en la miniatura, el visor 3D y el croquis del PDF; **nunca** la tarifa. Sin declarar (`null`) se dibuja romado. |
 
 `largoDe` y `anchoDe` deben existir en `medidas[]` de la misma figura (lo valida
 `validarConfiguracion`).

@@ -61,6 +61,16 @@ export function validarMedidasCrudas(
 
   for (const campo of figura.medidas) {
     const nombre = nombreMedida(campo.etiqueta);
+
+    // Medida fija por la figura (altura de los rodapiés de 7,2 y de 8): no la
+    // teclea el comercial, así que no puede faltar ni fallar. Que el valor esté
+    // dentro de sus propios límites lo garantiza `validarConfiguracion` al
+    // cargar, no una comprobación por cotización.
+    if (campo.valorFijoCm !== null) {
+      medidasMm[campo.id] = cmAMm(campo.valorFijoCm);
+      continue;
+    }
+
     const texto = (crudas[campo.id] ?? '').trim();
 
     if (texto === '') {
@@ -93,6 +103,101 @@ export function validarMedidasCrudas(
   }
 
   return errores.length > 0 ? { ok: false, errores } : { ok: true, medidasMm };
+}
+
+/**
+ * Los dos modos de entrada del paso ③ para las figuras que se venden por metro
+ * lineal (rodapiés, 2026-07-31, indicación directa):
+ *  - 'largo': el de siempre, el comercial teclea el largo de la pieza.
+ *  - 'metros': teclea cuántos METROS quiere en total y en cuántas unidades, y el
+ *    largo de cada pieza se deduce.
+ */
+export type ModoMedida = 'largo' | 'metros';
+
+/** Id del campo de los metros; los errores del modo 'metros' se cuelgan de él. */
+export const MEDIDA_METROS = 'metros';
+
+/**
+ * Largo de cada pieza a partir de los metros pedidos: `metros × 100 ÷ unidades`,
+ * en cm. Se devuelve en cm sin redondear — el redondeo a milímetros enteros lo
+ * hace `cmAMm` en el mismo punto de entrada que cualquier otra medida tecleada,
+ * para que 30 m en 7 unidades no dependa de por dónde se redondee.
+ */
+export function largoCmPorMetros(metros: number, unidades: number): number {
+  return (metros * 100) / unidades;
+}
+
+/**
+ * Valida las medidas cuando el largo NO se teclea sino que sale de los metros
+ * pedidos (`figura.medidaPorMetros`). El resto de medidas se validan igual que
+ * siempre.
+ *
+ * Los errores del largo deducido se cuelgan del campo «metros», que es el que el
+ * comercial tiene delante: colgarlos de un campo que en este modo ni se ve
+ * dejaría el error sin sitio donde pintarse (§1.③).
+ */
+export function validarMedidasPorMetros(
+  figura: Figura,
+  crudas: MedidasCrudas,
+  metrosCrudos: string,
+  unidades: number,
+): ResultadoValidacionMedidas {
+  const idDerivada = figura.medidaPorMetros;
+  // Figura que no se vende por metros: el modo no aplica y se valida normal.
+  if (idDerivada === null) return validarMedidasCrudas(figura, crudas);
+
+  const errorMetros = (mensaje: string): ResultadoValidacionMedidas => ({
+    ok: false,
+    errores: [{ paso: 'medidas', medida: MEDIDA_METROS, mensaje }],
+  });
+
+  const texto = metrosCrudos.trim();
+  if (texto === '') return errorMetros('«Metros» es obligatorio.');
+
+  const metros = Number(texto.replace(',', '.'));
+  if (!Number.isFinite(metros)) {
+    return errorMetros(
+      `«${texto}» no es un número válido para los metros. Usa coma o punto para los decimales (p. ej. 12,5).`,
+    );
+  }
+  if (metros <= 0) return errorMetros('Los metros tienen que ser mayores que 0.');
+  // Sin unidades válidas no hay entre cuántas piezas repartir. La cantidad ya se
+  // valida antes que esto, así que aquí solo se cubre la llamada directa.
+  if (!Number.isInteger(unidades) || unidades < 1) {
+    return {
+      ok: false,
+      errores: [
+        {
+          paso: 'medidas',
+          medida: 'cantidad',
+          mensaje: 'La cantidad debe ser un número entero mayor que 0.',
+        },
+      ],
+    };
+  }
+
+  const largoCm = largoCmPorMetros(metros, unidades);
+  // El largo deducido entra por la misma puerta que uno tecleado: mismo
+  // redondeo a mm y mismos límites de la figura. `String` de un número JS
+  // vuelve a leerse exacto, así que el rodeo por texto no pierde precisión.
+  const resultado = validarMedidasCrudas(figura, { ...crudas, [idDerivada]: String(largoCm) });
+  if (resultado.ok) return resultado;
+
+  const nombreDerivada = nombreMedida(
+    figura.medidas.find((m) => m.id === idDerivada)?.etiqueta ?? idDerivada,
+  );
+  return {
+    ok: false,
+    errores: resultado.errores.map((error) =>
+      error.medida === idDerivada
+        ? {
+            ...error,
+            medida: MEDIDA_METROS,
+            mensaje: `Con ${fmtCm(metros)} m en ${unidades} ${unidades === 1 ? 'unidad' : 'unidades'} cada pieza sale de ${fmtCm(largoCm)} cm de ${nombreDerivada.toLowerCase()}. ${error.mensaje}`,
+          }
+        : error,
+    ),
+  };
 }
 
 /**

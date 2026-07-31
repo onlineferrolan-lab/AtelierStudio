@@ -115,8 +115,16 @@ describe('extra de las figuras numeradas', () => {
     for (const id of [
       'peldano-romo',
       'pasamanos-romo',
-      'rodapie-estandar',
-      'rodapie-no-estandar',
+      // Los nueve rodapiés (2026-07-31): ninguno lleva el extra.
+      'rodapie-72-recto',
+      'rodapie-72-microbiselado',
+      'rodapie-72-romado',
+      'rodapie-8-recto',
+      'rodapie-8-microbiselado',
+      'rodapie-8-romado',
+      'rodapie-medida-recto',
+      'rodapie-medida-microbiselado',
+      'rodapie-medida-romado',
       'corte',
     ]) {
       expect(mermaSugeridaCentesimas(formato(30, 60), id, config)).toBe(1000);

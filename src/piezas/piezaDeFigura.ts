@@ -227,14 +227,20 @@ export function ensamblar(
     return { seccion: seccionRomo({ fondo, grosor: g, doble, suplementos }), largo, cotas };
   }
   if (ids.has('liston')) {
-    // Rodapiés: listón de pie con el canto superior en media caña.
+    // Rodapiés: listón de pie rematado por arriba según el canto que declare la
+    // receta (recto, microbiselado o romado). Sin canto declarado se dibuja
+    // romado, que es como estaban los dos rodapiés que había antes de 2026-07-31.
     const liston = componente('liston');
     if (!liston) return null;
     const largo = aEscena(medidasMm[liston.largoDe]);
     const altura = aEscena(medidasMm[liston.anchoDe]);
     cota(liston.largoDe, 'x', 'frenteInferior', 0, largo);
     cota(liston.anchoDe, 'y', 'verticalFrontal', 0, altura);
-    return { seccion: seccionListon({ altura, grosor: g }), largo, cotas };
+    return {
+      seccion: seccionListon({ altura, grosor: g, canto: liston.canto ?? 'romado' }),
+      largo,
+      cotas,
+    };
   }
   if (ids.has('pieza')) {
     // Corte: pieza plana rectangular tumbada.

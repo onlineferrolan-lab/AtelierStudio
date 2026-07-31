@@ -72,4 +72,30 @@ describe('PasoFigura', () => {
       expect(etiquetas).toContain(`Perfil de ${figura.nombre}`);
     }
   });
+
+  /**
+   * Los nueve rodapiés (2026-07-31) comparten tres dibujos, uno por canto, y NO
+   * tienen entrada en el mapa `SECCIONES` de `MiniaturaFigura`: se dibujan a
+   * partir del canto de su receta. Si esa rama se rompiera, caerían en silencio
+   * en el dibujo de «Corte de piezas» y la galería enseñaría nueve planchas
+   * iguales — de ahí que se compruebe que los tres cantos difieren entre sí y
+   * ninguno coincide con el del corte.
+   */
+  it('los tres cantos de rodapié se dibujan distintos, y ninguno como el corte', () => {
+    montarPasos(<PasoFigura />);
+    const perfilDe = (nombre: string): string => {
+      const svg = screen.getByRole('img', { name: `Perfil de ${nombre}` });
+      return svg.innerHTML;
+    };
+
+    const recto = perfilDe('Rodapié 7,2 canto recto');
+    const micro = perfilDe('Rodapié 7,2 microbiselado');
+    const romado = perfilDe('Rodapié 7,2 canto romado');
+    const corte = perfilDe('Corte de piezas');
+
+    expect(new Set([recto, micro, romado, corte]).size).toBe(4);
+    // La altura no cambia el dibujo: 7,2 y 8 del mismo canto son la misma pieza.
+    expect(perfilDe('Rodapié 8 canto recto')).toBe(recto);
+    expect(perfilDe('Rodapié a medida canto romado')).toBe(romado);
+  });
 });

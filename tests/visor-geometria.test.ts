@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 import * as THREE from 'three';
-import type { Figura } from '../src/domain/config';
+import type { CampoMedida, CantoListon, ComponenteReceta, Figura } from '../src/domain/config';
 import type { Mm } from '../src/domain/types';
 import { mm } from '../src/domain/units';
 import { crearGrupoCotas } from '../src/viewer/cotas';
@@ -30,26 +30,40 @@ function figuraDePrueba(parcial: Partial<Figura>): Figura {
     tarifaAdicional: null,
     suplementos: [],
     tienePintado: false,
+    medidaPorMetros: null,
     ...parcial,
   };
+}
+
+/** Medida de prueba: solo se escribe lo que el caso necesita. */
+function medida(
+  id: string,
+  etiqueta: string,
+  resto: Partial<Omit<CampoMedida, 'id' | 'etiqueta'>> = {},
+): CampoMedida {
+  return { id, etiqueta, minCm: 1, maxCm: null, opcionesCm: null, valorFijoCm: null, ...resto };
+}
+
+/** Componente de receta; `canto` solo lo usan los listones de rodapié. */
+function componente(
+  id: string,
+  largoDe: string,
+  anchoDe: string,
+  canto: CantoListon | null = null,
+): ComponenteReceta {
+  return { id, largoDe, anchoDe, canto };
 }
 
 const FIGURA_L = figuraDePrueba({
   id: 'figura-1',
   medidas: [
-    { id: 'longitud', etiqueta: 'Longitud (cm)', minCm: 1, maxCm: null, opcionesCm: null },
-    { id: 'fondo', etiqueta: 'Fondo (cm)', minCm: 1, maxCm: null, opcionesCm: null },
-    {
-      id: 'alturaFrontal',
-      etiqueta: 'Altura frontal (cm)',
-      minCm: 1,
-      maxCm: null,
-      opcionesCm: null,
-    },
+    medida('longitud', 'Longitud (cm)'),
+    medida('fondo', 'Fondo (cm)'),
+    medida('alturaFrontal', 'Altura frontal (cm)'),
   ],
   componentes: [
-    { id: 'tapa', largoDe: 'longitud', anchoDe: 'fondo' },
-    { id: 'frontal', largoDe: 'longitud', anchoDe: 'alturaFrontal' },
+    componente('tapa', 'longitud', 'fondo'),
+    componente('frontal', 'longitud', 'alturaFrontal'),
   ],
 });
 
@@ -65,23 +79,14 @@ const FIGURA_3 = figuraDePrueba({
 
 const FIGURA_4 = figuraDePrueba({
   id: 'figura-4',
-  medidas: [
-    ...FIGURA_L.medidas,
-    { id: 'retorno', etiqueta: 'Retorno (cm)', minCm: 1, maxCm: null, opcionesCm: null },
-  ],
-  componentes: [
-    ...FIGURA_L.componentes,
-    { id: 'retorno', largoDe: 'longitud', anchoDe: 'retorno' },
-  ],
+  medidas: [...FIGURA_L.medidas, medida('retorno', 'Retorno (cm)')],
+  componentes: [...FIGURA_L.componentes, componente('retorno', 'longitud', 'retorno')],
 });
 
 const FIGURA_ROMO = figuraDePrueba({
   id: 'peldano-romo',
-  medidas: [
-    { id: 'longitud', etiqueta: 'Longitud (cm)', minCm: 1, maxCm: null, opcionesCm: null },
-    { id: 'fondo', etiqueta: 'Fondo (cm)', minCm: 1, maxCm: null, opcionesCm: null },
-  ],
-  componentes: [{ id: 'tapa', largoDe: 'longitud', anchoDe: 'fondo' }],
+  medidas: [medida('longitud', 'Longitud (cm)'), medida('fondo', 'Fondo (cm)')],
+  componentes: [componente('tapa', 'longitud', 'fondo')],
 });
 
 // Pasamanos (2026-07-29): misma receta que su peldaño equivalente más el
@@ -91,7 +96,7 @@ const FIGURA_PASAMANOS = figuraDePrueba({
   medidas: FIGURA_L.medidas,
   componentes: [
     ...FIGURA_L.componentes,
-    { id: 'frontal-trasero', largoDe: 'longitud', anchoDe: 'alturaFrontal' },
+    componente('frontal-trasero', 'longitud', 'alturaFrontal'),
   ],
 });
 
@@ -100,8 +105,8 @@ const FIGURA_PASAMANOS_4 = figuraDePrueba({
   medidas: FIGURA_4.medidas,
   componentes: [
     ...FIGURA_4.componentes,
-    { id: 'frontal-trasero', largoDe: 'longitud', anchoDe: 'alturaFrontal' },
-    { id: 'retorno-trasero', largoDe: 'longitud', anchoDe: 'retorno' },
+    componente('frontal-trasero', 'longitud', 'alturaFrontal'),
+    componente('retorno-trasero', 'longitud', 'retorno'),
   ],
 });
 
@@ -110,22 +115,34 @@ const FIGURA_PASAMANOS_ROMO = figuraDePrueba({
   id: 'pasamanos-romo',
 });
 
-const FIGURA_RODAPIE = figuraDePrueba({
-  id: 'rodapie-estandar',
-  medidas: [
-    { id: 'longitud', etiqueta: 'Longitud (cm)', minCm: 1, maxCm: null, opcionesCm: null },
-    { id: 'altura', etiqueta: 'Altura (cm)', minCm: 7.2, maxCm: 8, opcionesCm: [7.2, 8] },
-  ],
-  componentes: [{ id: 'liston', largoDe: 'longitud', anchoDe: 'altura' }],
-});
+/**
+ * Rodapié (2026-07-31: nueve figuras, tres alturas × tres cantos). La altura de
+ * las de 7,2 y 8 es fija: la pone la figura, no el comercial.
+ */
+function figuraRodapie(id: string, canto: CantoListon, alturaFijaCm: number | null): Figura {
+  return figuraDePrueba({
+    id,
+    medidas: [
+      medida('longitud', 'Largo (cm)'),
+      medida('altura', 'Altura (cm)', {
+        minCm: alturaFijaCm ?? 1,
+        maxCm: alturaFijaCm,
+        valorFijoCm: alturaFijaCm,
+      }),
+    ],
+    componentes: [componente('liston', 'longitud', 'altura', canto)],
+    medidaPorMetros: 'longitud',
+  });
+}
+
+const FIGURA_RODAPIE = figuraRodapie('rodapie-72-romado', 'romado', 7.2);
+const FIGURA_RODAPIE_RECTO = figuraRodapie('rodapie-72-recto', 'recto', 7.2);
+const FIGURA_RODAPIE_MICRO = figuraRodapie('rodapie-72-microbiselado', 'microbiselado', 7.2);
 
 const FIGURA_CORTE = figuraDePrueba({
   id: 'corte',
-  medidas: [
-    { id: 'largo', etiqueta: 'Largo (cm)', minCm: 1, maxCm: null, opcionesCm: null },
-    { id: 'ancho', etiqueta: 'Ancho (cm)', minCm: 1, maxCm: null, opcionesCm: null },
-  ],
-  componentes: [{ id: 'pieza', largoDe: 'largo', anchoDe: 'ancho' }],
+  medidas: [medida('largo', 'Largo (cm)'), medida('ancho', 'Ancho (cm)')],
+  componentes: [componente('pieza', 'largo', 'ancho')],
 });
 
 function contarMallas(raiz: THREE.Object3D): number {
@@ -346,6 +363,60 @@ describe('construirPieza', () => {
     expect(tam.z).toBeCloseTo(G, 6);
     const cotaAltura = pieza.cotas.find((c) => c.medida === 'altura');
     expect(cotaAltura?.eje).toBe('y');
+  });
+
+  /**
+   * Los tres cantos de rodapié (2026-07-31). No cambian ni la tarifa ni el
+   * volumen que ocupa la pieza, solo el remate de arriba: la caja envolvente es
+   * la misma en los tres y lo que cambia es el contorno de la sección.
+   */
+  describe('rodapié: los tres cantos', () => {
+    const medidas: Record<string, Mm> = { longitud: mm(600), altura: mm(72) };
+
+    it('recto: el canto vivo, cuatro esquinas y nada más', () => {
+      const seccion = construirSeccion(FIGURA_RODAPIE_RECTO, medidas);
+      expect(seccion?.contorno).toEqual([
+        [0, 0],
+        [1, 0],
+        [1, 7.2],
+        [0, 7.2],
+      ]);
+    });
+
+    it('microbiselado: mata solo el filo delantero, sin tocar el alto total', () => {
+      const seccion = construirSeccion(FIGURA_RODAPIE_MICRO, medidas);
+      expect(seccion?.contorno).toEqual([
+        [0, 0],
+        [1, 0],
+        [1, 7.2 - 0.15],
+        [1 - 0.15, 7.2],
+        [0, 7.2],
+      ]);
+    });
+
+    it('romado: media caña, con muchos más puntos que los otros dos', () => {
+      const romado = construirSeccion(FIGURA_RODAPIE, medidas);
+      const recto = construirSeccion(FIGURA_RODAPIE_RECTO, medidas);
+      expect(romado).not.toBeNull();
+      expect(recto).not.toBeNull();
+      if (!romado || !recto) return;
+      expect(romado.contorno.length).toBeGreaterThan(recto.contorno.length);
+    });
+
+    it.each([
+      ['recto', FIGURA_RODAPIE_RECTO],
+      ['microbiselado', FIGURA_RODAPIE_MICRO],
+      ['romado', FIGURA_RODAPIE],
+    ] as const)('%s: misma caja envolvente y misma cota de altura', (_canto, figuraRodapie) => {
+      const pieza = construirPieza(figuraRodapie, medidas);
+      expect(pieza).not.toBeNull();
+      if (!pieza) return;
+      const tam = cajaDe(pieza.malla).getSize(new THREE.Vector3());
+      expect(tam.x).toBeCloseTo(60, 6);
+      expect(tam.y).toBeCloseTo(7.2, 6);
+      expect(tam.z).toBeCloseTo(G, 6);
+      expect(pieza.cotas.find((c) => c.medida === 'altura')?.eje).toBe('y');
+    });
   });
 
   it('corte: pieza plana tumbada con cotas de largo y ancho', () => {

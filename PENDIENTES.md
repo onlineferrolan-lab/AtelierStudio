@@ -13,7 +13,7 @@ implementa con suposiciones; se deja parámetro configurable con marca PROVISION
 | 3 | Tolerancia de fabricación (Taller) | `parametros.json → toleranciaMm: 2` **PROVISIONAL**. |
 | 4 | Reglas de saneado: ¿cuándo aplica y cuántos mm? (Taller) | `parametros.json → saneadoPorLadoMm: 5`, aplicado 2× por fila de colocación **PROVISIONAL**. La receta completa de ocupación (Σ anchos + (n−1)·disco + 2·saneado + tolerancia) es provisional, y con ella el empaquetado en rejilla (piezas por baldosa, ver §4 duda 9). |
 | 5 | Geometría, foto y tarifa de la Figura 5 (Taller) | Figura 5 **retirada de la galería** (2026-07-29, dirección): sin entrada en `figuras.json` hasta tener croquis y tarifa. |
-| 6 | Tarifas de pasamanos y vierteaguas; ¿rodapié recto = tarifa de corte? (Taller) | **Pasamanos creados (2026-07-29)** con receta espejo del peldaño equivalente y tarifa PROVISIONAL = mismo precio que el peldaño (`pasamanos-*` en `tarifas.json`), a falta de tarifa confirmada. El pasamanos admite "dos manipulaciones y un solo arranque" (§2): **sin implementar** (hoy una sola línea de tarifa por figura). Vierteaguas y rodapié recto, **retirados de la galería** (2026-07-29, dirección): sin entrada en `figuras.json`. |
+| 6 | Tarifas de pasamanos y vierteaguas; ¿rodapié recto = tarifa de corte? (Taller) | **Pasamanos creados (2026-07-29)** con receta espejo del peldaño equivalente y tarifa PROVISIONAL = mismo precio que el peldaño (`pasamanos-*` en `tarifas.json`), a falta de tarifa confirmada. El pasamanos admite "dos manipulaciones y un solo arranque" (§2): **sin implementar** (hoy una sola línea de tarifa por figura). Vierteaguas, **retirado de la galería** (2026-07-29, dirección): sin entrada en `figuras.json`. **Rodapié recto RESUELTO (2026-07-31, indicación directa): «no tiene incremento»**, o sea que el canto recto se cobra a la misma tarifa que el romo/microbiselado de su altura; vuelve a la galería como tres de las nueve figuras de rodapié. |
 | 7 | ¿Qué es "menudio"? (Taller) | Sin referencia en el código. |
 | 8 | Formato de los mínimos de compra (Compras) | **No implementado** (todo se factura por cajas completas). |
 | 9 | ¿El 10 % de merma vale para todo o varía? (Taller) | `mermaPorcentajeDefecto: 10` (valor de desarrollo de §4), visible y editable en UI. |
@@ -56,8 +56,11 @@ Lo implementado es **PROVISIONAL** (cada figura lleva `croquisPendiente: true` e
   **Sigue faltando el croquis ACOTADO**: los dibujos dan la forma, no las medidas.
 - Peldaño romo: tapa única; en 3D lleva media caña de radio = medio grosor (o sea el grosor
   entero de diámetro, la semicircunferencia que se ve en el dibujo de la tarifa).
-- Rodapiés: listón de pie con el canto superior en media caña, según «Rodapeu romat o bisellat»
-  de la tarifa y la banda clara del dibujo.
+- Rodapiés: listón de pie con el canto superior rematado de tres maneras (2026-07-31): media
+  caña («Rodapeu romat o bisellat» de la tarifa y la banda clara del dibujo), microbiselado y
+  recto. **El chaflán del microbiselado es PROVISIONAL**: se dibuja a 0,15 grosores porque
+  ninguna medida de taller lo fija todavía (`CHAFLAN_MICROBISEL` en `seccionPieza.ts`). Solo
+  afecta a la representación — ni a la tarifa ni a la ocupación.
 - Grosor de baldosa en el visor: constante provisional 10 mm (no existe el dato; ¿vive en el ERP?).
 - Giro de 90° de la baldosa: hoy se prueban ambas orientaciones y se elige la que quepa
   (regla exacta por figura pendiente del croquis, §4).
@@ -76,6 +79,14 @@ Lo implementado es **PROVISIONAL** (cada figura lleva `croquisPendiente: true` e
   'pendiente' sigue soportado en código por si se reincorporan). Su seguimiento queda
   en esta lista (§1.5, §1.6): para reactivar una, rellenar su receta y tarifa y darla
   de alta como 'activa'.
+- **2026-07-31 (los rodapiés pasan de dos figuras a nueve, indicación directa):** tres alturas
+  (7,2 · 8 · a medida) por tres cantos (recto · microbiselado · romado). En las de 7,2 y 8 la
+  altura ya NO se teclea: va en el nombre y se declara con `valorFijoCm`, así que `opcionesCm`
+  se queda sin ninguna figura que lo use (la regla sigue en el motor y con test propio). Las
+  nueve comparten las cuatro tarifas de siempre porque el canto no cambia el precio, y las
+  nueve llevan `medidaPorMetros` (segundo modo de cálculo: metros + unidades → largo por
+  pieza). Pendiente de taller: confirmar el chaflán del microbiselado y si «a medida» debería
+  tener algún tope de altura (hoy solo el mínimo de 1 cm).
 - Miniaturas de la galería (2026-07-29): SVG axonométricos inline con un solo motor y una sola
   paleta, generados de la MISMA sección que el visor 3D y con la sección a la vista en la testa
   del extremo cercano, que es donde se distingue una figura de otra; sustituyen a los PNG
@@ -120,7 +131,8 @@ El motor no se considera correcto hasta reproducir 10–15 cálculos reales vali
 2. **Arranque de máquina:** se aplica una vez por orden siempre que hay manipulación. ¿Aplica también si solo se vende material sin manipular? ¿Y si solo hay "corte de piezas"?
 3. **Corte de piezas:** se tarifa el perímetro completo 2·(largo+ancho) **PROVISIONAL**. ¿O solo los cortes nuevos respecto a la baldosa de origen?
 4. **~~Material manual con origen "pedido"~~ — RESUELTO 2026-07-30 (indicación directa).** Al pasar a facturar por cajas completas también en stock, el alta manual se quedaba sin salida (ya no valía cambiar el origen a Stock). Decidido: el formulario pide **piezas por caja** como campo obligatorio. Los m²/caja NO se piden: se derivan del formato (`piezas × largo × ancho`), exacto y sin pérdida al cuantizar a mm². El origen de material se suprimió por completo.
-5. **Validación sobre mm redondeados:** 7,15 cm → 72 mm cumple el mínimo de 7,2 cm del rodapié estándar. ¿Correcto o se rechaza antes de redondear?
+5. **Validación sobre mm redondeados:** 7,15 cm → 72 mm cumple un mínimo de 7,2 cm. ¿Correcto o se rechaza antes de redondear?
+10. **Modo «por metros» de los rodapiés (2026-07-31, indicación directa):** el largo de cada pieza sale de `metros × 100 ÷ unidades` y se redondea a mm como cualquier medida tecleada, así que el total facturado puede quedar unos milímetros por encima o por debajo de los metros pedidos (10 m en 3 piezas → 333,3 cm cada una = 9,999 m). La UI enseña los dos números para que el comercial lo vea. **Pendiente de confirmar con taller:** si en vez de repartir exacto habría que redondear el largo a la baja (y quedarse corto) o al alza (y pasarse), y si «unidades» debería poder deducirse de un largo estándar de barra en vez de teclearse.
 6. **Transporte 40 €** (condiciones de la tarifa PDF): no tiene línea en el desglose de §1 y no se ha incluido. ¿Se cotiza aquí o fuera?
 7. **Mensajes de "no cabe"/incompatibilidad acortados (2026-07-24), a petición directa de dirección:** ya no citan literalmente el estilo largo de §1.③ (p. ej. "La longitud pedida es X cm; este formato solo permite Y cm en la orientación necesaria." → "La pieza mide X cm; el formato solo llega a Y cm."). Si taller/spec exige el texto largo exacto, avisar antes de dar esto por definitivo.
 8. **Lógica de cálculo ERP (2026-07-28, maestro):** «falta aplicar la lògica de càlcul». El maestro entregará un documento nuevo con esa lógica; al recibirlo se implementa en `src/domain/engine/` y se valida contra casos dorados (§3). No se implementa nada por suposición (§0).
@@ -245,7 +257,7 @@ para que se vea que la edición fue deliberada.
 3. **Sin tope por arriba:** una figura numerada sobre baldosa grande llega al
    25 %.
 4. **Lo llevan las ocho figuras con número:** `figura-1..4` y `pasamanos-1..4`
-   (misma geometría reflejada). NO lo llevan peldaño romo, pasamanos romo, los dos
+   (misma geometría reflejada). NO lo llevan peldaño romo, pasamanos romo, los nueve
    rodapiés, el corte **ni la tabica** — su nombre no lleva número, aunque sea «una
    figura 1 con zócalo». Este último es el más dudoso de los cuatro.
 

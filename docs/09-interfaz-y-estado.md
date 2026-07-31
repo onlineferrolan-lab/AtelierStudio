@@ -111,10 +111,27 @@ suplementos: todo se lee de `useConfig()`.
 
 ### ③ Medidas y cantidad (`src/ui/steps/PasoMedidas.tsx`)
 
-- Campos **dinámicos según `figura.medidas`** de configuración: `EntradaNumero` libre, o
-  `ControlSegmentado` cuando la medida solo admite valores concretos (`opcionesCm`, p. ej. altura
-  de rodapié 7,2 / 8), más el campo **Cantidad** (entero ≥ 1, empieza en `'1'`). El comercial
-  introduce cm; la conversión a mm y la validación viven en el motor.
+- Campos **dinámicos según `figura.medidas`** de configuración: `EntradaNumero` libre,
+  `ControlSegmentado` cuando la medida solo admite valores concretos (`opcionesCm`) o **texto en
+  solo lectura** cuando la fija la propia figura (`valorFijoCm`: la altura de los rodapiés de 7,2
+  y de 8 va en el nombre, así que no es una elección del comercial), más el campo **Cantidad**
+  (entero ≥ 1, empieza en `'1'`). El comercial introduce cm; la conversión a mm y la validación
+  viven en el motor.
+- **Dos modos de cálculo** en las figuras que se venden por metro lineal (`figura.medidaPorMetros`,
+  hoy los nueve rodapiés — 2026-07-31, indicación directa), con un `ControlSegmentado` arriba del
+  paso:
+  - **Por largo y cantidad**: el de siempre.
+  - **Por metros y unidades**: el comercial dice cuántos metros quiere en total y en cuántas
+    unidades, y el largo de cada pieza sale de dividir (`metros × 100 ÷ unidades`, redondeado a mm
+    como cualquier otra medida). El campo **Metros totales (m)** ocupa el hueco del largo para que
+    el paso no cambie de forma al alternar, «Cantidad» pasa a rotularse **Unidades**, y debajo se
+    enseña el largo por pieza YA redondeado más el total que sale de él — ese redondeo puede dejar
+    el total unos milímetros por encima o por debajo de lo pedido, y el comercial tiene que verlo.
+    Los errores del largo deducido se cuelgan del campo «metros», que es el que está a la vista.
+  - Alternar de modo **no borra** lo tecleado en el otro: comparar los dos resultados es justo
+    para lo que están. Cambiar de figura sí lo reinicia, y vuelve al modo normal.
+  - El estado vive en `modoMedida` y `metrosTotales` (`quote-state.tsx`); la cuenta y su
+    validación, en `validarMedidasPorMetros` (`src/domain/engine/validacion.ts`), no en la UI.
 - Los errores del motor (`useSalidaMotor`, filtrados a `paso === 'medidas'`) se muestran **junto
   a su campo** (`errores[].medida`) con el mensaje concreto — nunca un «configuración no válida»
   genérico (§1.③). Los errores sin medida concreta se listan al final del paso.
@@ -284,7 +301,7 @@ paleta corporativa se define en `tailwind.config.js` (`marca` `#C40731`, `marca-
 | `PasoCard` | Tarjeta de paso numerado, plegable. Cabecera botón con círculo `bg-marca`, número, título y ▾/▸ (`aria-expanded`); cuerpo controlado por `usePasos()`. |
 | `Campo` | Etiqueta + tooltip opcional + mensaje de error, envolviendo **un** control etiquetable (`<label>`). |
 | `EntradaNumero` | `<input type="text" inputMode="decimal">` de texto crudo (la validación vive en el motor); estado `invalido` en rojo. |
-| `ControlSegmentado` | Grupo de opciones excluyentes (`role="radiogroup"`): rodapié 7,2/8 cm… |
+| `ControlSegmentado` | Grupo de opciones excluyentes (`role="radiogroup"`): modo de cálculo de los rodapiés, medidas con `opcionesCm`… |
 | `FilaConmutador` | Checkbox con etiqueta y detalle (p. ej. el precio del suplemento). |
 | `InfoTooltip` | «i» con globo al hover/focus (`tabIndex=0`, `aria-label` con el texto). |
 | `Insignia` | Etiqueta de estado con tonos `provisional`, `pendiente`, `muestra`, `manual`, `info`. |

@@ -84,7 +84,7 @@ Ensamblajes soportados hoy (forma según los dibujos de la tarifa PDF vectorizad
 | … + `frontal-trasero` + `retorno` + `retorno-trasero` | Pasamanos 4 | La Figura 4 en espejo: nariz con retorno en ambos cantos |
 | `tapa` (sola) | Peldaño romo | Losa de un grosor con media caña en el canto delantero: semicircunferencia de radio medio grosor (el grosor entero de diámetro) |
 | `tapa` (sola), id `pasamanos-romo` | Pasamanos romo | La misma losa con la media caña también en el canto trasero |
-| `liston` | Rodapiés | Listón de pie (largo × alto, grosor de baldosa) con el canto superior en media caña («Rodapeu romat o bisellat» de la tarifa) |
+| `liston` | Rodapiés | Listón de pie (largo × alto, grosor de baldosa) rematado por arriba según el `canto` de la receta: `romado` en media caña («Rodapeu romat o bisellat» de la tarifa), `microbiselado` con el filo delantero matado y `recto` sin rematar. Sin `canto` declarado, romado |
 | `pieza` | Corte | Pieza plana rectangular tumbada, sin canto manipulado |
 | Cualquier otra combinación | — | `null`: el visor no inventa ensamblajes (§0) y el componente muestra el estado vacío |
 

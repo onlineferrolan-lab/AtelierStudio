@@ -41,7 +41,7 @@ describe('PasoSuplementos', () => {
 
   it('muestra el conmutador Pintado en figuras con tarifa pintable', () => {
     const { api } = montarPasos(<PasoSuplementos />);
-    act(() => api().dispatch({ tipo: 'seleccionarFigura', figuraId: 'rodapie-estandar' }));
+    act(() => api().dispatch({ tipo: 'seleccionarFigura', figuraId: 'rodapie-72-romado' }));
 
     const pintado = screen.getByRole('checkbox', { name: /Pintado/ });
     expect(pintado).not.toBeChecked();

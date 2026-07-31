@@ -64,7 +64,7 @@ el layout (`src/ui/shell/shell.tsx`) es:
 
 - Las figuras con `estado: "pendiente"` (sin tarifa o croquis confirmados) aparecerían
   **bloqueadas**, con insignia PENDIENTE y el motivo. Hoy no hay ninguna: Figura 5,
-  vierteaguas y rodapié recto se retiraron de la galería (2026-07-29, dirección) y su
+  vierteaguas se retiraron de la galería (2026-07-29, dirección) y su
   seguimiento vive en PENDIENTES.md.
 - Las recetas actuales son provisionales mientras taller no entregue el croquis acotado
   (§3): cada figura lleva `croquisPendiente: true` e insignia «croquis provisional».
@@ -74,7 +74,7 @@ el layout (`src/ui/shell/shell.tsx`) es:
 
 `src/ui/steps/PasoMedidas.tsx`. Los campos se generan según `figura.medidas` de la
 configuración: entrada numérica libre o control segmentado cuando la medida solo admite
-valores concretos (p. ej. altura de rodapié 7,2 / 8 cm), más el campo **cantidad**
+valores concretos, más el campo **cantidad**
 (entero ≥ 1).
 
 - El usuario introduce **centímetros**; la conversión a milímetros enteros y la validación
@@ -137,7 +137,7 @@ viole es un bug:
 | Término | Qué significa | Dónde vive |
 |---|---|---|
 | **Material** | Baldosa cerámica de origen sobre la que se manipula la pieza. Viene del catálogo (API del catàleg, índice o catálogo de muestra) o de la «entrada manual». Lleva referencia, descripción, formato (largo × ancho), tarifa (TARP, asumida €/m² de forma provisional —ver PENDIENTES.md §4.7—), piezas/m² por caja e imagen. | `Material` en `src/domain/types.ts`; `src/data/` |
-| **Figura** | Tipo de pieza que fabrica el taller: Figuras 1–4 (peldaños con frontal), peldaño romo, rodapiés (estándar 7,2/8 cm y no estándar) y corte de piezas. Se define con medidas, receta de componentes, regla de tarifa y suplementos. Las recetas son provisionales hasta el croquis acotado (§3). | `public/config/figuras.json`; `Figura` en `src/domain/config.ts` |
+| **Figura** | Tipo de pieza que fabrica el taller: Figuras 1–4 (peldaños con frontal), peldaño romo, tabica, pasamanos, los nueve rodapiés (7,2 · 8 · a medida × canto recto · microbiselado · canto romado) y corte de piezas. Se define con medidas, receta de componentes, regla de tarifa y suplementos. Las recetas son provisionales hasta el croquis acotado (§3). | `public/config/figuras.json`; `Figura` en `src/domain/config.ts` |
 | **Suplemento** | Extra activable en el paso ④, asociado a cada figura: `porPieza` (céntimos por pieza, se muestra «€/peldaño») o `porCm` (milésimas por cm lineal). Ejemplos: angular, ranuras, goterón, espesado. El «pintado» de los rodapiés no es un suplemento sino una tarifa alternativa. | `tarifas.json`; `Suplemento` en `src/domain/config.ts` |
 | **Merma** | Porcentaje extra aplicado sobre las baldosas necesarias, redondeado hacia arriba (`ceil(baldosas × (1 + %))`), para cubrir roturas y recortes. El valor por defecto (10 %, §4) es de desarrollo y su editabilidad está pendiente (§6.9/§6.10). | `parametros.json`; `baldosasConMerma` en `src/domain/types.ts` |
 | **Ocupación** | Cuánta dimensión útil de la baldosa de origen consumen los componentes de la pieza al colocarlos. La receta actual (Σ anchos + (n−1)·disco + 2·saneado + tolerancia) es **provisional** (§6.4). De ella salen las baldosas necesarias, el número de cortes y si la baldosa se gira 90°. | `DetalleOcupacion` en `src/domain/types.ts`; `src/domain/engine/` |

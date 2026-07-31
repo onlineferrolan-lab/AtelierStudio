@@ -22,6 +22,10 @@
  * oficial de taller (§3, PENDIENTES.md §2).
  */
 
+// Único import del módulo, y SOLO de tipos (se borra al compilar): el catálogo
+// de cantos vive en configuración, que es de donde lo lee la receta.
+import type { CantoListon } from '../domain/config';
+
 /** Punto de la sección: (z = fondo, y = alto), en cm. */
 export type PuntoSeccion = readonly [number, number];
 
@@ -451,20 +455,48 @@ export function seccionRomo({
 }
 
 /**
- * Rodapié: listón de pie de un grosor con el canto superior en media caña
- * («Rodapeu romat o bisellat» de la tarifa).
+ * Chaflán del microbiselado, en fracción del grosor. Es un MICRO bisel: apenas
+ * mata el filo, así que se queda muy por debajo de la media caña del romado
+ * (que se come medio grosor). PROVISIONAL (§3): solo representación, ninguna
+ * medida de taller lo fija todavía.
+ */
+const CHAFLAN_MICROBISEL = 0.15;
+
+/**
+ * Rodapié: listón de pie de un grosor rematado por arriba de una de las tres
+ * maneras (2026-07-31, indicación directa; ninguna cambia la tarifa):
+ *  - 'romado': media caña de canto a canto («Rodapeu romat» de la tarifa).
+ *  - 'microbiselado': el filo delantero matado con un chaflán mínimo.
+ *  - 'recto': sin rematar, el canto vivo.
+ *
+ * La cara z = 0 es la que va contra la pared y z = `grosor` la que se ve: por eso
+ * el microbisel solo mata el filo delantero.
  */
 export function seccionListon({
   altura,
   grosor,
+  canto = 'romado',
 }: {
   readonly altura: number;
   readonly grosor: number;
+  readonly canto?: CantoListon;
 }): SeccionPieza {
+  const base: readonly PuntoSeccion[] = [[0, 0], [grosor, 0]];
+
+  if (canto === 'recto') {
+    return { contorno: [...base, [grosor, altura], [0, altura]], juntas: [] };
+  }
+  if (canto === 'microbiselado') {
+    const c = Math.min(grosor * CHAFLAN_MICROBISEL, altura / 2);
+    return {
+      contorno: [...base, [grosor, altura - c], [grosor - c, altura], [0, altura]],
+      juntas: [],
+    };
+  }
   const r = Math.min(grosor / 2, altura / 2);
   const cima = altura - r;
   return {
-    contorno: [[0, 0], [grosor, 0], ...arco(r, cima, r, 0, Math.PI)],
+    contorno: [...base, ...arco(r, cima, r, 0, Math.PI)],
     juntas: [],
   };
 }

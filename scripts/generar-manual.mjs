@@ -618,8 +618,9 @@ function CONTENIDO(m) {
       ['Peldaño romo', 'Losa de un grosor con el canto delantero redondeado', 'Ancho, largo'],
       ['Pasamanos 1 a 4', 'La figura equivalente con la manipulación en los dos cantos', 'Las de su peldaño equivalente'],
       ['Pasamanos romo', 'Losa con el canto redondeado por los dos lados', 'Ancho, largo'],
-      ['Rodapié 7,2 y 8 cm', 'Listón de pie con el canto superior romo o biselado', 'Largo, altura (7,2 u 8)'],
-      ['Rodapié no estándar', 'El mismo listón con cualquier altura', 'Largo, altura'],
+      ['Rodapié 7,2 y Rodapié 8', 'Listón de pie de la altura que dice su nombre: la altura no se teclea', 'Largo (o metros y unidades)'],
+      ['Rodapié a medida', 'El mismo listón con la altura que haga falta', 'Largo (o metros y unidades), altura'],
+      ['Canto recto, microbiselado o romado', 'Cada altura viene en tres cantos: sin rematar, con el filo matado o en media caña. El canto NO cambia el precio', 'Las de su altura'],
       ['Corte de piezas', 'Pieza plana rectangular, sin canto manipulado', 'Largo, ancho'],
     ],
     [0.19, 0.5, 0.31],
@@ -646,6 +647,27 @@ function CONTENIDO(m) {
     'Retorno: solo en la Figura 4 y el Pasamanos 4; cuánto engrosa el canto hacia dentro.',
     'Cantidad: número de piezas iguales. Multiplica la manipulación y el material, pero el arranque de máquina se cobra una sola vez.',
   ]);
+  m.h2('Rodapiés: dos maneras de pedirlos');
+  m.p(
+    'Los rodapiés se venden por metro lineal, así que arriba del paso aparece un ' +
+      'conmutador con las dos maneras de pedirlos. Elige la que traiga el cliente y no ' +
+      'tengas que echar tú la cuenta.',
+  );
+  m.lista([
+    'Por largo y cantidad: lo de siempre. Dices cuánto mide cada pieza y cuántas quieres.',
+    'Por metros y unidades: dices cuántos metros quieres EN TOTAL y en cuántas piezas los quieres repartidos. El largo de cada una lo calcula la herramienta y te lo enseña debajo del campo.',
+  ]);
+  m.p(
+    'Debajo de los metros verás el largo que sale por pieza y los metros que suman de ' +
+      'verdad. Los dos números pueden no cuadrar al milímetro: el largo se redondea a ' +
+      'milímetros, que es como se corta. Por ejemplo, 10 m en 3 piezas son 333,3 cm cada ' +
+      'una, o sea 9,999 m en total.',
+  );
+  m.p(
+    'Cambiar de una manera a la otra no borra lo que ya habías escrito, así que puedes ' +
+      'ir y volver para comparar las dos. En los rodapiés de 7,2 y de 8 la altura no se ' +
+      'teclea: va en el nombre de la figura y sale puesta.',
+  );
   m.h2('Cuándo se pone un campo en rojo');
   m.p(
     'Un campo se marca en rojo cuando ya has pasado por él y lo has dejado vacío o ' +
@@ -940,7 +962,8 @@ function CONTENIDO(m) {
   m.p(
     'Algunas figuras tienen dos tarifas según una medida: la Figura 1 cobra un ' +
       'precio si el frontal mide 5 cm o menos y otro si pasa de 5 cm. Los rodapiés ' +
-      'tienen tarifa normal y tarifa de pintado. El corte de piezas se tarifa sobre el ' +
+      'tienen tarifa normal y tarifa de pintado, y se tarifan por altura: el canto ' +
+      '(recto, microbiselado o romado) no cambia el precio. El corte de piezas se tarifa sobre el ' +
       'perímetro completo, es decir 2 x (largo + ancho).',
   );
   m.p(

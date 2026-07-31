@@ -60,32 +60,30 @@ describe('resolverTarifa — tarifas del PDF por figura (§2)', () => {
     expect(tarifa.milesimasPorCm).toBe(230);
   });
 
+  // Los nueve rodapiés (2026-07-31) se tarifan por ALTURA, nunca por canto: el
+  // canto recto «no tiene incremento» (indicación directa), así que las tres
+  // variantes de cada altura tienen que caer en la misma tarifa. Es la regla que
+  // más fácil se rompería al tocar figuras.json, de ahí que se prueben las nueve.
   it.each([
-    [false, 'rodapie-estandar', 17],
-    [true, 'rodapie-estandar-pintado', 25],
+    ['rodapie-72-recto', 72, false, 'rodapie-estandar', 17],
+    ['rodapie-72-microbiselado', 72, false, 'rodapie-estandar', 17],
+    ['rodapie-72-romado', 72, false, 'rodapie-estandar', 17],
+    ['rodapie-8-recto', 80, false, 'rodapie-estandar', 17],
+    ['rodapie-8-microbiselado', 80, false, 'rodapie-estandar', 17],
+    ['rodapie-8-romado', 80, false, 'rodapie-estandar', 17],
+    ['rodapie-72-recto', 72, true, 'rodapie-estandar-pintado', 25],
+    ['rodapie-8-romado', 80, true, 'rodapie-estandar-pintado', 25],
+    ['rodapie-medida-recto', 100, false, 'rodapie-no-estandar', 34],
+    ['rodapie-medida-microbiselado', 100, false, 'rodapie-no-estandar', 34],
+    ['rodapie-medida-romado', 100, false, 'rodapie-no-estandar', 34],
+    ['rodapie-medida-recto', 100, true, 'rodapie-no-estandar-pintado', 42],
+    ['rodapie-medida-romado', 100, true, 'rodapie-no-estandar-pintado', 42],
   ] as const)(
-    'rodapié estándar pintado=%s → %s (%i milésimas/cm)',
-    (pintado, tarifaId, milesimas) => {
+    '%s (altura %i mm) pintado=%s → %s (%i milésimas/cm)',
+    (figuraId, alturaMm, pintado, tarifaId, milesimas) => {
       const tarifa = resolverTarifa(
-        figura('rodapie-estandar'),
-        medidas({ longitud: 500, altura: 72 }),
-        pintado,
-        config,
-      );
-      expect(tarifa.id).toBe(tarifaId);
-      expect(tarifa.milesimasPorCm).toBe(milesimas);
-    },
-  );
-
-  it.each([
-    [false, 'rodapie-no-estandar', 34],
-    [true, 'rodapie-no-estandar-pintado', 42],
-  ] as const)(
-    'rodapié no estándar pintado=%s → %s (%i milésimas/cm)',
-    (pintado, tarifaId, milesimas) => {
-      const tarifa = resolverTarifa(
-        figura('rodapie-no-estandar'),
-        medidas({ longitud: 500, altura: 100 }),
+        figura(figuraId),
+        medidas({ longitud: 500, altura: alturaMm }),
         pintado,
         config,
       );
@@ -106,7 +104,7 @@ describe('longitudTarifaMm', () => {
   it('figuras con regla "medida": la longitud de la pieza', () => {
     expect(longitudTarifaMm(figura('figura-2'), medidas({ longitud: 1234 }))).toBe(1234);
     expect(
-      longitudTarifaMm(figura('rodapie-estandar'), medidas({ longitud: 500, altura: 72 })),
+      longitudTarifaMm(figura('rodapie-72-romado'), medidas({ longitud: 500, altura: 72 })),
     ).toBe(500);
   });
 
