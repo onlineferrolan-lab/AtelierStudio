@@ -5,12 +5,13 @@
  * concretos (§1.③); la conversión a mm/céntimos pasa por el motor.
  */
 
-import { createContext, useContext, useMemo, useReducer, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useMemo, useReducer, type ReactNode } from 'react';
 import type { Configuracion } from '../../domain/config';
 import type {
   EntradaCotizacion,
   Material,
   Mm,
+  ResolucionMargen,
   SalidaMotor,
   TipoMargen,
 } from '../../domain/types';
@@ -19,6 +20,7 @@ import {
   calcularCotizacion,
   figuraPorId,
   mermaSugeridaPorcentaje,
+  resolverMargen,
   validarMedidasCrudas,
 } from '../../domain/engine';
 
@@ -270,6 +272,27 @@ export function useSalidaMotor(config: Configuracion): SalidaMotor | null {
     if ('ok' in construida) return construida;
     return calcularCotizacion(construida.entrada, config);
   }, [estado, config]);
+}
+
+/**
+ * Margen que le toca a un material CUALQUIERA, con la misma regla que usará el
+ * motor al cotizarlo (`resolverMargen`): manda el margen escrito a mano si lo hay
+ * y, si no, el de la subfamilia del artículo con el tipo elegido.
+ *
+ * Existe para las tarjetas del CATÁLOGO (2026-07-31, indicación directa: «en las
+ * cerámicas de la derecha no has aplicado los márgenes»). No sirve el margen del
+ * resultado —como en el paso ④, donde todos los suplementos son de la pieza que se
+ * está cotizando—: en el catálogo hay hasta 48 artículos a la vez y cada uno puede
+ * ser de una subfamilia distinta, así que el margen se resuelve POR ARTÍCULO.
+ */
+export function useMargenDeMaterial(config: Configuracion): (material: Material) => ResolucionMargen {
+  const { estado } = useAtelier();
+  const { tipoMargen } = estado;
+  const manual = margenManualCentesimas(estado);
+  return useCallback(
+    (material: Material) => resolverMargen(material, config.margenes, tipoMargen, manual),
+    [config, tipoMargen, manual],
+  );
 }
 
 /**

@@ -202,6 +202,15 @@ con los márgenes en centésimas de punto enteras. La lógica está en
 6. **Casos dorados:** el JSON admite `margenCentesimas` y `tipoMargen`. Sin ellos
    el caso se entiende **a coste** (margen 0), que es lo que son los capturados
    antes de esta fecha; `ejemplo-001.json` lo dice explícitamente.
+7. **Ningún precio en pantalla es de coste** (ampliación del mismo día, indicación
+   directa: «en las cerámicas de la derecha no has aplicado los márgenes»). Además
+   de la cotización y de los suplementos del paso ④, llevan margen las **tarjetas
+   del catálogo** y la tarjeta-resumen del paso ①. Cada tarjeta del catálogo con el
+   margen de **su propia** subfamilia, resuelto artículo a artículo con la misma
+   regla del motor: no sirve el margen del resultado, porque en el catálogo hay
+   hasta 48 artículos a la vez de subfamilias distintas. El artículo sin margen en
+   la tabla pone **«Precio sin margen»** en vez de su tarifa: enseñar la tarifa ahí
+   sería dar un coste con pinta de precio de venta.
 
 ### Lo que sigue abierto
 

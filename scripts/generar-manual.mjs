@@ -539,8 +539,15 @@ function CONTENIDO(m) {
   );
   m.p(
     'Al elegir un artículo, la tarjeta del paso 1 muestra descripción, referencia, ' +
-      'formato, piezas y metros por caja, y la tarifa. Con «Cambiar» eliges otro y ' +
+      'formato, piezas y metros por caja, y el precio. Con «Cambiar» eliges otro y ' +
       'con «Quitar» lo dejas vacío.',
+  );
+  m.p(
+    'Los precios del catálogo son de VENTA: cada baldosa se muestra ya con el margen ' +
+      'de su subfamilia aplicado, así que el precio que lees en el panel derecho es el ' +
+      'que luego usa la cotización. Si un artículo pone «Precio sin margen» es que su ' +
+      'subfamilia no está en la tabla del ERP: pasa el ratón por encima para ver cuál ' +
+      'falta y escribe el margen a mano en «Parámetros avanzados».',
   );
   m.h2('Siempre se factura por cajas completas');
   m.p(
@@ -565,6 +572,7 @@ function CONTENIDO(m) {
     'Hay dos: PVP y contratista. Por defecto se aplica el de PVP, que es el más alto de los dos.',
     'Se cambia en «Parámetros avanzados», al final de la cotización. Está plegado para que no se toque sin querer, pero al abrirlo te dice siempre qué margen se está aplicando y de qué subfamilia sale: conviene mirarlo antes de dar un precio.',
     'Si el artículo no está en la tabla de márgenes, la herramienta NO calcula el precio: lo dice y te deja escribir el margen a mano en ese mismo apartado.',
+    'Ningún precio de la pantalla es de coste: llevan margen la cotización, los suplementos del paso 4 y también las tarjetas del catálogo y del paso 1. Al cambiar de PVP a contratista se recalculan todas.',
   ]);
   m.nota(
     'El precio que tecleas a mano es COSTE',

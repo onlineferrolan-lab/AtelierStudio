@@ -27,6 +27,7 @@ module.exports = {
           'useAtelier',
           'construirEntrada',
           'useSalidaMotor',
+          'useMargenDeMaterial',
           'useMedidasValidadas',
           'medidasTecleadas',
           'usePasos',

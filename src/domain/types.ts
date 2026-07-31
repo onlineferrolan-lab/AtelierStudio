@@ -158,6 +158,16 @@ export interface MargenAplicado {
   readonly manual: boolean;
 }
 
+/**
+ * Resultado de resolver el margen de un artículo: el que se le aplica, o —si su
+ * subfamilia no está en la tabla y nadie ha escrito uno a mano— la subfamilia que
+ * falta, para poder decirlo. Lo usan el motor (que entonces no cotiza) y la UI del
+ * catálogo (que entonces no enseña un precio de coste como si fuera de venta).
+ */
+export type ResolucionMargen =
+  | { readonly ok: true; readonly margen: MargenAplicado }
+  | { readonly ok: false; readonly subfamilia: string | null };
+
 /** Error de validación con mensaje concreto para el comercial (§1.③). */
 export interface ErrorValidacion {
   /** Paso al que pertenece el error (p. ej. 'medidas'). */

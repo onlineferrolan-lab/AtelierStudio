@@ -1,10 +1,15 @@
 /**
- * Utilidades de presentación de materiales (solo formato, sin cálculo).
- * Compartidas por `CatalogoPanel` (tarjetas del catálogo) y `PasoMaterial`
- * (tarjeta-resumen del material seleccionado).
+ * Utilidades de presentación de materiales. Compartidas por `CatalogoPanel`
+ * (tarjetas del catálogo) y `PasoMaterial` (tarjeta-resumen del material
+ * seleccionado).
+ *
+ * De cálculo solo tienen el margen comercial, y delegándolo en el motor
+ * (`aplicarMargen`): el precio que se enseña de un artículo es de VENTA, igual que
+ * el de la cotización.
  */
 
-import type { Material } from '../../domain/types';
+import type { Material, ResolucionMargen } from '../../domain/types';
+import { aplicarMargen } from '../../domain/engine';
 import { formatearEuros } from '../../domain/money';
 import { mmACm } from '../../domain/units';
 
@@ -34,16 +39,56 @@ export function cajaMaterialTexto(material: Material): string | null {
   return partes.length > 0 ? partes.join(' · ') : null;
 }
 
+/** Cómo mostrar el precio de un material: el texto y, si no es de venta, por qué. */
+export interface PrecioMaterialVista {
+  /** Lo que se pinta en la línea de precio. */
+  readonly texto: string;
+  /**
+   * Motivo por el que ese texto NO es un precio de venta (para el `title` y para
+   * teñir la línea). Null cuando sí lo es, que es el caso normal.
+   */
+  readonly aviso: string | null;
+}
+
 /**
- * Precio de tarifa del material: €/m² (TARP, §1 Cotización) o €/unidad para
- * material de entrada manual (§1.①). Null en ambos → sin dato de precio.
+ * Precio de VENTA del material: la tarifa —€/m² (TARP, §1 Cotización), o €/unidad
+ * si es de entrada manual (§1.①)— **con el margen comercial de su subfamilia
+ * aplicado** (2026-07-31, indicación directa).
+ *
+ * Antes se enseñaba la tarifa pelada, que es COSTE: el comercial leía un precio en
+ * el catálogo y luego otro, más alto, en la cotización.
+ *
+ * Si el artículo no tiene margen (su subfamilia no está en la tabla del ERP y nadie
+ * ha escrito uno a mano) NO se enseña la tarifa: sería un coste con pinta de precio
+ * de venta, que es justo lo que la regla del margen prohíbe. Se dice que falta y
+ * dónde ponerlo, igual que hace el motor al negarse a cotizar.
  */
-export function precioMaterialTexto(material: Material): string {
-  if (material.esManual && material.precioUnidadCentimos != null) {
-    return `${formatearEuros(material.precioUnidadCentimos)}/unidad`;
+export function precioMaterialVista(
+  material: Material,
+  margen: ResolucionMargen,
+): PrecioMaterialVista {
+  const tarifa =
+    material.esManual && material.precioUnidadCentimos != null
+      ? { centimos: material.precioUnidadCentimos, unidad: '/unidad' }
+      : material.precioM2Centimos != null
+        ? { centimos: material.precioM2Centimos, unidad: '/m²' }
+        : null;
+
+  if (tarifa === null) return { texto: 'Precio no disponible', aviso: null };
+
+  if (!margen.ok) {
+    const cual =
+      margen.subfamilia !== null
+        ? `La subfamilia ${margen.subfamilia} del artículo «${material.referencia}» no está en la tabla de márgenes del ERP.`
+        : `No se puede deducir la subfamilia del artículo «${material.referencia}».`;
+    return {
+      texto: 'Precio sin margen',
+      aviso: `${cual} Indica el margen a mano en «Parámetros avanzados» para ver el precio de venta.`,
+    };
   }
-  if (material.precioM2Centimos != null) {
-    return `${formatearEuros(material.precioM2Centimos)}/m²`;
-  }
-  return 'Precio no disponible';
+
+  return {
+    texto: `${formatearEuros(aplicarMargen(tarifa.centimos, margen.margen.centesimas))}${tarifa.unidad}`,
+    aviso: null,
+  };
 }

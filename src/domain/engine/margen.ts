@@ -33,9 +33,9 @@
 
 import type {
   Centimos,
-  MargenAplicado,
   MargenCentesimas,
   Material,
+  ResolucionMargen,
   TablaMargenes,
   TipoMargen,
 } from '../types';
@@ -108,13 +108,16 @@ export function subfamiliaDeMaterial(material: Material, tabla: TablaMargenes): 
  * del material. Si no hay ninguno de los dos, `ok: false`: no se inventa un
  * margen ni se cotiza a coste sin avisar (2026-07-31, indicación directa: «que
  * lo diga y que el precio no se calcule hasta que se ponga»).
+ *
+ * La usan el motor y también las tarjetas del catálogo: el precio que se enseña
+ * de un artículo tiene que salir de la MISMA regla con la que luego se cotiza.
  */
 export function resolverMargen(
   material: Material,
   tabla: TablaMargenes,
   tipo: TipoMargen,
   manualCentesimas: MargenCentesimas | null,
-): { readonly ok: true; readonly margen: MargenAplicado } | { readonly ok: false; readonly subfamilia: string | null } {
+): ResolucionMargen {
   const subfamilia = subfamiliaDeMaterial(material, tabla);
 
   if (manualCentesimas !== null) {

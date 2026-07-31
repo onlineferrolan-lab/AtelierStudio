@@ -239,6 +239,12 @@ Si un artículo no tiene subfamilia en la tabla, **no se cotiza**: la herramient
 el margen se indica a mano en «Parámetros avanzados». Ver
 [PENDIENTES.md](../PENDIENTES.md) §6.
 
+**Todos los precios que se enseñan son de venta**, no solo los de la cotización: los
+suplementos del paso ④ y las tarjetas del catálogo y del paso ① llevan el margen aplicado
+(las del catálogo, cada una el de su propia subfamilia). Un precio de coste en pantalla se
+leería como precio de venta. Ver
+[Interfaz y estado](./09-interfaz-y-estado.md#pestaña-catálogo-srcuistepscatalogopaneltsx).
+
 ## `parametros.json` — parámetros de taller
 
 Fuente: `public/config/parametros.json`. Los valores **PROVISIONAL** están pendientes de

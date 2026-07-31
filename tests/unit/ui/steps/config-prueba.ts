@@ -31,12 +31,17 @@ const margenesPrueba = {
   subfamilias: { '9411': { nombre: 'SUBFAMILIA DE PRUEBA', pvp: 0, contratista: 0 } },
 };
 
-export function construirConfigPrueba(): Configuracion {
+/**
+ * `margenes` se puede sustituir para los tests que SÍ prueban el markup (las
+ * tarjetas del catálogo, que enseñan precio de venta): con la tabla por defecto,
+ * al 0 %, un precio con margen y otro sin él serían indistinguibles.
+ */
+export function construirConfigPrueba(margenes: Args[3] = margenesPrueba): Configuracion {
   return construirConfiguracion(
     parametrosJson as unknown as Args[0],
     tarifasJson as unknown as Args[1],
     figurasJson as unknown as Args[2],
-    margenesPrueba,
+    margenes,
   );
 }
 

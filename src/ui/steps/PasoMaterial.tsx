@@ -13,13 +13,19 @@
  */
 
 import type { Material } from '../../domain/types';
-import { useAtelier } from '../state/quote-state';
+import { useConfig } from '../state/config-context';
+import { useAtelier, useMargenDeMaterial } from '../state/quote-state';
 import { usePanelDerecho } from '../shell/panel';
 import { usePasoCompletado, usePasos } from '../state/pasos-context';
 import { Boton, Insignia, PasoCard } from '../components/primitivas';
 import { EntradaManual } from './EntradaManual';
 import { ImagenMaterial } from './ImagenMaterial';
-import { formatoMaterialTexto, cajaMaterialTexto, precioMaterialTexto } from './materialUtil';
+import {
+  formatoMaterialTexto,
+  cajaMaterialTexto,
+  precioMaterialVista,
+  type PrecioMaterialVista,
+} from './materialUtil';
 
 // ---------------------------------------------------------------------------
 // Tarjeta-resumen del material seleccionado
@@ -27,10 +33,13 @@ import { formatoMaterialTexto, cajaMaterialTexto, precioMaterialTexto } from './
 
 function TarjetaResumen({
   material,
+  precio,
   alCambiar,
   alQuitar,
 }: {
   material: Material;
+  /** Precio de venta, el MISMO que muestra la tarjeta del catálogo (con margen). */
+  precio: PrecioMaterialVista;
   alCambiar: () => void;
   alQuitar: () => void;
 }): JSX.Element {
@@ -50,7 +59,12 @@ function TarjetaResumen({
         {cajaMaterialTexto(material) ? (
           <p className="text-xs text-slate-500">Caja: {cajaMaterialTexto(material)}</p>
         ) : null}
-        <p className="mt-0.5 text-sm font-semibold text-marca">{precioMaterialTexto(material)}</p>
+        <p
+          className={`mt-0.5 text-sm font-semibold ${precio.aviso ? 'text-amber-700' : 'text-marca'}`}
+          title={precio.aviso ?? undefined}
+        >
+          {precio.texto}
+        </p>
         <div className="mt-2 flex gap-2">
           <Boton variante="secundario" onClick={alCambiar}>
             Cambiar
@@ -70,16 +84,21 @@ function TarjetaResumen({
 
 export function PasoMaterial(): JSX.Element {
   const { estado, dispatch } = useAtelier();
+  const config = useConfig();
   const panel = usePanelDerecho();
   const pasos = usePasos();
   const material = estado.material;
   usePasoCompletado(1, material !== null);
+  // Con margen, como en el catálogo: si aquí se viera la tarifa pelada, la misma
+  // baldosa tendría dos precios distintos en la misma pantalla.
+  const margenDe = useMargenDeMaterial(config);
 
   return (
     <PasoCard numero={1} titulo="Material" abierto={pasos.estado[1] ?? false} alAlternar={() => pasos.alternar(1)}>
       {material ? (
         <TarjetaResumen
           material={material}
+          precio={precioMaterialVista(material, margenDe(material))}
           alCambiar={panel.abrirCatalogo}
           alQuitar={() => dispatch({ tipo: 'seleccionarMaterial', material: null })}
         />
