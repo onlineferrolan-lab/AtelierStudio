@@ -25,9 +25,10 @@
  *  - COSTE DE MATERIAL: aritmética entera mm²·céntimos/1e6 con redondeo
  *    half-up exacto. m² facturados = cajas × m2PorCaja (m2PorCaja se cuantiza
  *    a mm² enteros; en material manual se deriva del formato). Material
- *    manual → precioUnidad × unidades. `precioMaterialEditado` sustituye al
- *    precio unitario correspondiente (€/m² en ERP, €/unidad en manual);
- *    `precioMaterialOriginal` conserva la tarifa (o el editado si no había).
+ *    manual → precioUnidad × unidades. Con `azulejosNoIncluidos` (el cliente
+ *    trae las baldosas) el importe de material es 0 y la tarifa del artículo
+ *    deja de ser obligatoria; lo demás se calcula igual, porque el taller y el
+ *    cliente siguen necesitando saber cuántas baldosas y cajas hacen falta.
  *
  *  - ARRANQUE DE MÁQUINA (§2): una sola vez por orden cuando hay manipulación.
  *    Toda figura activa con tarifa genera línea de manipulación, así que se
@@ -215,24 +216,19 @@ function validarEntrada(
     }
   }
 
-  // Material: precio unitario disponible (tarifa o edición del comercial) y
-  // datos logísticos para facturar pedidos por cajas completas.
+  // Material: precio unitario disponible y datos logísticos para facturar
+  // pedidos por cajas completas. Sin tarifa la única salida es «azulejos no
+  // incluidos»: no hay precio de material que teclear a mano (2026-07-31).
   const { material } = entrada;
-  if (entrada.precioMaterialEditado !== null && entrada.precioMaterialEditado < 0) {
-    errores.push({
-      paso: 'material',
-      mensaje: 'El precio del material editado no puede ser negativo.',
-    });
-  }
   const precioUnitario = material.esManual
     ? material.precioUnidadCentimos
     : material.precioM2Centimos;
-  if (precioUnitario === null && entrada.precioMaterialEditado === null) {
+  if (precioUnitario === null && !entrada.azulejosNoIncluidos) {
     errores.push({
       paso: 'material',
       mensaje: material.esManual
-        ? `El material manual «${material.descripcion}» no tiene precio por unidad; introdúcelo para poder cotizar.`
-        : `El material «${material.descripcion}» no tiene tarifa TARP (€/m²); introduce el precio manualmente.`,
+        ? `El material manual «${material.descripcion}» no tiene precio por unidad: indícalo en el alta, o marca «Azulejos no incluidos» si los aporta el cliente.`
+        : `El material «${material.descripcion}» no tiene tarifa TARP (€/m²): no se puede cotizar el material. Marca «Azulejos no incluidos» si los aporta el cliente.`,
     });
   }
   // Los datos de caja hacen falta SIEMPRE, no solo en pedido: desde 2026-07-30 el
@@ -277,9 +273,13 @@ export interface LineaCalculada {
   readonly manipulacionCentimos: Centimos;
   readonly margen: MargenAplicado;
   /** Precio de tarifa del material (€/m² del ERP o €/ud. en manual), sin margen. */
-  readonly precioUnitarioOriginal: Centimos;
-  /** El que se aplica de verdad: el editado por el comercial si lo hay. */
-  readonly precioUnitarioAplicado: Centimos;
+  readonly precioUnitario: Centimos;
+  /**
+   * El cliente aporta las baldosas de esta pieza: el material no se cobra. Viaja
+   * hasta aquí porque el material se factura por ARTÍCULO (ver `pedido.ts`), no
+   * por pieza, y el grupo necesita saberlo.
+   */
+  readonly azulejosNoIncluidos: boolean;
 }
 
 export type SalidaLinea =
@@ -359,13 +359,13 @@ export function calcularLinea(entrada: EntradaCotizacion, config: Configuracion)
   const mermaCentesimas = Math.round(entrada.mermaPorcentaje * 100);
   const baldosasConMerma = ceilDiv(baldosasNecesarias * (10_000 + mermaCentesimas), 10_000);
 
-  // 5. Precio unitario del material: el editado por el comercial manda sobre la tarifa.
+  // 5. Precio unitario del material, de tarifa. Ya no hay precio editable a mano:
+  //    lo que hacía falta era dejar el material fuera, no retocarlo
+  //    (`azulejosNoIncluidos`, ver `facturarMaterial`).
   const { material } = entrada;
-  const precioUnitarioOriginal = material.esManual
+  const precioUnitario = (material.esManual
     ? material.precioUnidadCentimos
-    : material.precioM2Centimos;
-  const precioUnitarioAplicado = (entrada.precioMaterialEditado ??
-    precioUnitarioOriginal) as Centimos; // validado no nulo
+    : material.precioM2Centimos) as Centimos; // validado no nulo salvo azulejosNoIncluidos
 
   // 6. Manipulación: tarifa resuelta × longitud de tarifa (redondeo por pieza,
   //    luego × cantidad — ver cabecera) + suplementos activos.
@@ -432,10 +432,8 @@ export function calcularLinea(entrada: EntradaCotizacion, config: Configuracion)
       lineasManipulacion: lineasConMargen,
       manipulacionCentimos: sumarCentimos(...lineasConMargen.map((l) => l.centimos)),
       margen,
-      // Si no había tarifa original y el comercial introdujo el precio, el
-      // "original" mostrado es ese mismo valor (no hay tarifa que conservar).
-      precioUnitarioOriginal: precioUnitarioOriginal ?? precioUnitarioAplicado,
-      precioUnitarioAplicado,
+      precioUnitario,
+      azulejosNoIncluidos: entrada.azulejosNoIncluidos,
     },
   };
 }
@@ -458,12 +456,16 @@ export interface FacturacionMaterial {
  * Coste: aritmética entera mm²·céntimos/1e6 con redondeo half-up exacto.
  * m² facturados = cajas × m2PorCaja (cuantizado a mm² enteros). Material manual
  * → precioUnidad × unidades.
+ *
+ * Con `azulejosNoIncluidos` el importe es 0 pero las cajas y los m² se siguen
+ * calculando: el cliente tiene que saber cuántas baldosas traer.
  */
 export function facturarMaterial(
   material: Material,
   baldosasConMerma: number,
-  precioUnitarioAplicado: Centimos,
+  precioUnitario: Centimos,
   margenCentesimas: MargenCentesimas,
+  azulejosNoIncluidos: boolean,
 ): FacturacionMaterial {
   const piezasPorCaja = material.piezasPorCaja as number; // validado en validarEntrada
   const cajasFacturadas = ceilDiv(baldosasConMerma, piezasPorCaja);
@@ -473,9 +475,12 @@ export function facturarMaterial(
   const mm2PorCaja = Math.round((material.m2PorCaja ?? 0) * 1_000_000);
   const mm2FacturadosTotal = cajasFacturadas * mm2PorCaja;
 
-  const bruto = material.esManual
-    ? multiplicarCentimos(precioUnitarioAplicado, unidadesFacturadas)
-    : centimos(halfUpPartePorMillon(mm2FacturadosTotal * precioUnitarioAplicado));
+  // Las baldosas las trae el cliente: se cobra solo el trabajo.
+  const bruto = azulejosNoIncluidos
+    ? centimos(0)
+    : material.esManual
+      ? multiplicarCentimos(precioUnitario, unidadesFacturadas)
+      : centimos(halfUpPartePorMillon(mm2FacturadosTotal * precioUnitario));
 
   return {
     cajasFacturadas,
@@ -496,8 +501,9 @@ export function calcularCotizacion(entrada: EntradaCotizacion, config: Configura
   const facturacion = facturarMaterial(
     entrada.material,
     linea.baldosasConMerma,
-    linea.precioUnitarioAplicado,
+    linea.precioUnitario,
     linea.margen.centesimas,
+    linea.azulejosNoIncluidos,
   );
 
   // Arranque de máquina: una vez por orden cuando hay manipulación (§2).
@@ -535,7 +541,6 @@ export function calcularCotizacion(entrada: EntradaCotizacion, config: Configura
         ivaCentimos,
         totalConIvaCentimos,
       },
-      precioMaterialOriginal: linea.precioUnitarioOriginal,
     },
   };
 }

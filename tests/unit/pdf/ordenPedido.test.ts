@@ -48,7 +48,7 @@ function construirDatos(
       cantidad: entrada.cantidad,
       suplementosActivos: entrada.suplementos,
       unidadesSuplemento: entrada.unidadesSuplemento,
-      precioMaterialEditadoEuros: '',
+      azulejosNoIncluidos: entrada.azulejosNoIncluidos,
       seccion: construirSeccion(figura, entrada.medidasMm),
     };
   });

@@ -45,7 +45,8 @@ interface CasoDorado {
    * Opcional: sin él, cada suplemento por pieza se cobra a UNA pieza.
    */
   unidadesSuplemento?: Record<string, number>;
-  precioMaterialEditadoEuros: number | null;
+  /** El cliente aporta las baldosas: material a 0. Opcional (por omisión, incluidos). */
+  azulejosNoIncluidos?: boolean;
   mermaPorcentaje: number;
   /**
    * Margen comercial del caso, en centésimas de punto (6600 = 66 %). Opcional:
@@ -66,7 +67,6 @@ interface CasoDorado {
     dimensionUtilMm?: number;
     baldosaGirada?: boolean;
     piezasPorBaldosa?: number;
-    precioMaterialOriginal?: number;
     materialCentimos?: number;
     manipulacionCentimos?: number;
     arranqueCentimos?: number;
@@ -99,7 +99,6 @@ function camposDelResultado(r: ResultadoCotizacion): Record<string, number | boo
     dimensionUtilMm: r.ocupacion.dimensionUtilMm,
     baldosaGirada: r.ocupacion.baldosaGirada,
     piezasPorBaldosa: r.ocupacion.piezasPorBaldosa,
-    precioMaterialOriginal: r.precioMaterialOriginal,
     materialCentimos: r.desglose.materialCentimos,
     manipulacionCentimos: r.desglose.manipulacionCentimos,
     arranqueCentimos: r.desglose.arranqueCentimos,
@@ -152,10 +151,7 @@ function ejecutarCaso(caso: CasoDorado): SalidaMotor {
       cantidad: caso.cantidad,
       suplementos: caso.suplementos,
       unidadesSuplemento: caso.unidadesSuplemento ?? {},
-      precioMaterialEditado:
-        caso.precioMaterialEditadoEuros === null
-          ? null
-          : eurosACentimos(caso.precioMaterialEditadoEuros),
+      azulejosNoIncluidos: caso.azulejosNoIncluidos ?? false,
       mermaPorcentaje: caso.mermaPorcentaje,
       tipoMargen: caso.tipoMargen ?? 'pvp',
       margenManualCentesimas: caso.margenCentesimas ?? 0,

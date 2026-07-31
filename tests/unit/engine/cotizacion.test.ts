@@ -1,8 +1,8 @@
 /**
  * Tests integrales de calcularCotizacion contra la configuración real
  * (tarifas del PDF §2, parámetros PROVISIONALES de taller): tarifas por figura,
- * suplementos, ocupación, merma, stock/pedido, material manual, override de
- * precio, arranque único, IVA, determinismo y ausencia de floats.
+ * suplementos, ocupación, merma, stock/pedido, material manual, azulejos no
+ * incluidos, arranque único, IVA, determinismo y ausencia de floats.
  *
  * Parámetros de config usados: disco 3 mm, tolerancia 2 mm, saneado 5 mm/lado,
  * arranque 60 € (6000 céntimos), IVA 21 %.
@@ -12,7 +12,6 @@ import { calcularCotizacion, figuraPorId } from '../../../src/domain/engine';
 import type { Configuracion, Figura } from '../../../src/domain/config';
 import type { Mm, ResultadoCotizacion, SalidaMotor } from '../../../src/domain/types';
 import { mm } from '../../../src/domain/units';
-import { centimos } from '../../../src/domain/money';
 import { cargarConfigReal, entradaBase, materialErp, materialManual } from './util';
 
 const config = cargarConfigReal();
@@ -74,7 +73,6 @@ describe('calcularCotizacion — caso base (Figura 2, stock)', () => {
       ivaCentimos: 3980, // round(189,50 × 0,21 = 39,795) half-up
       totalConIvaCentimos: 22930,
     });
-    expect(r.precioMaterialOriginal).toBe(2500);
   });
 
   it('línea de manipulación con concepto legible', () => {
@@ -528,12 +526,11 @@ describe('calcularCotizacion — facturación por cajas (§4)', () => {
   });
 });
 
-describe('calcularCotizacion — material manual y precio editado', () => {
+describe('calcularCotizacion — material manual y azulejos no incluidos', () => {
   it('manual → precio por unidad × unidades facturadas', () => {
     const r = esperarOk(calcularCotizacion(entradaBase({ material: materialManual() }), config));
     expect(r.unidadesFacturadas).toBe(8); // 2 cajas de 4
     expect(r.desglose.materialCentimos).toBe(6400); // 8 × 8 €
-    expect(r.precioMaterialOriginal).toBe(800);
   });
 
   it('manual sin datos de caja → error claro (no se puede facturar por cajas)', () => {
@@ -546,7 +543,7 @@ describe('calcularCotizacion — material manual y precio editado', () => {
     expect(mensajes.join(' ')).toMatch(/piezas por caja/);
   });
 
-  it('manual sin precio y sin edición del comercial → error de validación', () => {
+  it('manual sin precio y con azulejos incluidos → error de validación', () => {
     const mensajes = esperarErrores(
       calcularCotizacion(
         entradaBase({ material: materialManual({ precioUnidadCentimos: null }) }),
@@ -556,7 +553,7 @@ describe('calcularCotizacion — material manual y precio editado', () => {
     expect(mensajes.join(' ')).toMatch(/no tiene precio por unidad/);
   });
 
-  it('ERP sin tarifa TARP y sin edición → error de validación', () => {
+  it('ERP sin tarifa TARP y con azulejos incluidos → error de validación', () => {
     const mensajes = esperarErrores(
       calcularCotizacion(
         entradaBase({ material: materialErp({ precioM2Centimos: null }) }),
@@ -566,37 +563,41 @@ describe('calcularCotizacion — material manual y precio editado', () => {
     expect(mensajes.join(' ')).toMatch(/TARP/);
   });
 
-  it('precioMaterialEditado sustituye a la tarifa €/m² y el original se conserva', () => {
-    const r = esperarOk(
-      calcularCotizacion(entradaBase({ precioMaterialEditado: centimos(3000) }), config),
-    );
-    expect(r.desglose.materialCentimos).toBe(8640); // 2,88 m² × 30 €/m²
-    expect(r.precioMaterialOriginal).toBe(2500); // tarifa TARP intacta
+  it('azulejos no incluidos → material a 0; manipulación y arranque se cobran igual', () => {
+    const r = esperarOk(calcularCotizacion(entradaBase({ azulejosNoIncluidos: true }), config));
+    expect(r.desglose.materialCentimos).toBe(0);
+    // Mismos importes que el caso base salvo el material (7200 céntimos menos).
+    expect(r.desglose.manipulacionCentimos).toBe(5750);
+    expect(r.desglose.arranqueCentimos).toBe(6000);
+    expect(r.desglose.totalSinIvaCentimos).toBe(11750);
+    // Lo logístico no cambia: el cliente tiene que traer estas baldosas.
+    expect(r.baldosasConMerma).toBe(6);
+    expect(r.cajasFacturadas).toBe(2);
+    expect(r.m2Facturados).toBe(2.88);
   });
 
-  it('precioMaterialEditado en manual sustituye al precio por unidad', () => {
+  it('azulejos no incluidos en material manual → también 0', () => {
     const r = esperarOk(
       calcularCotizacion(
-        entradaBase({ material: materialManual(), precioMaterialEditado: centimos(900) }),
+        entradaBase({ material: materialManual(), azulejosNoIncluidos: true }),
         config,
       ),
     );
-    expect(r.desglose.materialCentimos).toBe(7200); // 8 × 9 €
-    expect(r.precioMaterialOriginal).toBe(800);
+    expect(r.desglose.materialCentimos).toBe(0);
   });
 
-  it('sin tarifa original pero con precio editado: el original mostrado es el editado', () => {
+  it('azulejos no incluidos permite cotizar un artículo sin tarifa TARP', () => {
     const r = esperarOk(
       calcularCotizacion(
         entradaBase({
           material: materialErp({ precioM2Centimos: null }),
-          precioMaterialEditado: centimos(3000),
+          azulejosNoIncluidos: true,
         }),
         config,
       ),
     );
-    expect(r.desglose.materialCentimos).toBe(8640);
-    expect(r.precioMaterialOriginal).toBe(3000);
+    expect(r.desglose.materialCentimos).toBe(0);
+    expect(r.desglose.totalSinIvaCentimos).toBe(11750);
   });
 });
 
@@ -655,11 +656,6 @@ describe('calcularCotizacion — errores como valor (nunca lanza por entrada de 
         suplementos: ['angular-f14'],
       }),
       /no disponible para «Rodapié 7,2 canto romado»/,
-    ],
-    [
-      'precio editado negativo',
-      entradaBase({ precioMaterialEditado: centimos(-100) }),
-      /no puede ser negativo/,
     ],
   ])('%s', (_nombre, entrada, patron) => {
     const salida = calcularCotizacion(entrada, config);
@@ -722,7 +718,6 @@ describe('calcularCotizacion — determinismo y precisión entera (§1)', () => 
       const r = esperarOk(calcularCotizacion(entrada, config));
       const importes = [
         ...Object.values(r.desglose),
-        r.precioMaterialOriginal,
         ...r.lineasManipulacion.map((l) => l.centimos),
       ];
       for (const importe of importes) {

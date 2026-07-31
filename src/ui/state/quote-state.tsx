@@ -34,7 +34,6 @@ import type {
   SalidaPedido,
   TipoMargen,
 } from '../../domain/types';
-import { eurosACentimos } from '../../domain/money';
 import {
   calcularCotizacion,
   calcularPedido,
@@ -69,13 +68,17 @@ export interface PiezaConfigurada {
    * todas (2026-07-30). Los suplementos por cm no aparecen aquí.
    */
   readonly unidadesSuplemento: Readonly<Record<string, string>>;
-  /** Precio de material editado por el comercial, en € (texto). '' = usar tarifa. */
-  readonly precioMaterialEditadoEuros: string;
+  /**
+   * El cliente aporta las baldosas: se cotiza la manipulación y el material sale
+   * a 0 (2026-07-31, indicación directa). Sustituye al antiguo precio de material
+   * editable a mano: lo que hacía falta en la práctica no era retocar la tarifa,
+   * sino dejarla fuera.
+   */
+  readonly azulejosNoIncluidos: boolean;
   /**
    * % de merma escrito a mano por el comercial (texto). **'' = usar la sugerida**
-   * por formato + figura (`mermaSugeridaPorcentaje`), igual que el precio del
-   * material usa la tarifa cuando no se edita. Se guarda la edición, no el valor
-   * resuelto, para que al cambiar de material o de figura la sugerencia se
+   * por formato + figura (`mermaSugeridaPorcentaje`). Se guarda la edición, no el
+   * valor resuelto, para que al cambiar de material o de figura la sugerencia se
    * recalcule sola mientras nadie la haya tocado.
    */
   readonly mermaEditadaPorcentaje: string;
@@ -132,7 +135,7 @@ export type AccionAtelier =
   | { tipo: 'cambiarMetros'; metros: string }
   | { tipo: 'alternarSuplemento'; suplemento: string; activo: boolean }
   | { tipo: 'cambiarUnidadesSuplemento'; suplemento: string; unidades: string }
-  | { tipo: 'cambiarPrecioMaterialEditado'; euros: string }
+  | { tipo: 'cambiarAzulejosNoIncluidos'; noIncluidos: boolean }
   | { tipo: 'cambiarMerma'; porcentaje: string }
   | { tipo: 'cambiarComentarios'; comentarios: string }
   | { tipo: 'cambiarTipoMargen'; tipoMargen: TipoMargen }
@@ -155,7 +158,7 @@ function piezaVacia(): PiezaConfigurada {
     metrosTotales: '',
     suplementos: {},
     unidadesSuplemento: {},
-    precioMaterialEditadoEuros: '',
+    azulejosNoIncluidos: false,
     mermaEditadaPorcentaje: '',
     margenManualPorcentaje: '',
   };
@@ -187,7 +190,7 @@ function extraerPieza(origen: PiezaConfigurada): PiezaConfigurada {
     metrosTotales: origen.metrosTotales,
     suplementos: { ...origen.suplementos },
     unidadesSuplemento: { ...origen.unidadesSuplemento },
-    precioMaterialEditadoEuros: origen.precioMaterialEditadoEuros,
+    azulejosNoIncluidos: origen.azulejosNoIncluidos,
     mermaEditadaPorcentaje: origen.mermaEditadaPorcentaje,
     margenManualPorcentaje: origen.margenManualPorcentaje,
   };
@@ -284,8 +287,8 @@ function reductor(estado: EstadoAtelier, accion: AccionAtelier): EstadoAtelier {
           [accion.suplemento]: accion.unidades,
         },
       };
-    case 'cambiarPrecioMaterialEditado':
-      return { ...estado, precioMaterialEditadoEuros: accion.euros };
+    case 'cambiarAzulejosNoIncluidos':
+      return { ...estado, azulejosNoIncluidos: accion.noIncluidos };
     case 'cambiarMerma':
       return { ...estado, mermaEditadaPorcentaje: accion.porcentaje };
     case 'cambiarComentarios':
@@ -452,10 +455,6 @@ export function construirEntradaDePieza(
     .filter(([, activo]) => activo)
     .map(([id]) => id);
 
-  const precioEditadoTxt = pieza.precioMaterialEditadoEuros.trim().replace(',', '.');
-  const precioMaterialEditado =
-    precioEditadoTxt === '' ? null : eurosACentimos(Number.parseFloat(precioEditadoTxt));
-
   // Sin edición manual se usa la sugerida por formato + figura; con ella, la del
   // comercial. Un texto no numérico se deja pasar (NaN) para que el error salga
   // del motor, como con la cantidad.
@@ -479,7 +478,7 @@ export function construirEntradaDePieza(
       tipoMargen,
       // El margen a mano se guarda en puntos y el motor lo quiere en centésimas.
       margenManualCentesimas: margenManualCentesimas(pieza),
-      precioMaterialEditado,
+      azulejosNoIncluidos: pieza.azulejosNoIncluidos,
       mermaPorcentaje,
     },
   };

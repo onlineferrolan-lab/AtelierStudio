@@ -8,8 +8,9 @@
  *    errores de validación).
  *  - Datos logísticos cuando hay resultado: baldosas necesarias, baldosas con
  *    merma, piezas/cajas facturadas y m² facturados.
- *  - Precio del material editable por el comercial en €, con la tarifa original
- *    siempre visible junto al editado y botón de restablecer (§1 «Cotización»).
+ *  - «Azulejos no incluidos»: casilla para cuando el cliente aporta las baldosas.
+ *    El material sale a 0 € y la línea del desglose lo dice; el resto del cálculo
+ *    (baldosas, merma, cajas) no cambia, porque es lo que el cliente debe traer.
  *  - % de merma visible para el comercial (§4); editable solo si
  *    `parametros.mermaEditable`. PROVISIONAL (§6.9/§6.10): valor y editabilidad
  *    pendientes de taller/dirección — se marca en el tooltip de ayuda, sin
@@ -29,15 +30,13 @@ import { figuraPorId, mermaSugeridaPorcentaje } from '../../domain/engine';
 import { formatearEuros } from '../../domain/money';
 import type { Centimos } from '../../domain/types';
 import { construirSeccion, rasgosDeSuplementos } from '../../piezas/piezaDeFigura';
-import { Boton, Campo, EntradaNumero } from '../components/primitivas';
+import { Boton, Campo, EntradaNumero, FilaConmutador } from '../components/primitivas';
 import { useConfig } from '../state/config-context';
 import { ParametrosAvanzados } from './ParametrosAvanzados';
 import { construirEntrada, medidasTecleadas, useAtelier, useSalidaMotor } from '../state/quote-state';
 
-// Filtros de tecleo: solo números positivos con hasta 2 decimales. Sin ellos,
-// un texto no parseable llegaría a `construirEntrada` como NaN y rompería la
-// conversión a céntimos (money.ts exige enteros).
-const RE_IMPORTE_EUROS = /^\d{0,7}([.,]\d{0,2})?$/;
+// Filtro de tecleo del % de merma: solo números positivos con hasta 2 decimales.
+// Sin él, un texto no parseable llegaría a `construirEntrada` como NaN.
 const RE_PORCENTAJE = /^\d{0,3}([.,]\d{0,2})?$/;
 
 /** La merma sugerida puede caer en decimales (16,67 %); se muestran hasta dos. */
@@ -99,18 +98,7 @@ export function PanelCotizacion(): JSX.Element {
       : [];
   const desglose = resultado?.desglose ?? null;
 
-  // Tarifa original visible junto al precio editado (§1). Con resultado manda
-  // `precioMaterialOriginal` del motor; sin él, la tarifa del propio material
-  // (TARP en €/m², o €/unidad en material manual).
   const material = estado.material;
-  const unidadPrecio = material !== null && material.precioM2Centimos === null ? '€/unidad' : '€/m²';
-  const tarifaOriginalCentimos =
-    resultado?.precioMaterialOriginal ??
-    material?.precioM2Centimos ??
-    material?.precioUnidadCentimos ??
-    null;
-  const tarifaOriginalTexto =
-    tarifaOriginalCentimos === null ? null : `${formatearEuros(tarifaOriginalCentimos)}${unidadPrecio === '€/m²' ? '/m²' : '/unidad'}`;
 
   // Merma sugerida por el formato de la baldosa (+ extra de figura numerada).
   // Sin material aún no hay formato del que deducirla, así que no se muestra.
@@ -118,12 +106,6 @@ export function PanelCotizacion(): JSX.Element {
     material === null
       ? null
       : FORMATO_MERMA.format(mermaSugeridaPorcentaje(material.formato, estado.figuraId, config));
-
-  function alCambiarPrecio(valor: string): void {
-    if (RE_IMPORTE_EUROS.test(valor)) {
-      dispatch({ tipo: 'cambiarPrecioMaterialEditado', euros: valor });
-    }
-  }
 
   function alCambiarMerma(valor: string): void {
     if (RE_PORCENTAJE.test(valor)) {
@@ -165,7 +147,7 @@ export function PanelCotizacion(): JSX.Element {
         cantidad: construida.entrada.cantidad,
         suplementosActivos: construida.entrada.suplementos,
         unidadesSuplemento: construida.entrada.unidadesSuplemento,
-        precioMaterialEditadoEuros: estado.precioMaterialEditadoEuros,
+        azulejosNoIncluidos: construida.entrada.azulejosNoIncluidos,
         mermaPorcentaje: construida.entrada.mermaPorcentaje,
         comentarios: estado.comentarios,
         resultado: salida.resultado,
@@ -221,7 +203,10 @@ export function PanelCotizacion(): JSX.Element {
         ) : null}
 
         <div className="flex flex-col gap-1.5">
-          <FilaImporte concepto="Material" valor={desglose ? desglose.materialCentimos : null} />
+          <FilaImporte
+            concepto={estado.azulejosNoIncluidos ? 'Material (no incluido)' : 'Material'}
+            valor={desglose ? desglose.materialCentimos : null}
+          />
           <FilaImporte
             concepto="Manipulación (con suplementos)"
             valor={desglose ? desglose.manipulacionCentimos : null}
@@ -246,32 +231,15 @@ export function PanelCotizacion(): JSX.Element {
         </div>
 
         {material !== null ? (
-          <div className="flex flex-col gap-2 rounded-md border border-slate-200 p-3">
-            <Campo
-              etiqueta={`Precio del material (${unidadPrecio})`}
-              ayuda="Por defecto se aplica la tarifa del artículo; el comercial puede editarla. El valor original queda visible junto al editado."
-            >
-              <EntradaNumero
-                valor={estado.precioMaterialEditadoEuros}
-                alCambiar={alCambiarPrecio}
-                placeholder={tarifaOriginalTexto ?? ''}
-                aria-label="Precio del material editado, en euros"
-              />
-            </Campo>
-            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
-              <span>
-                Tarifa original:{' '}
-                <strong className="text-slate-700">{tarifaOriginalTexto ?? 'sin tarifa'}</strong>
-              </span>
-              {estado.precioMaterialEditadoEuros !== '' ? (
-                <Boton
-                  variante="secundario"
-                  onClick={() => dispatch({ tipo: 'cambiarPrecioMaterialEditado', euros: '' })}
-                >
-                  Restablecer a tarifa
-                </Boton>
-              ) : null}
-            </div>
+          <div className="rounded-md border border-slate-200 p-1">
+            <FilaConmutador
+              etiqueta="Azulejos no incluidos"
+              detalle="Los aporta el cliente: se cotiza solo la manipulación (material a 0 €). Las baldosas y cajas necesarias se siguen calculando."
+              activo={estado.azulejosNoIncluidos}
+              alCambiar={(noIncluidos) =>
+                dispatch({ tipo: 'cambiarAzulejosNoIncluidos', noIncluidos })
+              }
+            />
           </div>
         ) : null}
 

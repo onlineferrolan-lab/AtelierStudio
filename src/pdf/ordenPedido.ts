@@ -71,7 +71,8 @@ export interface PiezaOrdenPedido {
   readonly cantidad: number;
   readonly suplementosActivos: readonly string[];
   readonly unidadesSuplemento?: Readonly<Record<string, number>>;
-  readonly precioMaterialEditadoEuros: string;
+  /** Las baldosas las aporta el cliente: el material no se cobra y la hoja lo dice. */
+  readonly azulejosNoIncluidos: boolean;
   /** Croquis de la sección; `null` = la hoja sale igual, solo sin dibujo. */
   readonly seccion?: SeccionPieza | null;
   readonly imagenMaterialDataUrl?: string | null;

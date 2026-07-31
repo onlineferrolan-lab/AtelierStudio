@@ -145,7 +145,6 @@ const resultado: ResultadoCotizacion = {
     ivaCentimos: centimos(7138), // half-up de 339,92 × 0,21 = 71,3832
     totalConIvaCentimos: centimos(41130),
   },
-  precioMaterialOriginal: centimos(1850),
   margen: {
     tipo: 'pvp',
     centesimas: 6600,
@@ -161,7 +160,7 @@ const datosBase: DatosOrdenTrabajo = {
   medidasMm: { longitud: mm(1000), fondo: mm(300), alturaFrontal: mm(40) },
   cantidad: 5,
   suplementosActivos: ['angular-f14', 'ranuras-f14'],
-  precioMaterialEditadoEuros: '',
+  azulejosNoIncluidos: false,
   mermaPorcentaje: 10,
   resultado,
   config,
@@ -271,7 +270,7 @@ describe('construirPdfOrdenTrabajo', () => {
     expect(doc.getNumberOfPages()).toBeGreaterThanOrEqual(1);
   });
 
-  it('genera también con material manual, precio editado y croquis provisional', () => {
+  it('genera también con material manual, azulejos no incluidos y croquis provisional', () => {
     const materialManual: Material = {
       referencia: 'MANUAL-01',
       descripcion: 'Pieza suelta de almacén',
@@ -288,9 +287,14 @@ describe('construirPdfOrdenTrabajo', () => {
     const datos: DatosOrdenTrabajo = {
       ...datosBase,
       material: materialManual,
-      precioMaterialEditadoEuros: '8,50',
+      azulejosNoIncluidos: true,
       mermaPorcentaje: 12.5,
-      resultado: { ...resultado, cajasFacturadas: 3, unidadesFacturadas: 6 },
+      resultado: {
+        ...resultado,
+        cajasFacturadas: 3,
+        unidadesFacturadas: 6,
+        desglose: { ...resultado.desglose, materialCentimos: centimos(0) },
+      },
       fecha: new Date(2026, 0, 31, 9, 30),
     };
     const doc = construirPdfOrdenTrabajo(datos);

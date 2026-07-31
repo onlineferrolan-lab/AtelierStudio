@@ -231,14 +231,14 @@ describe('calcularPedido — errores como valor', () => {
     expect(salida.errores.map((e) => e.indiceLinea)).toEqual([1, 2]);
   });
 
-  it('no cotiza si dos piezas del mismo artículo llevan distinto precio de material', () => {
+  it('no cotiza si dos piezas del mismo artículo discrepan en «azulejos no incluidos»', () => {
     const salida = calcularPedido(
-      [entradaBase(), entradaBase({ precioMaterialEditado: centimos(9999) })],
+      [entradaBase(), entradaBase({ azulejosNoIncluidos: true })],
       config,
     );
     expect(salida.ok).toBe(false);
     if (salida.ok) return;
-    expect(salida.errores[0].error.mensaje).toMatch(/distinto precio de material/i);
+    expect(salida.errores[0].error.mensaje).toMatch(/azulejos no incluidos/i);
   });
 
   it('no cotiza si dos piezas del mismo artículo llevan distinto margen', () => {
@@ -251,19 +251,21 @@ describe('calcularPedido — errores como valor', () => {
     expect(salida.errores[0].error.mensaje).toMatch(/distinto margen/i);
   });
 
-  it('un precio editado igual en las dos líneas sí cotiza', () => {
+  it('«azulejos no incluidos» en las dos líneas sí cotiza, y el material sale a 0', () => {
     const pedido = exigirOk(
       calcularPedido(
         [
-          entradaBase({ precioMaterialEditado: centimos(3000) }),
-          entradaBase({ precioMaterialEditado: centimos(3000), figuraId: 'figura-1' }),
+          entradaBase({ azulejosNoIncluidos: true }),
+          entradaBase({ azulejosNoIncluidos: true, figuraId: 'figura-1' }),
         ],
         config,
       ),
     );
     expect(pedido.grupos).toHaveLength(1);
-    expect(pedido.grupos[0].precioMaterialAplicado).toBe(centimos(3000));
-    expect(pedido.grupos[0].precioMaterialOriginal).toBe(centimos(2500));
+    expect(pedido.grupos[0].azulejosNoIncluidos).toBe(true);
+    expect(pedido.grupos[0].materialCentimos).toBe(centimos(0));
+    // El precio de tarifa se conserva aunque no se cobre: es dato del artículo.
+    expect(pedido.grupos[0].precioMaterial).toBe(centimos(2500));
   });
 });
 

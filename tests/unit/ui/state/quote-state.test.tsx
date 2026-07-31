@@ -22,6 +22,11 @@ describe('estadoInicial', () => {
     expect(estado.comentarios).toBe('');
   });
 
+  /** Por defecto los azulejos SE cobran: la excepción es el cliente que los trae. */
+  it('arranca con los azulejos incluidos', () => {
+    expect(estadoInicial().azulejosNoIncluidos).toBe(false);
+  });
+
   /**
    * La merma arranca VACÍA, no con un número: vacío significa «usa la sugerida
    * por el formato» (2026-07-31). Si se inicializara con un valor concreto,

@@ -149,7 +149,7 @@ El motor no se considera correcto hasta reproducir 10–15 cálculos reales vali
 9. **Empaquetado: varias piezas por baldosa (2026-07-28, dirección):** la regla «una pieza = una baldosa de origen» estaba mal para piezas pequeñas (3 piezas de 10×10 cm NO necesitan 3 baldosas de 110×110). Implementado como REJILLA PROVISIONAL en `src/domain/engine/ocupacion.ts` (`piezasPorBaldosa`): `baldosasNecesarias = ceil(cantidad / piezasPorBaldosa)` y la merma se aplica después sobre esas baldosas. Se mantiene la veta §4 por pieza (los componentes de UNA pieza salen de la misma baldosa); no se mezclan piezas en la misma fila ni se reutilizan sobrantes (§8). Si el documento de lógica del maestro (punto 8) define otro empaquetado, este se reemplaza.
 
 ### Datos y catálogo
-7. **TARP se asume €/m²** (material manual: €/unidad). Confirmado como razonable por el contrato real del catálogo (2026-07-24: `docs`/API `studio.ferrolan.es/cataleg/`), pero el comercial sigue pudiendo editar en la misma unidad que la tarifa de origen.
+7. **TARP se asume €/m²** (material manual: €/unidad). Confirmado como razonable por el contrato real del catálogo (2026-07-24: `docs`/API `studio.ferrolan.es/cataleg/`). Desde el 2026-07-31 el comercial ya NO puede editar ese precio a mano: la única salida es «Azulejos no incluidos» cuando el material lo aporta el cliente.
 8. ~~**API del ERP (§6.13)**~~ **RESUELTO (2026-07-24):** el contrato real es el «API del catàleg de ceràmica» (`https://studio.ferrolan.es/cataleg/`, réplica de solo lectura de la sección CE, ~55.000 artículos, se actualiza 2×/día). Implementado en `src/data/fuenteCataleg.ts` (`mapearArticuloCataleg`). Detalles y huecos que quedan abiertos:
     - Autenticación `X-API-Key`: la clave NUNCA debe llegar al navegador (el catálogo lleva tarifas de venta). Se resuelve con un proxy same-origin (`/api/cataleg/`): nginx en producción (`nginx.conf.template`, clave inyectada vía `CATALEG_API_KEY`) y el dev server de Vite en local (`vite.config.ts`). Ver `.env.example`.
     - **Sin endpoint de listado/búsqueda:** la API real solo permite consultar por código (uno o hasta 50). El índice de búsqueda por texto es local (`indice-cataleg.json`, generado del sitemap público de ferrolan.es con `npm run indice:cataleg`; las URLs de imagen se guardan SIN el sufijo de miniatura `-large_default`, apuntando a la imagen original); los candidatos de cada página se enriquecen en lote con los datos reales por código. En producción el índice se refresca a diario con una tarea programada de Plesk (ver README §Despliegue), lo que acota la desincronización a 24 h. **Pedir al responsable del ERP un endpoint de listado/búsqueda** (aunque sea solo código+descripción+marca) sigue siendo la solución de fondo — sin él, el índice de búsqueda seguirá desincronizado del catálogo real (códigos que no coinciden, artículos nuevos que no aparecen).
@@ -261,8 +261,8 @@ figuras numeradas suman 5 puntos.
 
 Implementado en `src/domain/engine/merma.ts`, con los valores en
 `parametros.json` (dato, no código). Es una **sugerencia**: el comercial la
-sobrescribe igual que el precio del material, y la sugerida sigue visible al lado
-para que se vea que la edición fue deliberada.
+sobrescribe, y la sugerida sigue visible al lado para que se vea que la edición
+fue deliberada.
 
 **Interpretaciones que se tomaron (confirmar si alguna no era la intención):**
 

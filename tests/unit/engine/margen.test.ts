@@ -228,13 +228,16 @@ describe('la cotización aplica el margen a TODO lo que se factura', () => {
     );
   });
 
-  /** El precio editado a mano es COSTE: el margen va encima (indicación directa). */
-  it('el precio de material editado también lleva margen encima', () => {
-    const editado = esperarOk(
+  /**
+   * Con las baldosas puestas por el cliente no hay coste de material que marcar,
+   * pero la manipulación y el arranque sí llevan margen: es el trabajo que se vende.
+   */
+  it('con azulejos no incluidos el material no lleva margen (es 0) y el trabajo sí', () => {
+    const noIncluidos = esperarOk(
       calcularCotizacion(
         entradaBase({
           material: materialConMargen(),
-          precioMaterialEditado: centimos(3000),
+          azulejosNoIncluidos: true,
           margenManualCentesimas: null,
         }),
         config,
@@ -244,14 +247,15 @@ describe('la cotización aplica el margen a TODO lo que se factura', () => {
       calcularCotizacion(
         entradaBase({
           material: materialConMargen(),
-          precioMaterialEditado: centimos(3000),
+          azulejosNoIncluidos: true,
           margenManualCentesimas: 0,
         }),
         config,
       ),
     );
-    expect(editado.desglose.materialCentimos).toBe(
-      aplicarMargen(sinMargen.desglose.materialCentimos, 6600),
+    expect(noIncluidos.desglose.materialCentimos).toBe(0);
+    expect(noIncluidos.desglose.manipulacionCentimos).toBe(
+      aplicarMargen(sinMargen.desglose.manipulacionCentimos, 6600),
     );
   });
 

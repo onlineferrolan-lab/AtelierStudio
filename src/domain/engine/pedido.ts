@@ -127,18 +127,19 @@ export function calcularPedido(
     grupo.lineas.push(calculadas[indice]);
   });
 
-  // 3. Coherencia dentro del grupo: un solo precio de material y un solo margen.
-  //    Con dos valores distintos no hay forma no arbitraria de comprar las cajas.
+  // 3. Coherencia dentro del grupo: un solo margen y una sola respuesta a quién
+  //    aporta las baldosas. Con dos valores distintos no hay forma no arbitraria
+  //    de comprar las cajas — el artículo se compra entero o no se compra.
   for (const grupo of porClave.values()) {
     const [primera] = grupo.lineas;
-    const discrepaPrecio = grupo.lineas.some(
-      (l) => l.precioUnitarioAplicado !== primera.precioUnitarioAplicado,
+    const discrepaAzulejos = grupo.lineas.some(
+      (l) => l.azulejosNoIncluidos !== primera.azulejosNoIncluidos,
     );
     const discrepaMargen = grupo.lineas.some(
       (l) => l.margen.centesimas !== primera.margen.centesimas,
     );
-    if (discrepaPrecio || discrepaMargen) {
-      const que = discrepaPrecio ? 'precio de material' : 'margen';
+    if (discrepaAzulejos || discrepaMargen) {
+      const que = discrepaAzulejos ? '«azulejos no incluidos»' : 'margen';
       errores.push({
         indiceLinea: grupo.indices[grupo.indices.length - 1],
         error: {
@@ -160,8 +161,9 @@ export function calcularPedido(
     const facturacion = facturarMaterial(
       grupo.material,
       baldosasConMerma,
-      primera.precioUnitarioAplicado,
+      primera.precioUnitario,
       primera.margen.centesimas,
+      primera.azulejosNoIncluidos,
     );
     const piezasPorCaja = grupo.material.piezasPorCaja as number; // validado en `calcularLinea`
     grupos.push({
@@ -184,8 +186,8 @@ export function calcularPedido(
         primera.margen.centesimas,
       ),
       margen: primera.margen,
-      precioMaterialOriginal: primera.precioUnitarioOriginal,
-      precioMaterialAplicado: primera.precioUnitarioAplicado,
+      precioMaterial: primera.precioUnitario,
+      azulejosNoIncluidos: primera.azulejosNoIncluidos,
     });
   }
 
@@ -232,8 +234,9 @@ export function calcularPedido(
       const suelta = facturarMaterial(
         entrada.material,
         l.baldosasConMerma,
-        l.precioUnitarioAplicado,
+        l.precioUnitario,
         l.margen.centesimas,
+        l.azulejosNoIncluidos,
       );
       return sumarCentimos(
         suelta.materialCentimos,

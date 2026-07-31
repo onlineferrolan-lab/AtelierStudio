@@ -98,13 +98,13 @@ export interface EntradaCotizacion {
    */
   readonly unidadesSuplemento: Readonly<Record<string, number>>;
   /**
-   * Precio de material editado por el comercial (céntimos/m² o céntimos/unidad
-   * según el tipo de material). Null = usar la tarifa TARP por defecto.
-   *
-   * Es un COSTE: el margen comercial se aplica encima (2026-07-31, indicación
-   * directa), igual que sobre la tarifa.
+   * El cliente aporta las baldosas: se cobra la manipulación, no el material
+   * (2026-07-31, indicación directa). El importe de material queda a 0 y la
+   * tarifa del artículo deja de ser obligatoria para poder cotizar; el resto del
+   * cálculo NO cambia — se sigue diciendo cuántas baldosas y cajas hacen falta,
+   * que es lo que el cliente tiene que traer.
    */
-  readonly precioMaterialEditado: Centimos | null;
+  readonly azulejosNoIncluidos: boolean;
   /** % de merma aplicado (visible/editable en UI; valor por defecto de config). */
   readonly mermaPorcentaje: number;
   /**
@@ -227,8 +227,6 @@ export interface ResultadoCotizacion {
   readonly m2Facturados: number;
   readonly lineasManipulacion: readonly LineaManipulacion[];
   readonly desglose: DesgloseCotizacion;
-  /** Precio de tarifa antes de la edición del comercial (para mostrarlo junto al editado). */
-  readonly precioMaterialOriginal: Centimos;
   /**
    * Margen aplicado a los importes de este resultado. Todos los importes del
    * desglose y de las líneas ya lo llevan incorporado.
@@ -296,8 +294,10 @@ export interface GrupoMaterialPedido {
   /** Arranque de máquina del grupo (uno por material, ver `pedido.ts`). */
   readonly arranqueCentimos: Centimos;
   readonly margen: MargenAplicado;
-  readonly precioMaterialOriginal: Centimos;
-  readonly precioMaterialAplicado: Centimos;
+  /** Precio de tarifa del material del grupo (€/m² del ERP o €/ud. en manual). */
+  readonly precioMaterial: Centimos;
+  /** El cliente aporta las baldosas de este artículo: `materialCentimos` es 0. */
+  readonly azulejosNoIncluidos: boolean;
 }
 
 export interface ResultadoPedido {

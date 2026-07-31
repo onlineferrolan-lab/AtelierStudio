@@ -92,7 +92,7 @@ export function PanelPedido(): JSX.Element {
           cantidad: construida.entrada.cantidad,
           suplementosActivos: construida.entrada.suplementos,
           unidadesSuplemento: construida.entrada.unidadesSuplemento,
-          precioMaterialEditadoEuros: linea.precioMaterialEditadoEuros,
+          azulejosNoIncluidos: linea.azulejosNoIncluidos,
           // El MISMO croquis que extruye el visor 3D, con los suplementos
           // activos, para que el dibujo del taller no discrepe del modelo.
           seccion: construirSeccion(

@@ -36,7 +36,7 @@ import type {
   Mm,
   ResultadoCotizacion,
 } from '../domain/types';
-import { eurosACentimos, formatearEuros } from '../domain/money';
+import { formatearEuros } from '../domain/money';
 import { formatearCotaCm } from '../domain/units';
 import type { SeccionPieza } from '../piezas/seccionPieza';
 import {
@@ -84,7 +84,8 @@ export interface DatosOrdenTrabajo {
    * entrada se entiende UNA pieza, igual que en el motor.
    */
   readonly unidadesSuplemento?: Readonly<Record<string, number>>;
-  readonly precioMaterialEditadoEuros: string;
+  /** Las baldosas las aporta el cliente: el material no se cobra y la hoja lo dice. */
+  readonly azulejosNoIncluidos: boolean;
   readonly mermaPorcentaje: number;
   /** Comentarios libres del comercial para taller ('' = no se imprime el bloque). */
   readonly comentarios?: string;
@@ -243,7 +244,8 @@ export function seccionPieza(
 
 export interface DatosMaterial {
   readonly material: Material;
-  readonly precioMaterialEditadoEuros: string;
+  /** Las baldosas las aporta el cliente: en vez del precio se rotula que no van incluidas. */
+  readonly azulejosNoIncluidos: boolean;
   readonly imagenMaterialDataUrl?: string | null;
 }
 
@@ -275,10 +277,11 @@ export function seccionMaterial(doc: jsPDF, y: number, datos: DatosMaterial): nu
     material.piezasPorCaja != null
       ? `${material.piezasPorCaja} ud./caja${material.m2PorCaja != null ? ` · ${FORMATO_M2.format(material.m2PorCaja)} m²` : ''}`
       : '—';
-  const precio =
-    datos.precioMaterialEditadoEuros.trim() === ''
-      ? precioMaterialTarifa(material)
-      : `${formatearPrecioEditado(datos.precioMaterialEditadoEuros)} (editado; tarifa ${precioMaterialTarifa(material)})`;
+  // Con «azulejos no incluidos» el taller tiene que saber que las baldosas las
+  // trae el cliente: es lo que explica que el material no aparezca cobrado.
+  const precio = datos.azulejosNoIncluidos
+    ? 'NO INCLUIDOS (aporta cliente)'
+    : precioMaterialTarifa(material);
 
   const xCol2 = x + 78;
   let yf = yc + 9;
@@ -290,12 +293,6 @@ export function seccionMaterial(doc: jsPDF, y: number, datos: DatosMaterial): nu
   yf += ALTO_FILA;
   if (material.marca) filaCaja(doc, x, yf, 20, 'Marca', material.marca);
   return y + ALTO + AIRE;
-}
-
-function formatearPrecioEditado(precioMaterialEditadoEuros: string): string {
-  const valor = Number.parseFloat(precioMaterialEditadoEuros.trim().replace(',', '.'));
-  if (Number.isNaN(valor)) return `${precioMaterialEditadoEuros} €`;
-  return formatearEuros(eurosACentimos(valor));
 }
 
 /** Formato de la baldosa en cm, tal como se lee en el catálogo. */
@@ -446,6 +443,8 @@ export interface DatosImportes {
   readonly desglose: DesgloseCotizacion;
   readonly lineasManipulacion: readonly LineaManipulacion[];
   readonly ivaPorcentaje: number;
+  /** Cambia el rótulo de la fila de material a «no incluido: lo aporta el cliente». */
+  readonly azulejosNoIncluidos: boolean;
 }
 
 /** Importes. Es lo único de la hoja que no mira el taller: va al final. */
@@ -459,7 +458,12 @@ export function seccionImportes(doc: jsPDF, y: number, datos: DatosImportes): nu
   const yc = cajaTitulada(doc, y, ALTO, 'Importes');
 
   let yf = yc + 1;
-  filaImporte(doc, yf, 'Material', desglose.materialCentimos);
+  filaImporte(
+    doc,
+    yf,
+    datos.azulejosNoIncluidos ? 'Material (no incluido: lo aporta el cliente)' : 'Material',
+    desglose.materialCentimos,
+  );
   yf += ALTO_FILA;
   filaImporte(doc, yf, 'Manipulación', desglose.manipulacionCentimos, { negrita: true });
   yf += ALTO_FILA;
@@ -530,6 +534,7 @@ export function construirPdfOrdenTrabajo(datos: DatosOrdenTrabajo): jsPDF {
     desglose: datos.resultado.desglose,
     lineasManipulacion: datos.resultado.lineasManipulacion,
     ivaPorcentaje: datos.config.parametros.ivaPorcentaje,
+    azulejosNoIncluidos: datos.azulejosNoIncluidos,
   });
   pieOperador(doc, yFinal - AIRE);
   return doc;
