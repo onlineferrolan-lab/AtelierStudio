@@ -204,44 +204,79 @@ nunca en el PDF del cliente).
 
 ---
 
-## 7. Merma por formato (indicación 2026-07-30, incompleta)
+## 7. Merma por formato — IMPLEMENTADA (indicación 2026-07-31)
 
-**Lo indicado.** La merma por defecto dejará de ser un valor único (hoy 10 % en
-`parametros.json`) y pasará a depender del formato de la baldosa, «parecido al precio
-del material»: se propone un valor y el comercial puede sobrescribirlo. Además, las
-figuras **numeradas** llevan **+5 %** de merma.
+**La regla, tal como se indicó:** «de 30x60 y menores, 10 %; va subiendo hasta el
+20 % en 60x120 (escalado lineal); y se queda en 20 para todo lo mayor». Las
+figuras numeradas suman 5 puntos.
 
-**Lo que sí está claro:**
-- Formatos de 30×60 o menores → **10 %**.
-- Al llegar a 120×60 → **20 %**, y ese 20 % se aplica de ahí en adelante.
-- Sigue siendo editable a mano (el campo y el override ya existen).
+Implementado en `src/domain/engine/merma.ts`, con los valores en
+`parametros.json` (dato, no código). Es una **sugerencia**: el comercial la
+sobrescribe igual que el precio del material, y la sugerida sigue visible al lado
+para que se vea que la edición fue deliberada.
 
-**BLOQUEANTE — falta la tabla intermedia.** «Vamos subiendo hasta llegar a 120×60»
-no dice ni los escalones ni el criterio de ordenación. No se implementa por
-suposición (§0). Hace falta concretar:
+**Interpretaciones que se tomaron (confirmar si alguna no era la intención):**
 
-1. **Qué mide el tramo.** Los dos extremos citados (30×60 y 120×60) comparten el
-   lado de 60, así que lo que varía es el **lado mayor** (60 → 120). ¿Es eso, o es
-   la superficie de la baldosa? Con formatos no cuadrados (30×120, 75×75, 100×100)
-   las dos lecturas dan mermas distintas.
-2. **Los escalones exactos.** ¿Qué merma le toca a 60×60, 75×75, 80×80, 90×90,
-   100×100, 120×120? ¿Es una tabla de formatos concretos o tramos por lado mayor?
-   Interpolar linealmente (15 % a 90 cm) sería inventarse una regla de negocio.
-3. **Qué cuenta como «figura numerada».** Literalmente hay **ocho** figuras con un
-   número en el nombre: `figura-1..4` **y** `pasamanos-1..4`. Los pasamanos son las
-   mismas geometrías reflejadas, así que lo razonable es que también lleven el +5 %,
-   pero hay que confirmarlo. Los que **no** lo llevarían: peldaño romo, pasamanos
-   romo, los dos rodapiés y el corte.
-4. **Cómo se combina el +5 %.** ¿Es aditivo sobre el tramo (formato 10 % → 15 %) o
-   multiplicativo (10 % × 1,05 = 10,5 %)? Con el tramo al 20 % la diferencia es
-   25 % frente a 21 %.
-5. **Tope.** Si el tramo ya está en 20 % y la figura suma 5 %, ¿se queda en 25 % o
-   hay máximo?
+1. **Interpola sobre el LADO MAYOR, no sobre la superficie.** Los dos extremos
+   dados —30x60 y 60x120— se diferencian en que el lado mayor pasa de 60 a 120, y
+   «escalado lineal» es escala de longitud. Consecuencia visible: **una baldosa de
+   60x60 se queda en el 10 %**, igual que la de 30x60, aunque tenga el doble de
+   superficie. Si la intención era que subiera, el criterio es la superficie y hay
+   que cambiar `mermaPorFormatoCentesimas`.
+2. **El +5 % es ADITIVO** (10 → 15, y 20 → 25), no un 5 % relativo.
+3. **Sin tope por arriba:** una figura numerada sobre baldosa grande llega al
+   25 %.
+4. **Lo llevan las ocho figuras con número:** `figura-1..4` y `pasamanos-1..4`
+   (misma geometría reflejada). NO lo llevan peldaño romo, pasamanos romo, los dos
+   rodapiés, el corte **ni la tabica** — su nombre no lleva número, aunque sea «una
+   figura 1 con zócalo». Este último es el más dudoso de los cuatro.
 
-**Nota de implementación.** Cuando estén los valores, esto va en `parametros.json`
-como tabla de tramos (dato, no código), con la lista de figuras con recargo
-también en configuración. El motor ya cuantiza la merma a centésimas de punto, así
-que un 12,5 % entra sin tocar la aritmética entera.
+Valores que salen de la regla, para revisarlos de un vistazo:
+
+| Formato | Lado mayor | Merma | Con figura numerada |
+|---|---|---|---|
+| 20x20, 30x30, 30x60, 60x60 | ≤ 60 | 10 % | 15 % |
+| 75x75 | 75 | 12,5 % | 17,5 % |
+| 80x80 | 80 | 13,33 % | 18,33 % |
+| 90x90 | 90 | 15 % | 20 % |
+| 100x100 | 100 | 16,67 % | 21,67 % |
+| 60x120, 120x120, 120x280 | ≥ 120 | 20 % | 25 % |
+
+---
+
+## 8. Tabica — IMPLEMENTADA (indicación 2026-07-31)
+
+**Lo indicado:** «una figura 1 con un corte debajo a modo de zócalo; el precio es
+el de las dos combinadas; los parámetros son todos individuales menos el largo».
+
+Implementada como figura **compuesta**: una sola pieza con **tres** componentes
+(tapa, frontal, zócalo) que comparten el largo, y una **segunda tarifa**
+(`tarifaAdicional` en `figuras.json`) que produce su propia línea de
+manipulación. Así el desglose enseña de qué se compone el precio y cada parte
+redondea una sola vez, en vez de encadenar redondeos.
+
+- Parte «figura 1»: tarifa por umbral de la caída (≤ 5 cm / > 5 cm) sobre el largo.
+- Parte «zócalo»: tarifa de corte sobre su perímetro, 2×(largo + altura zócalo).
+- Medidas: ancho, largo, altura frontal (mínimo 4 cm, heredado) y altura del zócalo.
+  Las dos alturas se miden **desde la cara inferior de la tapa hacia abajo**, porque
+  las dos piezas cuelgan de ahí; el zócalo suele bajar más que la caída.
+
+**Interpretaciones que se tomaron (confirmar):**
+
+1. **El zócalo sale de la MISMA baldosa** que la tapa y el frontal, como cualquier
+   otro componente de una pieza (veta §4). Efecto práctico: suma a la ocupación,
+   así que una tabica con zócalo alto puede no caber en la baldosa y el motor lo
+   avisa. Si el zócalo se corta de otra baldosa, esto cambia y el material sale
+   más caro.
+2. **Suplementos:** hereda los cuatro de la figura 1 (angular, ranuras, goterón,
+   espesado). Ninguno se aplica específicamente al zócalo.
+3. **Merma:** NO lleva el +5 % de las figuras numeradas (ver §7.4).
+4. **Croquis:** el zócalo cuelga **por detrás** del frontal, retranqueado un grosor,
+   con su borde superior tocando la cara inferior de la tapa (corregido el
+   2026-07-31: la primera versión lo puso a ras del frontal, prolongando la cara
+   delantera, y no es eso). La nariz vuela y el zócalo queda metido hacia dentro.
+   `croquisPendiente` sigue en `true`: las proporciones del dibujo son
+   representativas, no un plano de taller.
 
 ---
 

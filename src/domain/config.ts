@@ -26,10 +26,27 @@ export interface ParametrosTaller {
   readonly toleranciaMm: Mm;
   /** Saneado por lado de la baldosa. PROVISIONAL (§6.4: cuándo aplica, pendiente). */
   readonly saneadoPorLadoMm: Mm;
-  /** % de merma sobre baldosas de origen (§4: valor provisional de desarrollo 10 %). */
+  /**
+   * % de merma de reserva, solo para cuando todavía no hay material elegido y
+   * por tanto no se puede calcular la sugerida por formato.
+   */
   readonly mermaPorcentajeDefecto: number;
   /** Si el comercial puede editar la merma en la UI. PROVISIONAL (§6.10). */
   readonly mermaEditable: boolean;
+  /**
+   * Tramo de merma por formato (indicación directa 2026-07-31). Interpolación
+   * LINEAL sobre el LADO MAYOR de la baldosa: en `mermaLadoMenorCm` o menos se
+   * aplica `mermaPorcentajeLadoMenor`; en `mermaLadoMayorCm` o más,
+   * `mermaPorcentajeLadoMayor`; entre medias, proporcional.
+   */
+  readonly mermaLadoMenorCm: number;
+  readonly mermaPorcentajeLadoMenor: number;
+  readonly mermaLadoMayorCm: number;
+  readonly mermaPorcentajeLadoMayor: number;
+  /** Puntos porcentuales que suman las figuras numeradas (se SUMAN, no multiplican). */
+  readonly mermaExtraFiguraPuntos: number;
+  /** Ids de figura con el extra. En configuración, no en código (§0). */
+  readonly mermaFigurasConExtra: readonly string[];
   /** Arranque de máquina por orden de trabajo, en céntimos (§2: 60 €, editable). */
   readonly arranqueCentimos: Centimos;
   readonly ivaPorcentaje: number;
@@ -122,6 +139,19 @@ export interface Figura {
   /** Null en figuras 'pendiente' (sin tarifa confirmada, §6.5/§6.6). */
   readonly tarifa: ReglaTarifa | null;
   readonly longitudTarifa: ReglaLongitudTarifa | null;
+  /**
+   * SEGUNDA tarifa de la misma pieza, para figuras COMPUESTAS (indicación
+   * directa 2026-07-31: la tabica es «una figura 1 con un corte debajo de
+   * zócalo, y el precio es el de las dos combinadas»).
+   *
+   * Genera su propia línea de manipulación, no se funde con la principal: en
+   * taller y en el presupuesto se ve de qué se compone el precio. Null en las
+   * figuras normales, que es el caso de todas menos la tabica.
+   */
+  readonly tarifaAdicional: {
+    readonly tarifa: ReglaTarifa;
+    readonly longitudTarifa: ReglaLongitudTarifa;
+  } | null;
   /** Ids de suplementos aplicables (definidos en tarifas.json). */
   readonly suplementos: readonly string[];
   /** true si la tarifa depende del conmutador "Pintado" del paso ④. */
@@ -153,6 +183,12 @@ interface ParametrosJson {
   saneadoPorLadoMm: number;
   mermaPorcentajeDefecto: number;
   mermaEditable: boolean;
+  mermaLadoMenorCm: number;
+  mermaPorcentajeLadoMenor: number;
+  mermaLadoMayorCm: number;
+  mermaPorcentajeLadoMayor: number;
+  mermaExtraFiguraPuntos: number;
+  mermaFigurasConExtra: string[];
   arranqueMaquinaEuros: number;
   ivaPorcentaje: number;
 }
@@ -177,13 +213,18 @@ type ReglaTarifaJson =
   | { tipo: 'pintable'; tarifaId: string; tarifaIdPintado: string };
 
 interface FigurasJson {
-  figuras: (Omit<Figura, 'tarifa' | 'medidas' | 'longitudTarifa'> & {
+  figuras: (Omit<Figura, 'tarifa' | 'medidas' | 'longitudTarifa' | 'tarifaAdicional'> & {
     tarifa: ReglaTarifaJson | null;
     medidas: (Omit<CampoMedida, 'maxCm' | 'opcionesCm'> & {
       maxCm?: number | null;
       opcionesCm?: number[] | null;
     })[];
     longitudTarifa: ReglaLongitudTarifa | null;
+    /** Opcional: solo las figuras compuestas (tabica) lo traen. */
+    tarifaAdicional?: {
+      tarifa: ReglaTarifaJson;
+      longitudTarifa: ReglaLongitudTarifa;
+    } | null;
   })[];
 }
 
@@ -194,6 +235,12 @@ function parsearParametros(json: ParametrosJson): ParametrosTaller {
     saneadoPorLadoMm: mm(json.saneadoPorLadoMm),
     mermaPorcentajeDefecto: json.mermaPorcentajeDefecto,
     mermaEditable: json.mermaEditable,
+    mermaLadoMenorCm: json.mermaLadoMenorCm,
+    mermaPorcentajeLadoMenor: json.mermaPorcentajeLadoMenor,
+    mermaLadoMayorCm: json.mermaLadoMayorCm,
+    mermaPorcentajeLadoMayor: json.mermaPorcentajeLadoMayor,
+    mermaExtraFiguraPuntos: json.mermaExtraFiguraPuntos,
+    mermaFigurasConExtra: json.mermaFigurasConExtra,
     arranqueCentimos: eurosACentimos(json.arranqueMaquinaEuros),
     ivaPorcentaje: json.ivaPorcentaje,
   };
@@ -248,6 +295,13 @@ function parsearFiguras(json: FigurasJson): Figura[] {
     ...f,
     medidas: f.medidas.map((m) => ({ ...m, maxCm: m.maxCm ?? null, opcionesCm: m.opcionesCm ?? null })),
     tarifa: parsearReglaTarifa(f.tarifa),
+    tarifaAdicional: f.tarifaAdicional
+      ? {
+          // parsearReglaTarifa nunca devuelve null si la entrada no es null.
+          tarifa: parsearReglaTarifa(f.tarifaAdicional.tarifa) as ReglaTarifa,
+          longitudTarifa: f.tarifaAdicional.longitudTarifa,
+        }
+      : null,
   }));
 }
 

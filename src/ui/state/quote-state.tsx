@@ -9,7 +9,12 @@ import { createContext, useContext, useMemo, useReducer, type ReactNode } from '
 import type { Configuracion } from '../../domain/config';
 import type { EntradaCotizacion, Material, Mm, SalidaMotor } from '../../domain/types';
 import { eurosACentimos } from '../../domain/money';
-import { calcularCotizacion, figuraPorId, validarMedidasCrudas } from '../../domain/engine';
+import {
+  calcularCotizacion,
+  figuraPorId,
+  mermaSugeridaPorcentaje,
+  validarMedidasCrudas,
+} from '../../domain/engine';
 
 export interface EstadoAtelier {
   readonly material: Material | null;
@@ -27,8 +32,14 @@ export interface EstadoAtelier {
   readonly pintado: boolean;
   /** Precio de material editado por el comercial, en € (texto). '' = usar tarifa. */
   readonly precioMaterialEditadoEuros: string;
-  /** % de merma (texto). Se inicializa con el valor por defecto de configuración. */
-  readonly mermaPorcentaje: string;
+  /**
+   * % de merma escrito a mano por el comercial (texto). **'' = usar la sugerida**
+   * por formato + figura (`mermaSugeridaPorcentaje`), igual que el precio del
+   * material usa la tarifa cuando no se edita. Se guarda la edición, no el valor
+   * resuelto, para que al cambiar de material o de figura la sugerencia se
+   * recalcule sola mientras nadie la haya tocado.
+   */
+  readonly mermaEditadaPorcentaje: string;
   /**
    * Comentarios libres del comercial para taller (indicaciones de corte, avisos
    * de obra…). Salen tal cual en la orden de trabajo; no tocan el cálculo.
@@ -47,9 +58,9 @@ export type AccionAtelier =
   | { tipo: 'cambiarPrecioMaterialEditado'; euros: string }
   | { tipo: 'cambiarMerma'; porcentaje: string }
   | { tipo: 'cambiarComentarios'; comentarios: string }
-  | { tipo: 'reiniciar'; mermaPorcentajeDefecto: number };
+  | { tipo: 'reiniciar' };
 
-export function estadoInicial(mermaPorcentajeDefecto: number): EstadoAtelier {
+export function estadoInicial(): EstadoAtelier {
   return {
     material: null,
     figuraId: null,
@@ -59,7 +70,7 @@ export function estadoInicial(mermaPorcentajeDefecto: number): EstadoAtelier {
     unidadesSuplemento: {},
     pintado: false,
     precioMaterialEditadoEuros: '',
-    mermaPorcentaje: String(mermaPorcentajeDefecto),
+    mermaEditadaPorcentaje: '',
     comentarios: '',
   };
 }
@@ -107,12 +118,12 @@ function reductor(estado: EstadoAtelier, accion: AccionAtelier): EstadoAtelier {
     case 'cambiarPrecioMaterialEditado':
       return { ...estado, precioMaterialEditadoEuros: accion.euros };
     case 'cambiarMerma':
-      return { ...estado, mermaPorcentaje: accion.porcentaje };
+      return { ...estado, mermaEditadaPorcentaje: accion.porcentaje };
     case 'cambiarComentarios':
       // Son de la orden, no de la pieza: cambiar de figura NO los borra.
       return { ...estado, comentarios: accion.comentarios };
     case 'reiniciar':
-      return estadoInicial(accion.mermaPorcentajeDefecto);
+      return estadoInicial();
   }
 }
 
@@ -123,14 +134,13 @@ interface ContextoAtelier {
 
 const Contexto = createContext<ContextoAtelier | null>(null);
 
-export function ProveedorAtelier({
-  config,
-  children,
-}: {
-  config: Configuracion;
-  children: ReactNode;
-}): JSX.Element {
-  const [estado, dispatch] = useReducer(reductor, config.parametros.mermaPorcentajeDefecto, estadoInicial);
+/**
+ * Ya no recibe `config`: el estado inicial no depende de ella desde que la merma
+ * por defecto se calcula a partir del formato del material (`merma.ts`), y no de
+ * un valor suelto de configuración.
+ */
+export function ProveedorAtelier({ children }: { children: ReactNode }): JSX.Element {
+  const [estado, dispatch] = useReducer(reductor, undefined, estadoInicial);
   const valor = useMemo(() => ({ estado, dispatch }), [estado]);
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
 }
@@ -183,8 +193,14 @@ export function construirEntrada(
   const precioMaterialEditado =
     precioEditadoTxt === '' ? null : eurosACentimos(Number.parseFloat(precioEditadoTxt));
 
-  const mermaTxt = estado.mermaPorcentaje.trim().replace(',', '.');
-  const mermaPorcentaje = mermaTxt === '' ? config.parametros.mermaPorcentajeDefecto : Number.parseFloat(mermaTxt);
+  // Sin edición manual se usa la sugerida por formato + figura; con ella, la del
+  // comercial. Un texto no numérico se deja pasar (NaN) para que el error salga
+  // del motor, como con la cantidad.
+  const mermaTxt = estado.mermaEditadaPorcentaje.trim().replace(',', '.');
+  const mermaPorcentaje =
+    mermaTxt === ''
+      ? mermaSugeridaPorcentaje(material.formato, figuraId, config)
+      : Number.parseFloat(mermaTxt);
 
   return {
     medidasMm: validacion.medidasMm,

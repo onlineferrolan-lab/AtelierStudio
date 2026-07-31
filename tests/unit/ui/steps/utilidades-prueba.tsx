@@ -18,7 +18,6 @@ import { render } from '@testing-library/react';
 import type { ReactElement } from 'react';
 import { ProveedorAtelier, useAtelier } from '../../../../src/ui/state/quote-state';
 import { ProveedorPasos, usePasos } from '../../../../src/ui/state/pasos-context';
-import { construirConfigPrueba } from './config-prueba';
 
 export type AtelierApi = ReturnType<typeof useAtelier>;
 export type PasosApi = ReturnType<typeof usePasos>;
@@ -36,7 +35,7 @@ export function montarPasos(ui: ReactElement): {
     return null;
   }
   render(
-    <ProveedorAtelier config={construirConfigPrueba()}>
+    <ProveedorAtelier>
       <ProveedorPasos inicial={{ 1: true, 2: true, 3: true, 4: true }}>
         {ui}
         <Captura />

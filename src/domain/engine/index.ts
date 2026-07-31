@@ -4,9 +4,12 @@
  * Implementa las reglas confirmadas de §4 de la especificación:
  *  - Ocupación: Σ anchos de componentes + nº cortes × ancho de disco + saneados
  *    + tolerancias ≤ dimensión útil de la baldosa (receta PROVISIONAL, §6.2/§6.3/§6.4).
- *  - Merma: % configurable sobre baldosas de origen, redondeo hacia arriba.
- *    La condición "mínimo 3" NO se implementa (§6.1).
- *  - Origen: stock → se factura por piezas; pedido → cajas completas.
+ *  - Merma: % sobre baldosas de origen, redondeo hacia arriba. El valor SUGERIDO
+ *    sale del formato de la baldosa (`merma.ts`, interpolación lineal sobre el
+ *    lado mayor) más el extra de las figuras numeradas; el comercial puede
+ *    sobrescribirlo. La condición "mínimo 3" NO se implementa (§6.1).
+ *  - Facturación: siempre por cajas completas (el origen stock/pedido se
+ *    suprimió el 2026-07-30 al dejar de afectar al importe).
  *  - Veta: los componentes de una misma pieza salen de la misma baldosa;
  *    giro de 90° solo cuando la orientación lo permita (regla por figura
  *    pendiente del croquis oficial: de momento se prueban ambas orientaciones,
@@ -25,6 +28,11 @@ import type { Configuracion, Figura } from '../config';
 export { validarMedidasCrudas } from './validacion';
 export { resolverTarifa, longitudTarifaMm } from './tarifas';
 export { calcularCotizacion } from './cotizacion';
+export {
+  mermaPorFormatoCentesimas,
+  mermaSugeridaCentesimas,
+  mermaSugeridaPorcentaje,
+} from './merma';
 
 /** Busca una figura por id en la configuración. */
 export function figuraPorId(config: Configuracion, figuraId: string): Figura | undefined {

@@ -219,6 +219,81 @@
       "tienePintado": false
     },
     {
+      "id": "tabica",
+      "nombre": "Tabica",
+      "estado": "activa",
+      "motivoPendiente": null,
+      "croquisPendiente": true,
+      "medidas": [
+        {
+          "id": "fondo",
+          "etiqueta": "Ancho (cm)",
+          "minCm": 1
+        },
+        {
+          "id": "longitud",
+          "etiqueta": "Largo (cm)",
+          "minCm": 1
+        },
+        {
+          "id": "alturaFrontal",
+          "etiqueta": "Altura frontal (cm)",
+          "minCm": 4
+        },
+        {
+          "id": "alturaZocalo",
+          "etiqueta": "Altura del zócalo (cm)",
+          "minCm": 1
+        }
+      ],
+      "componentes": [
+        {
+          "id": "tapa",
+          "largoDe": "longitud",
+          "anchoDe": "fondo"
+        },
+        {
+          "id": "frontal",
+          "largoDe": "longitud",
+          "anchoDe": "alturaFrontal"
+        },
+        {
+          "id": "zocalo",
+          "largoDe": "longitud",
+          "anchoDe": "alturaZocalo"
+        }
+      ],
+      "tarifa": {
+        "tipo": "porUmbral",
+        "medida": "alturaFrontal",
+        "umbralCm": 5,
+        "tarifaIdMenorOIgual": "f1-frontal-le5",
+        "tarifaIdMayor": "f1-frontal-gt5"
+      },
+      "longitudTarifa": {
+        "tipo": "medida",
+        "medida": "longitud"
+      },
+      "tarifaAdicional": {
+        "tarifa": {
+          "tipo": "fija",
+          "tarifaId": "corte"
+        },
+        "longitudTarifa": {
+          "tipo": "perimetro",
+          "largoDe": "longitud",
+          "anchoDe": "alturaZocalo"
+        }
+      },
+      "suplementos": [
+        "angular-f14",
+        "ranuras-f14",
+        "goteron-f14",
+        "espesado-f14"
+      ],
+      "tienePintado": false
+    },
+    {
       "id": "peldano-romo",
       "nombre": "Peldaño romo",
       "estado": "activa",

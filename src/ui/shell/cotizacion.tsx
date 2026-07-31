@@ -25,7 +25,7 @@
  */
 
 import { useState } from 'react';
-import { figuraPorId } from '../../domain/engine';
+import { figuraPorId, mermaSugeridaPorcentaje } from '../../domain/engine';
 import { formatearEuros } from '../../domain/money';
 import type { Centimos } from '../../domain/types';
 import { construirSeccion, rasgosDeSuplementos } from '../../piezas/piezaDeFigura';
@@ -38,6 +38,9 @@ import { construirEntrada, medidasTecleadas, useAtelier, useSalidaMotor } from '
 // conversión a céntimos (money.ts exige enteros).
 const RE_IMPORTE_EUROS = /^\d{0,7}([.,]\d{0,2})?$/;
 const RE_PORCENTAJE = /^\d{0,3}([.,]\d{0,2})?$/;
+
+/** La merma sugerida puede caer en decimales (16,67 %); se muestran hasta dos. */
+const FORMATO_MERMA = new Intl.NumberFormat('es-ES', { maximumFractionDigits: 2 });
 
 function formatearM2(m2: number): string {
   return `${new Intl.NumberFormat('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(m2)} m²`;
@@ -107,6 +110,13 @@ export function PanelCotizacion(): JSX.Element {
   const tarifaOriginalTexto =
     tarifaOriginalCentimos === null ? null : `${formatearEuros(tarifaOriginalCentimos)}${unidadPrecio === '€/m²' ? '/m²' : '/unidad'}`;
 
+  // Merma sugerida por el formato de la baldosa (+ extra de figura numerada).
+  // Sin material aún no hay formato del que deducirla, así que no se muestra.
+  const mermaSugeridaTxt =
+    material === null
+      ? null
+      : FORMATO_MERMA.format(mermaSugeridaPorcentaje(material.formato, estado.figuraId, config));
+
   function alCambiarPrecio(valor: string): void {
     if (RE_IMPORTE_EUROS.test(valor)) {
       dispatch({ tipo: 'cambiarPrecioMaterialEditado', euros: valor });
@@ -121,7 +131,7 @@ export function PanelCotizacion(): JSX.Element {
 
   function alReiniciar(): void {
     setErrorPdf(null);
-    dispatch({ tipo: 'reiniciar', mermaPorcentajeDefecto: config.parametros.mermaPorcentajeDefecto });
+    dispatch({ tipo: 'reiniciar' });
   }
 
   async function alGenerarPdf(): Promise<void> {
@@ -267,15 +277,25 @@ export function PanelCotizacion(): JSX.Element {
         <div className="flex flex-col gap-1">
           <Campo
             etiqueta="Merma sobre baldosas (%)"
-            ayuda="Porcentaje aplicado sobre las baldosas de origen, redondeando hacia arriba (§4). Valor provisional de desarrollo: pendiente de taller (§6.9)."
+            ayuda="Porcentaje aplicado sobre las baldosas de origen, redondeando hacia arriba (§4). Se propone según el formato de la baldosa (lado mayor: 60 cm o menos → 10 %, 120 cm o más → 20 %, proporcional en medio) más el extra de las figuras numeradas. Puedes sobrescribirlo."
           >
             <EntradaNumero
-              valor={estado.mermaPorcentaje}
+              valor={estado.mermaEditadaPorcentaje}
               alCambiar={alCambiarMerma}
               disabled={!config.parametros.mermaEditable}
+              placeholder={mermaSugeridaTxt ?? undefined}
               aria-label="Porcentaje de merma"
             />
           </Campo>
+          {/* Igual que el precio del material: la sugerencia queda visible aunque
+              se sobrescriba, para que se vea que la edición fue deliberada. */}
+          {mermaSugeridaTxt !== null ? (
+            <p className="text-xs text-slate-500">
+              {estado.mermaEditadaPorcentaje.trim() === ''
+                ? `Sugerida por el formato: ${mermaSugeridaTxt} %`
+                : `Editada. Sugerida por el formato: ${mermaSugeridaTxt} %`}
+            </p>
+          ) : null}
           {!config.parametros.mermaEditable ? (
             <p className="text-xs text-slate-500">
               Edición desactivada en configuración (§6.10, pendiente de dirección).

@@ -595,6 +595,7 @@ function CONTENIDO(m) {
       ['Figura 2', 'Como la 1, con la nariz de dos grosores (un diente)', 'Ancho, largo, altura frontal'],
       ['Figura 3', 'Como la 1, con la nariz de tres grosores (dos dientes)', 'Ancho, largo, altura frontal'],
       ['Figura 4', 'Peldaño con retorno: el canto se engrosa hacia dentro', 'Ancho, largo, altura frontal, retorno'],
+      ['Tabica', 'Una figura 1 con un zócalo colgado por DETRAS del frontal, retranqueado un grosor. Se cobran las dos partes', 'Ancho, largo, altura frontal, altura del zócalo'],
       ['Peldaño romo', 'Losa de un grosor con el canto delantero redondeado', 'Ancho, largo'],
       ['Pasamanos 1 a 4', 'La figura equivalente con la manipulación en los dos cantos', 'Las de su peldaño equivalente'],
       ['Pasamanos romo', 'Losa con el canto redondeado por los dos lados', 'Ancho, largo'],
@@ -751,9 +752,26 @@ function CONTENIDO(m) {
   m.h2('La merma');
   m.p(
     'La merma es el porcentaje de baldosas de más que se piden para cubrir roturas y ' +
-      'fallos de corte. Viene al 10 % y puedes cambiarla en el campo de la cotización. ' +
-      'Se aplica sobre las baldosas, no sobre el precio, y siempre redondea hacia ' +
-      'arriba: 12 baldosas con 10 % son 14, no 13,2.',
+      'fallos de corte. Se aplica sobre las baldosas, no sobre el precio, y siempre ' +
+      'redondea hacia arriba: 12 baldosas con 10 % son 14, no 13,2.',
+  );
+  m.p(
+    'No es un valor fijo: la herramienta la PROPONE según el formato de la baldosa, ' +
+      'porque cuanto más grande es la pieza más fácil es que se rompa. Debajo del campo ' +
+      'verás siempre cuál es la sugerida; si escribes otra, la sugerida se queda a la ' +
+      'vista, para que conste que la cambiaste a propósito.',
+  );
+  m.lista([
+    'Baldosas de lado mayor 60 cm o menos (30x60, 60x60, 20x20...): 10 %.',
+    'Baldosas de lado mayor 120 cm o más (60x120, 120x120...): 20 %.',
+    'Entre medias sube de forma proporcional: 75 cm son 12,5 % y 90 cm son 15 %.',
+    'Las figuras con número (Figura 1 a 4 y Pasamanos 1 a 4) suman 5 puntos más, por la manipulación que llevan: una Figura 2 sobre baldosa de 30x60 va al 15 %.',
+  ]);
+  m.nota(
+    'Lo que manda es el lado mayor, no la superficie',
+    'Una baldosa de 60x60 tiene el doble de superficie que una de 30x60, pero su lado ' +
+      'mayor sigue siendo 60 cm, así que le toca el mismo 10 %. Si en taller se ve que no ' +
+      'es así, avisa: es un ajuste de una línea.',
   );
 
   // === 8 ====================================================================
@@ -1047,7 +1065,7 @@ function CONTENIDO(m) {
       ['Ancho del disco de corte', '0,3 cm', 'Pendiente de confirmar con taller'],
       ['Saneado por lado', '0,5 cm', 'Pendiente de confirmar con taller'],
       ['Tolerancia de fabricación', '0,2 cm', 'Pendiente de confirmar con taller'],
-      ['Merma por defecto', '10 %', 'Editable; pendiente de confirmar'],
+      ['Merma', 'Según el formato', 'La sugiere la herramienta; siempre editable'],
       ['Merma «mínimo 3»', 'No aplicada', 'Falta saber qué significa la regla'],
       ['Grosor de la baldosa', '1 cm (solo para dibujar)', 'El dato real no está en el catálogo'],
       ['Croquis de las figuras', 'Deducido de la tarifa', 'Falta el croquis acotado oficial'],

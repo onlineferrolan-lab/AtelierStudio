@@ -118,6 +118,12 @@ permite …»).
 - Merma: `baldosasConMerma = ceil(baldosas × (1 + %/100))` con división entera exacta; el %
   se cuantiza a centésimas de punto (10,25 %…) para no usar floats. La condición «mínimo 3»
   **no** se implementa (§6.1, pendiente).
+- **De dónde sale ese %** (2026-07-31): ya no es un valor fijo de configuración. Se
+  **sugiere** a partir del formato de la baldosa (`merma.ts`): interpolación lineal sobre el
+  **lado mayor**, 10 % hasta 60 cm y 20 % desde 120 cm, más 5 puntos en las figuras
+  numeradas. El comercial puede sobrescribirla; el estado guarda solo su edición, así que
+  mientras no la toque la sugerencia se recalcula sola al cambiar de material o de figura.
+  Ver [Configuración](./04-configuracion.md#merma-sugerida-por-formato-2026-07-31).
 
 ### 5. Facturación por cajas completas
 
@@ -147,8 +153,15 @@ de compra no están implementados (§6.8).
   ≤ 5 cm / > 5 cm) o `pintable` (rodapiés: el conmutador «Pintado» solo cambia la tarifa de
   figuras `pintable`; en las demás se ignora silenciosamente).
 - `longitudTarifaMm()` obtiene la longitud a tarifar: una `medida` (habitualmente `longitud`)
-  o el `perimetro` = 2·(largo+ancho), solo en «Corte de piezas» (PROVISIONAL, pendiente de
-  taller; ver `PENDIENTES.md` §4.3).
+  o el `perimetro` = 2·(largo+ancho), en «Corte de piezas» y en el zócalo de la tabica
+  (PROVISIONAL, pendiente de taller; ver `PENDIENTES.md` §4.3).
+- **Figuras compuestas (tabica, 2026-07-31).** Si la figura trae `tarifaAdicional`, se
+  resuelve una SEGUNDA tarifa sobre la misma pieza y se emite en su **propia línea**
+  (`resolverTarifaAdicional` / `longitudTarifaAdicionalMm`). La tabica es «una figura 1 con
+  un corte debajo de zócalo, y el precio es el de las dos combinadas»: la parte de figura 1
+  se tarifa por el largo y el zócalo por su perímetro, que comparte ese mismo largo. Cada
+  parte redondea una vez por pieza y luego se multiplica por la cantidad, igual que la
+  principal; no se suman tarifas antes de redondear ni se redondea sobre lo ya redondeado.
 - **Suplementos por pieza: no van en todas.** «Angular» es un remate del extremo del peldaño y
   en un tramo de escalera solo lo llevan las piezas de esquina (2026-07-30, indicación directa).
   `entrada.unidadesSuplemento[id]` dice a cuántas piezas se aplica cada suplemento `porPieza`;

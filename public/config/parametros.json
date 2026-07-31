@@ -5,6 +5,22 @@
   "saneadoPorLadoMm": 5,
   "mermaPorcentajeDefecto": 10,
   "mermaEditable": true,
+  "_notaMerma": "Merma sugerida por formato (indicación directa 2026-07-31): interpolación LINEAL sobre el LADO MAYOR de la baldosa. 60 cm o menos -> 10 %; 120 cm o más -> 20 %; en medio, proporcional. Las figuras de mermaFigurasConExtra suman mermaExtraFiguraPuntos puntos. El comercial puede sobrescribir el valor sugerido, igual que el precio del material. mermaPorcentajeDefecto solo se usa si no hay material elegido todavía.",
+  "mermaLadoMenorCm": 60,
+  "mermaPorcentajeLadoMenor": 10,
+  "mermaLadoMayorCm": 120,
+  "mermaPorcentajeLadoMayor": 20,
+  "mermaExtraFiguraPuntos": 5,
+  "mermaFigurasConExtra": [
+    "figura-1",
+    "figura-2",
+    "figura-3",
+    "figura-4",
+    "pasamanos-1",
+    "pasamanos-2",
+    "pasamanos-3",
+    "pasamanos-4"
+  ],
   "arranqueMaquinaEuros": 60,
   "ivaPorcentaje": 21
 }

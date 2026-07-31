@@ -22,6 +22,7 @@ import {
   seccionListon,
   seccionPlancha,
   seccionRomo,
+  seccionTabica,
   type SeccionPieza,
   type SuplementosSeccion,
 } from './seccionPieza';
@@ -164,6 +165,28 @@ export function ensamblar(
     const h = aEscena(medidasMm[frontal.anchoDe]); // altura del frontal bajo la tapa (y)
     cota(tapa.largoDe, 'x', 'frenteInferior', 0, largo);
     cota(tapa.anchoDe, 'z', 'lateralDerecho', 0, F);
+
+    // TABICA (2026-07-31): figura 1 con un zócalo colgado POR DETRÁS del
+    // frontal, no a ras de él. Como ambos cuelgan de la cara inferior de la
+    // tapa, las dos cotas verticales se miden desde arriba hacia abajo.
+    const zocalo = componente('zocalo');
+    if (zocalo) {
+      const hz = aEscena(medidasMm[zocalo.anchoDe]);
+      const bajoTapa = Math.max(h, hz);
+      cota(frontal.anchoDe, 'y', 'verticalFrontal', bajoTapa - h, bajoTapa);
+      cota(zocalo.anchoDe, 'y', 'verticalFrontal', bajoTapa - hz, bajoTapa);
+      return {
+        seccion: seccionTabica({
+          fondo: F,
+          alturaFrontal: h,
+          alturaZocalo: hz,
+          grosor: g,
+          suplementos,
+        }),
+        largo,
+        cotas,
+      };
+    }
     cota(frontal.anchoDe, 'y', 'verticalFrontal', 0, h);
 
     const dientes = DIENTES_POR_FIGURA[figura.id] ?? 0;

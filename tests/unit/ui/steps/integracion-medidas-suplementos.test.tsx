@@ -27,7 +27,7 @@ function montar(): { api: () => Api } {
     return null;
   }
   render(
-    <ProveedorAtelier config={construirConfigPrueba()}>
+    <ProveedorAtelier>
       {/* Paso 3 ya abierto (como si acabara de llegar desde el paso 2); el 4 empieza cerrado. */}
       <ProveedorPasos inicial={{ 3: true }}>
         <PasoMedidas />

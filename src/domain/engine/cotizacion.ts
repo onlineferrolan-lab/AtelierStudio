@@ -71,6 +71,8 @@ import { figuraPorId } from './index';
 import { evaluarOcupacion } from './ocupacion';
 import {
   longitudTarifaMm,
+  longitudTarifaAdicionalMm,
+  resolverTarifaAdicional,
   medidasReferenciadas,
   resolverTarifa,
   tarifasReferenciadas,
@@ -335,6 +337,20 @@ export function calcularCotizacion(entrada: EntradaCotizacion, config: Configura
     concepto: `${tarifa.nombre} — ${formatearCotaCm(longitudTarifa)} × ${cantidad} ud.`,
     centimos: multiplicarCentimos(principalPorPieza, cantidad),
   });
+
+  // Figura COMPUESTA (tabica, 2026-07-31): segunda tarifa de la misma pieza. Va
+  // en su PROPIA línea, con su propio redondeo por pieza, igual que la
+  // principal; así el desglose enseña de qué se compone el precio y no se
+  // acumulan dos redondeos sobre un importe ya redondeado.
+  const tarifaZocalo = resolverTarifaAdicional(figura, entrada.medidasMm, entrada.pintado, config);
+  const longitudZocalo = longitudTarifaAdicionalMm(figura, entrada.medidasMm);
+  if (tarifaZocalo !== null && longitudZocalo !== null) {
+    const adicionalPorPieza = aplicarTarifaLineal(tarifaZocalo.milesimasPorCm, longitudZocalo);
+    lineas.push({
+      concepto: `${tarifaZocalo.nombre} — ${formatearCotaCm(longitudZocalo)} × ${cantidad} ud.`,
+      centimos: multiplicarCentimos(adicionalPorPieza, cantidad),
+    });
+  }
 
   // Orden canónico de líneas: el de la configuración de la figura (determinista).
   for (const id of figura.suplementos) {

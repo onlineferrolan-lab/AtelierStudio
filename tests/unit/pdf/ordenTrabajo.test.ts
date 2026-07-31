@@ -51,6 +51,7 @@ const figura: Figura = {
     tarifaIdMayor: 'f1-frontal-gt5',
   },
   longitudTarifa: { tipo: 'medida', medida: 'longitud' },
+  tarifaAdicional: null, // solo la tabica es compuesta
   suplementos: ['angular-f14', 'ranuras-f14'],
   tienePintado: false,
 };
@@ -62,6 +63,12 @@ const config: Configuracion = {
     saneadoPorLadoMm: mm(5),
     mermaPorcentajeDefecto: 10,
     mermaEditable: true,
+    mermaLadoMenorCm: 60,
+    mermaPorcentajeLadoMenor: 10,
+    mermaLadoMayorCm: 120,
+    mermaPorcentajeLadoMayor: 20,
+    mermaExtraFiguraPuntos: 5,
+    mermaFigurasConExtra: ['figura-1'],
     arranqueCentimos: eurosACentimos(60),
     ivaPorcentaje: 21,
   },

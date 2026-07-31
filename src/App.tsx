@@ -63,7 +63,7 @@ function Contenido(): JSX.Element {
   }
 
   return (
-    <ProveedorAtelier config={estadoConfig.config}>
+    <ProveedorAtelier>
       <ProveedorPanel>
         <ProveedorPasos>
           <ShellAtelier />

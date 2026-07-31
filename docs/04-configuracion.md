@@ -165,7 +165,30 @@ Todos los `tarifaId*` deben existir en `tarifas.json`.
 | `tipo` | Campos | Significado |
 |---|---|---|
 | `medida` | `medida` | La tarifa se aplica a esa medida de la pieza (habitualmente `longitud`). |
-| `perimetro` | `largoDe`, `anchoDe` | Se tarifa el perímetro completo 2·(largo+ancho). Solo lo usa `corte` y es **PROVISIONAL** (¿o solo los cortes nuevos? — [PENDIENTES.md](../PENDIENTES.md) §4.3). |
+| `perimetro` | `largoDe`, `anchoDe` | Se tarifa el perímetro completo 2·(largo+ancho). Lo usan `corte` y el zócalo de la `tabica`; es **PROVISIONAL** (¿o solo los cortes nuevos? — [PENDIENTES.md](../PENDIENTES.md) §4.3). |
+
+### `tarifaAdicional` — figuras compuestas (2026-07-31)
+
+Campo **opcional**: solo lo lleva la `tabica`, que es «una figura 1 con un corte debajo a
+modo de zócalo, y el precio es el de las dos combinadas». Contiene su propia `tarifa` y su
+propia `longitudTarifa`, con la misma forma que las principales:
+
+```json
+"tarifaAdicional": {
+  "tarifa": { "tipo": "fija", "tarifaId": "corte" },
+  "longitudTarifa": { "tipo": "perimetro", "largoDe": "longitud", "anchoDe": "alturaZocalo" }
+}
+```
+
+Genera una **línea de manipulación propia**, no se funde con la principal: así el desglose
+enseña de qué se compone el precio, y cada parte redondea una sola vez por pieza en vez de
+encadenar un redondeo sobre otro. `validarConfiguracion` comprueba también sus referencias,
+de modo que una tarifa mal escrita aquí se detecta como error de configuración y no revienta
+al calcular.
+
+La tabica comparte el **largo** entre las dos partes (es el único parámetro común) y trata el
+zócalo como un componente más de la misma pieza, así que entra en la ocupación de la baldosa
+(veta §4) y puede hacer que la pieza no quepa.
 
 ### Figuras `pendiente`: qué significa
 
@@ -197,8 +220,31 @@ taller o dirección: no son valores reales confirmados (ver [PENDIENTES.md](../P
 | `discoMm` | number entero | mm | 3 — **PROVISIONAL** (§6.2) | Ancho del disco de corte; se descuenta en el cálculo de ocupación. |
 | `toleranciaMm` | number entero | mm | 2 — **PROVISIONAL** (§6.3) | Tolerancia de fabricación por fila de colocación. |
 | `saneadoPorLadoMm` | number entero | mm | 5 — **PROVISIONAL** (§6.4) | Saneado por lado de la baldosa; hoy se aplica 2× por fila de colocación. Cuándo aplica está pendiente. |
-| `mermaPorcentajeDefecto` | number | % | 10 (valor de desarrollo de §4) | Porcentaje de merma sobre las baldosas de origen. Pendiente si un 10 % vale para todo (§6.9). |
+| `mermaPorcentajeDefecto` | number | % | 10 | Solo de reserva: se usa cuando aún no hay material elegido y por tanto no hay formato del que deducir la merma. |
 | `mermaEditable` | boolean | — | `true` — **PROVISIONAL** (§6.10) | Si es `false`, el campo de merma se muestra bloqueado al comercial. |
+| `mermaLadoMenorCm` / `mermaPorcentajeLadoMenor` | number | cm / % | 60 / 10 | Extremo bajo del tramo: con ese lado mayor o menos, esa merma. |
+| `mermaLadoMayorCm` / `mermaPorcentajeLadoMayor` | number | cm / % | 120 / 20 | Extremo alto: con ese lado mayor o más, esa merma. En medio se interpola. |
+| `mermaExtraFiguraPuntos` | number | puntos % | 5 | Lo que SUMAN las figuras de la lista de abajo (10 → 15, no 10,5). |
+| `mermaFigurasConExtra` | string[] | — | `figura-1..4`, `pasamanos-1..4` | Qué figuras llevan el extra. En configuración, no en código (§0). |
+
+### Merma sugerida por formato (2026-07-31)
+
+La merma ya no es un número fijo: se **propone** a partir del formato de la baldosa y el
+comercial puede sobrescribirla, igual que el precio del material. La regla —indicación
+directa— es una interpolación **lineal sobre el lado mayor** de la baldosa:
+
+```
+lado mayor ≤ 60 cm   → 10 %
+lado mayor ≥ 120 cm  → 20 %
+en medio             → proporcional (90 cm → 15 %)
+```
+
+Ojo con un caso que despista: una baldosa de **60x60 se queda en el 10 %**, igual que la de
+30x60, porque lo que manda es el lado mayor y no la superficie. Está anotado en
+[PENDIENTES.md](../PENDIENTES.md) §7 por si la intención era otra.
+
+Vive en `src/domain/engine/merma.ts` y calcula en centésimas de punto **enteras**, para que
+un tramo que caiga en 16,666… % dé un valor estable y no un float arrastrado.
 | `arranqueMaquinaEuros` | number | € sin IVA | 60 | Arranque de máquina por orden de trabajo (§2); se convierte a céntimos. Cuándo aplica exactamente sigue abierto ([PENDIENTES.md](../PENDIENTES.md) §4.2). |
 | `ivaPorcentaje` | number | % | 21 | IVA aplicado al total. |
 

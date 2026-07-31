@@ -194,6 +194,90 @@ function arco(
  *    escalera (en los dibujos el borde inferior de la nariz es una sola recta);
  *  - el retorno de la Figura 4 engorda la nariz sin dejar hueco bajo la tapa.
  */
+/**
+ * TABICA: figura 1 con un zócalo colgado POR DETRÁS del frontal
+ * (2026-07-31, indicación directa; corregida respecto a una primera versión que
+ * lo puso a ras del frontal, prolongando la cara delantera — no es eso).
+ *
+ * La contrahuella clásica: la nariz del peldaño vuela y el zócalo queda metido
+ * hacia dentro un grosor, con su borde superior TOCANDO la cara inferior de la
+ * tapa. Dos consecuencias que se ven en el dibujo: la cara del zócalo no está
+ * alineada con la del frontal, y el zócalo suele bajar más que la caída.
+ *
+ *      fondo                          frente
+ *        +==============================+   tapa
+ *                              |    |###|   frontal (caída)
+ *                        +-----+####|###|
+ *                        | ZZZ |----+---+
+ *                        | ZZZ |             zócalo, un grosor por detrás
+ *                        +-----+
+ *
+ * El contorno es UNO solo (las dos partes se tocan en la cara z = fondo −
+ * grosor), que es lo que necesita la extrusión.
+ */
+export function seccionTabica({
+  fondo,
+  alturaFrontal,
+  alturaZocalo,
+  grosor,
+  suplementos = SIN_SUPLEMENTOS,
+}: {
+  readonly fondo: number;
+  /** Caída: lo que baja el frontal desde la tapa. */
+  readonly alturaFrontal: number;
+  /** Lo que baja el zócalo desde la MISMA cara inferior de la tapa. */
+  readonly alturaZocalo: number;
+  readonly grosor: number;
+  readonly suplementos?: SuplementosSeccion;
+}): SeccionPieza {
+  const grosorTapa = grosorConEspesado(grosor, suplementos);
+  // Cara inferior de la tapa: de ahí cuelgan las dos piezas, así que la altura
+  // total la marca la más larga.
+  const bajoTapa = Math.max(alturaFrontal, alturaZocalo);
+  const alto = bajoTapa + grosorTapa;
+  // Tope defensivo: con un fondo muy pequeño el zócalo se saldría de la pieza.
+  const zFrontal = Math.max(fondo - grosor, 0);
+  const zZocalo = Math.max(fondo - 2 * grosor, 0);
+
+  const yFrontal = bajoTapa - alturaFrontal; // base del frontal
+  const yZocalo = bajoTapa - alturaZocalo; // base del zócalo
+
+  // Antihorario desde el canto trasero superior. La secuencia vale tanto si el
+  // zócalo baja más que la caída como al revés: solo cambian yFrontal e yZocalo.
+  const contorno: PuntoSeccion[] = [
+    [0, alto],
+    [fondo, alto],
+    [fondo, yFrontal],
+    [zFrontal, yFrontal],
+    [zFrontal, yZocalo],
+    [zZocalo, yZocalo],
+    [zZocalo, bajoTapa],
+    [0, bajoTapa],
+  ];
+
+  // Juntas de encolado: tapa/frontal y frontal/zócalo (donde se solapan).
+  const solape = Math.min(alturaFrontal, alturaZocalo);
+  const juntas: (readonly [PuntoSeccion, PuntoSeccion])[] = [
+    [
+      [zFrontal, bajoTapa],
+      [fondo, bajoTapa],
+    ],
+    [
+      [zFrontal, bajoTapa - solape],
+      [zFrontal, bajoTapa],
+    ],
+  ];
+
+  return { contorno: sinPuntosRepetidos(contorno), juntas };
+}
+
+/** Quita vértices consecutivos iguales (p. ej. si caída y zócalo miden lo mismo). */
+function sinPuntosRepetidos(puntos: readonly PuntoSeccion[]): readonly PuntoSeccion[] {
+  return puntos.filter(
+    (p, i) => i === 0 || p[0] !== puntos[i - 1][0] || p[1] !== puntos[i - 1][1],
+  );
+}
+
 export function seccionEscuadra({
   fondo,
   alto,

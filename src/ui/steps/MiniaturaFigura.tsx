@@ -47,6 +47,16 @@ const ALTO = 3; // alto total del peldaño (tapa + frontal), como en la tarifa
 const FONDO = 11; // fondo de la tapa
 const LARGO = 9; // largo dibujado de la pieza
 const RETORNO = 2; // profundidad del retorno (Figura 4 y Pasamanos 4)
+// Tabica. La tapa se dibuja IGUAL que en las demás figuras (mismo LARGO y
+// FONDO): lo único que cambia es lo que cuelga por delante. Con un zócalo de 3
+// el dibujo mide 89×61 px y cabe en el viewBox de 96×64; con 4 ya se sale por
+// abajo, y encogerle la tapa para ganar hueco la deformaba respecto al resto.
+const ALTO_ZOCALO = 3; // lo que baja el zócalo bajo la cara inferior de la tapa
+const CAIDA_TABICA = 2; // la nariz, igual que el frontal de la figura 1
+// El zócalo se dibuja con DOS grosores de espesor, no con uno. Es exageración a
+// propósito, como el resto de estas miniaturas: con un grosor real quedaba una
+// pestaña de un píxel y el frente parecía una aleta suelta en vez de un panel.
+const GRUESO_ZOCALO = 2;
 const ALTO_RODAPIE = 5;
 const LARGO_RODAPIE = 14;
 const ANCHO_CORTE = 6;
@@ -115,24 +125,25 @@ function seccionEscuadra({
   readonly retorno: boolean;
   readonly espejo: boolean;
 }): Seccion {
-  const bajoTapa = ALTO - G; // cara inferior de la tapa
+  const alto = ALTO;
+  const bajoTapa = alto - G; // cara inferior de la tapa
   const nariz = (dientes + 1) * G + (retorno ? RETORNO : 0);
 
   const tramos: Tramo[] = [
     { puntos: [[espejo ? nariz : 0, bajoTapa], [FONDO - nariz, bajoTapa]], cara: null },
     { puntos: [[FONDO - nariz, bajoTapa], [FONDO - nariz, 0]], cara: null },
     { puntos: [[FONDO - nariz, 0], [FONDO, 0]], cara: null },
-    { puntos: [[FONDO, 0], [FONDO, ALTO]], cara: 'frontal' },
-    { puntos: [[FONDO, ALTO], [0, ALTO]], cara: 'superior' },
+    { puntos: [[FONDO, 0], [FONDO, alto]], cara: 'frontal' },
+    { puntos: [[FONDO, alto], [0, alto]], cara: 'superior' },
   ];
   if (espejo) {
     tramos.push(
-      { puntos: [[0, ALTO], [0, 0]], cara: null },
+      { puntos: [[0, alto], [0, 0]], cara: null },
       { puntos: [[0, 0], [nariz, 0]], cara: null },
       { puntos: [[nariz, 0], [nariz, bajoTapa]], cara: null },
     );
   } else {
-    tramos.push({ puntos: [[0, ALTO], [0, bajoTapa]], cara: null });
+    tramos.push({ puntos: [[0, alto], [0, bajoTapa]], cara: null });
   }
 
   // Juntas de encolado sobre la testa, por canto manipulado.
@@ -146,7 +157,7 @@ function seccionEscuadra({
   for (const [borde, signo] of cantos) {
     const dentro = (d: number): number => borde + signo * d;
     // Chaflán a 45° tapa/frontal, y la cara inferior de la tapa sobre la nariz.
-    juntas.push([[dentro(G), bajoTapa], [borde, ALTO]]);
+    juntas.push([[dentro(G), bajoTapa], [borde, alto]]);
     if (nariz > G) juntas.push([[dentro(G), bajoTapa], [dentro(nariz), bajoTapa]]);
     if (retorno) {
       // Frontal encolado sobre el retorno: chaflán a 45° en la base, cara
@@ -330,12 +341,53 @@ function Perfil({
 const ESCUADRA = (dientes: number, retorno = false, espejo = false): Seccion =>
   seccionEscuadra({ dientes, retorno, espejo });
 
+/**
+ * Tabica: figura 1 con el zócalo colgando POR DETRÁS del frontal, con su borde
+ * superior tocando la cara inferior de la tapa (2026-07-31). La nariz vuela y el
+ * zócalo queda retranqueado un grosor: es lo que distingue la tabica de un
+ * frontal alto, así que la miniatura tiene que dejarlo claro.
+ */
+function seccionTabica(): Seccion {
+  const alto = ALTO_ZOCALO + G; // la tapa se apoya sobre el zócalo, que es lo más largo
+  const bajoTapa = alto - G;
+  const yFrontal = bajoTapa - CAIDA_TABICA;
+  const zFrontal = FONDO - G; // cara vista del zócalo: retranqueada un grosor
+  const zZocalo = zFrontal - GRUESO_ZOCALO; // su cara trasera
+
+  // El recorrido va de ATRÁS hacia ADELANTE a propósito. Este dibujo no calcula
+  // oclusión: pinta los tramos en orden, así que el último tapa al anterior. Con
+  // el contorno al revés, la cara del zócalo —que está DETRÁS— se pintaba encima
+  // de la nariz y parecía estar delante. Es el mismo orden que usa la escuadra:
+  // la cara frontal antes que la superior.
+  const tramos: Tramo[] = [
+    { puntos: [[0, alto], [0, bajoTapa]], cara: null },
+    { puntos: [[0, bajoTapa], [zZocalo, bajoTapa]], cara: null },
+    { puntos: [[zZocalo, bajoTapa], [zZocalo, 0]], cara: null },
+    { puntos: [[zZocalo, 0], [zFrontal, 0]], cara: null },
+    // Cara vista del zócalo, retranqueada un grosor respecto a la nariz.
+    { puntos: [[zFrontal, 0], [zFrontal, yFrontal]], cara: 'frontal' },
+    { puntos: [[zFrontal, yFrontal], [FONDO, yFrontal]], cara: null },
+    // Nariz: se pinta DESPUÉS del zócalo porque está delante.
+    { puntos: [[FONDO, yFrontal], [FONDO, alto]], cara: 'frontal' },
+    { puntos: [[FONDO, alto], [0, alto]], cara: 'superior' },
+  ];
+
+  // Junta tapa/nariz y junta nariz/zócalo, donde se tocan.
+  const juntas: (readonly [Punto, Punto])[] = [
+    [[zFrontal, bajoTapa], [FONDO, bajoTapa]],
+    [[zFrontal, yFrontal], [zFrontal, bajoTapa]],
+  ];
+
+  return { tramos, juntas, largo: LARGO };
+}
+
 /** Sección por id de figura (los dos rodapiés comparten dibujo). */
 const SECCIONES: Readonly<Record<string, () => Seccion>> = {
   'figura-1': () => ESCUADRA(0),
   'figura-2': () => ESCUADRA(1),
   'figura-3': () => ESCUADRA(2),
   'figura-4': () => ESCUADRA(0, true),
+  tabica: () => seccionTabica(),
   'peldano-romo': () => seccionRomo({ doble: false }),
   'pasamanos-1': () => ESCUADRA(0, false, true),
   'pasamanos-2': () => ESCUADRA(1, false, true),
