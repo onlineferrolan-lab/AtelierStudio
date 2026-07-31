@@ -30,14 +30,23 @@ Todo debe quedar en verde: `tsc --noEmit`, `eslint . --max-warnings 0`, `vitest 
 
 ## Dónde vive cada cosa
 
-- Reglas §4 (ocupación, merma, stock/pedido, desglose): `src/domain/engine/`
+- Reglas §4 (ocupación, merma, desglose): `src/domain/engine/`
+  - **La caja es del ARTÍCULO, no del corte.** `cotizacion.ts` está partido en
+    `calcularLinea` (lo que es de la pieza) y `facturarMaterial` (lo que es del
+    artículo); `pedido.ts` agrupa varias piezas por material y factura las cajas
+    una sola vez. Una cotización de una pieza es un grupo con una línea: si tocas
+    una de las dos mitades, comprueba que sigue dando lo mismo.
 - Contratos de dominio (no ampliar sin necesidad): `src/domain/types.ts`, `config.ts`
-- Estado global (reducer, una pieza por cotización): `src/ui/state/quote-state.tsx`
+- Estado global (reducer: la pieza en edición + el carrito del pedido):
+  `src/ui/state/quote-state.tsx`. Lo que describe UNA pieza va en `PiezaConfigurada`,
+  para que el editor y las líneas del carrito compartan forma y conversión.
 - Patrón visual Top Studio: `src/ui/components/primitivas.tsx`
 - Catálogo (cataleg real/PrestaShop/muestra/manual): `src/data/` — `FuenteCatalogo` (muestra,
   índice de búsqueda) + `fuenteCataleg.ts` (datos reales por código, vía proxy `/api/cataleg/`,
   nunca con la clave en el navegador — ver README y PENDIENTES.md §4.8)
-- Visor 3D paramétrico: `src/viewer/` · PDF orden de trabajo: `src/pdf/`
+- Visor 3D paramétrico: `src/viewer/` · PDF: `src/pdf/` — los bloques de maquetación
+  viven en `maqueta.ts` y los comparten la orden de una pieza (`ordenTrabajo.ts`) y la
+  del pedido (`ordenPedido.ts`); no dupliques cajas ni cabeceras entre los dos.
 
 ## Al terminar una tarea
 

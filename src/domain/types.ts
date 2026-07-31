@@ -235,3 +235,84 @@ export interface ResultadoCotizacion {
 export type SalidaMotor =
   | { readonly ok: true; readonly resultado: ResultadoCotizacion }
   | { readonly ok: false; readonly errores: readonly ErrorValidacion[] };
+
+// ---------------------------------------------------------------------------
+// PEDIDO: varias piezas en una sola orden de trabajo (2026-07-31)
+// ---------------------------------------------------------------------------
+
+/**
+ * Una pieza dentro del pedido, ya calculada. Es lo mismo que un
+ * `ResultadoCotizacion` MENOS todo lo que depende de la caja: las cajas, las
+ * unidades y el importe del material no son de la pieza, son del GRUPO de
+ * material del que sale (ver `GrupoMaterialPedido`).
+ */
+export interface ResultadoLineaPedido {
+  /** Posición de la línea en el pedido (0-based), para poder señalarla en la UI. */
+  readonly indice: number;
+  readonly figuraId: string;
+  readonly cantidad: number;
+  /** Clave del grupo de material del que sale esta pieza. */
+  readonly claveGrupo: string;
+  readonly componentes: readonly ComponentePieza[];
+  readonly ocupacion: DetalleOcupacion;
+  readonly baldosasNecesarias: number;
+  readonly baldosasConMerma: number;
+  readonly mermaPorcentaje: number;
+  readonly lineasManipulacion: readonly LineaManipulacion[];
+  /** Suma de sus líneas de manipulación, con el margen ya aplicado. */
+  readonly manipulacionCentimos: Centimos;
+  readonly margen: MargenAplicado;
+}
+
+/**
+ * Todas las piezas del pedido que salen del MISMO artículo. Es aquí donde vive
+ * el ahorro del pedido: las cajas se cuentan UNA VEZ sobre la suma de baldosas
+ * de todas sus piezas, en vez de una tanda de cajas por cada corte distinto.
+ */
+export interface GrupoMaterialPedido {
+  readonly clave: string;
+  readonly material: Material;
+  /** Índices de las líneas del pedido que se cortan de este material. */
+  readonly indicesLinea: readonly number[];
+  /** Suma de las baldosas con merma de sus líneas. */
+  readonly baldosasConMerma: number;
+  readonly cajasFacturadas: number;
+  readonly unidadesFacturadas: number;
+  readonly m2Facturados: number;
+  /** Baldosas de la última caja que quedan sin usar (las que se cobran de más). */
+  readonly baldosasSobrantes: number;
+  /** Importe del material del grupo, con el margen ya aplicado. */
+  readonly materialCentimos: Centimos;
+  /** Cajas que habrían salido cotizando cada pieza por separado. */
+  readonly cajasSinAgrupar: number;
+  /** Arranque de máquina del grupo (uno por material, ver `pedido.ts`). */
+  readonly arranqueCentimos: Centimos;
+  readonly margen: MargenAplicado;
+  readonly precioMaterialOriginal: Centimos;
+  readonly precioMaterialAplicado: Centimos;
+}
+
+export interface ResultadoPedido {
+  readonly lineas: readonly ResultadoLineaPedido[];
+  readonly grupos: readonly GrupoMaterialPedido[];
+  readonly desglose: DesgloseCotizacion;
+  /** Cajas que se ahorran por compartir caja entre cortes distintos. */
+  readonly cajasAhorradas: number;
+  /**
+   * Diferencia (sin IVA) entre cotizar cada pieza en su propia orden y este
+   * pedido: cajas compartidas + un solo arranque por material. Nunca negativa.
+   */
+  readonly ahorroCentimos: Centimos;
+  /** Total sin IVA que habría salido pieza a pieza, para poder enseñar el ahorro. */
+  readonly totalSinAgruparCentimos: Centimos;
+}
+
+/** Error de validación con la línea del pedido a la que pertenece (null = del pedido entero). */
+export interface ErrorLineaPedido {
+  readonly indiceLinea: number | null;
+  readonly error: ErrorValidacion;
+}
+
+export type SalidaPedido =
+  | { readonly ok: true; readonly resultado: ResultadoPedido }
+  | { readonly ok: false; readonly errores: readonly ErrorLineaPedido[] };

@@ -53,9 +53,13 @@ import type { Configuracion, Figura } from '../config';
 import type {
   Centimos,
   ComponentePieza,
+  DetalleOcupacion,
   EntradaCotizacion,
   ErrorValidacion,
   LineaManipulacion,
+  MargenAplicado,
+  MargenCentesimas,
+  Material,
   Mm,
   SalidaMotor,
 } from '../types';
@@ -256,8 +260,40 @@ function validarEntrada(
   return errores;
 }
 
-/** Calcula la cotización completa. Errores como valor; nunca lanza por entrada de usuario. */
-export function calcularCotizacion(entrada: EntradaCotizacion, config: Configuracion): SalidaMotor {
+/**
+ * Lo que se calcula POR PIEZA: componentes, ocupación, baldosas y manipulación.
+ *
+ * Deja fuera a propósito TODO lo que depende de la caja (cajas, unidades, m² e
+ * importe del material) porque eso no es de la pieza: es del ARTÍCULO. Cuando
+ * varias piezas distintas se cortan del mismo material comparten cajas, y
+ * entonces las cajas hay que contarlas una sola vez sobre la suma de baldosas
+ * (ver `pedido.ts`). Una cotización de una sola pieza no es más que el caso
+ * particular de un grupo con una línea.
+ */
+export interface LineaCalculada {
+  readonly componentes: readonly ComponentePieza[];
+  readonly ocupacion: DetalleOcupacion;
+  readonly baldosasNecesarias: number;
+  readonly baldosasConMerma: number;
+  /** Ya con el margen aplicado, línea a línea (ver `margen.ts`). */
+  readonly lineasManipulacion: readonly LineaManipulacion[];
+  readonly manipulacionCentimos: Centimos;
+  readonly margen: MargenAplicado;
+  /** Precio de tarifa del material (€/m² del ERP o €/ud. en manual), sin margen. */
+  readonly precioUnitarioOriginal: Centimos;
+  /** El que se aplica de verdad: el editado por el comercial si lo hay. */
+  readonly precioUnitarioAplicado: Centimos;
+}
+
+export type SalidaLinea =
+  | { readonly ok: true; readonly linea: LineaCalculada }
+  | { readonly ok: false; readonly errores: readonly ErrorValidacion[] };
+
+/**
+ * Calcula una pieza hasta donde se puede sin decidir cuántas cajas se compran.
+ * Errores como valor; nunca lanza por entrada de usuario.
+ */
+export function calcularLinea(entrada: EntradaCotizacion, config: Configuracion): SalidaLinea {
   // 1. Figura activa (§3: las pendientes se muestran bloqueadas).
   const figura = figuraPorId(config, entrada.figuraId);
   if (!figura) {
@@ -326,32 +362,15 @@ export function calcularCotizacion(entrada: EntradaCotizacion, config: Configura
   const mermaCentesimas = Math.round(entrada.mermaPorcentaje * 100);
   const baldosasConMerma = ceilDiv(baldosasNecesarias * (10_000 + mermaCentesimas), 10_000);
 
-  // 5. Facturación por CAJAS COMPLETAS, en stock y en pedido por igual
-  //    (2026-07-30, indicación directa). El sobrante se cobra al cliente.
-  const piezasPorCaja = entrada.material.piezasPorCaja as number; // validado en validarEntrada
-  const cajasFacturadas = ceilDiv(baldosasConMerma, piezasPorCaja);
-  const unidadesFacturadas = cajasFacturadas * piezasPorCaja;
-
-  // 6. Coste de material (aritmética entera, redondeo half-up exacto).
+  // 5. Precio unitario del material: el editado por el comercial manda sobre la tarifa.
   const { material } = entrada;
   const precioUnitarioOriginal = material.esManual
     ? material.precioUnidadCentimos
     : material.precioM2Centimos;
   const precioUnitarioAplicado = (entrada.precioMaterialEditado ??
     precioUnitarioOriginal) as Centimos; // validado no nulo
-  // m2PorCaja del ERP (float) se cuantiza a mm² enteros para mantener enteros.
-  const mm2PorCaja = Math.round((material.m2PorCaja ?? 0) * 1_000_000);
-  const mm2FacturadosTotal = cajasFacturadas * mm2PorCaja;
-  const m2Facturados = mm2FacturadosTotal / 1_000_000;
 
-  let materialCentimos: Centimos;
-  if (material.esManual) {
-    materialCentimos = multiplicarCentimos(precioUnitarioAplicado, unidadesFacturadas);
-  } else {
-    materialCentimos = centimos(halfUpPartePorMillon(mm2FacturadosTotal * precioUnitarioAplicado));
-  }
-
-  // 7. Manipulación: tarifa resuelta × longitud de tarifa (redondeo por pieza,
+  // 6. Manipulación: tarifa resuelta × longitud de tarifa (redondeo por pieza,
   //    luego × cantidad — ver cabecera) + suplementos activos. El pintado solo
   //    afecta a figuras con regla "pintable" (rodapiés); en las demás se ignora.
   const tarifa = resolverTarifa(figura, entrada.medidasMm, entrada.pintado, config);
@@ -400,25 +419,101 @@ export function calcularCotizacion(entrada: EntradaCotizacion, config: Configura
     }
   }
 
-  // 8. MARGEN COMERCIAL (2026-07-31). Se aplica a material, manipulación
-  //    —suplementos incluidos— y arranque: a todo lo que se factura.
-  //
-  //    Línea a línea, no sobre el total, para que el desglose que se ve en
-  //    pantalla y en la orden SUME el total exacto. Ver `margen.ts`.
+  // 7. MARGEN COMERCIAL (2026-07-31). Línea a línea, no sobre el total, para que
+  //    el desglose que se ve en pantalla y en la orden SUME el total exacto.
   const lineasConMargen = lineas.map((l) => ({
     concepto: l.concepto,
     centimos: aplicarMargen(l.centimos, margen.centesimas),
   }));
-  const manipulacionCentimos = sumarCentimos(...lineasConMargen.map((l) => l.centimos));
-  const materialConMargen = aplicarMargen(materialCentimos, margen.centesimas);
+
+  return {
+    ok: true,
+    linea: {
+      componentes,
+      ocupacion: ocupacion.detalle,
+      baldosasNecesarias,
+      baldosasConMerma,
+      lineasManipulacion: lineasConMargen,
+      manipulacionCentimos: sumarCentimos(...lineasConMargen.map((l) => l.centimos)),
+      margen,
+      // Si no había tarifa original y el comercial introdujo el precio, el
+      // "original" mostrado es ese mismo valor (no hay tarifa que conservar).
+      precioUnitarioOriginal: precioUnitarioOriginal ?? precioUnitarioAplicado,
+      precioUnitarioAplicado,
+    },
+  };
+}
+
+/** Lo que cuesta comprar el material de un artículo: cajas completas y su importe. */
+export interface FacturacionMaterial {
+  readonly cajasFacturadas: number;
+  readonly unidadesFacturadas: number;
+  readonly m2Facturados: number;
+  /** Con el margen ya aplicado. */
+  readonly materialCentimos: Centimos;
+}
+
+/**
+ * Facturación por CAJAS COMPLETAS de un artículo (2026-07-30, indicación
+ * directa): el sobrante se cobra al cliente. Se llama UNA VEZ por artículo, con
+ * la suma de baldosas de todas las piezas que se corten de él — de ahí sale el
+ * ahorro del pedido con varias piezas.
+ *
+ * Coste: aritmética entera mm²·céntimos/1e6 con redondeo half-up exacto.
+ * m² facturados = cajas × m2PorCaja (cuantizado a mm² enteros). Material manual
+ * → precioUnidad × unidades.
+ */
+export function facturarMaterial(
+  material: Material,
+  baldosasConMerma: number,
+  precioUnitarioAplicado: Centimos,
+  margenCentesimas: MargenCentesimas,
+): FacturacionMaterial {
+  const piezasPorCaja = material.piezasPorCaja as number; // validado en validarEntrada
+  const cajasFacturadas = ceilDiv(baldosasConMerma, piezasPorCaja);
+  const unidadesFacturadas = cajasFacturadas * piezasPorCaja;
+
+  // m2PorCaja del ERP (float) se cuantiza a mm² enteros para mantener enteros.
+  const mm2PorCaja = Math.round((material.m2PorCaja ?? 0) * 1_000_000);
+  const mm2FacturadosTotal = cajasFacturadas * mm2PorCaja;
+
+  const bruto = material.esManual
+    ? multiplicarCentimos(precioUnitarioAplicado, unidadesFacturadas)
+    : centimos(halfUpPartePorMillon(mm2FacturadosTotal * precioUnitarioAplicado));
+
+  return {
+    cajasFacturadas,
+    unidadesFacturadas,
+    m2Facturados: mm2FacturadosTotal / 1_000_000,
+    materialCentimos: aplicarMargen(bruto, margenCentesimas),
+  };
+}
+
+/** Calcula la cotización completa. Errores como valor; nunca lanza por entrada de usuario. */
+export function calcularCotizacion(entrada: EntradaCotizacion, config: Configuracion): SalidaMotor {
+  const salida = calcularLinea(entrada, config);
+  if (!salida.ok) return { ok: false, errores: salida.errores };
+  const { linea } = salida;
+
+  // Una pieza sola es un grupo de material con una sola línea: mismas cajas,
+  // mismo importe y mismo arranque que antes de que existiera el pedido.
+  const facturacion = facturarMaterial(
+    entrada.material,
+    linea.baldosasConMerma,
+    linea.precioUnitarioAplicado,
+    linea.margen.centesimas,
+  );
 
   // Arranque de máquina: una vez por orden cuando hay manipulación (§2).
-  const arranqueCentimos = aplicarMargen(config.parametros.arranqueCentimos, margen.centesimas);
+  const arranqueCentimos = aplicarMargen(
+    config.parametros.arranqueCentimos,
+    linea.margen.centesimas,
+  );
 
-  // 9. Totales: sin IVA, IVA (21 % configurable), con IVA.
+  // Totales: sin IVA, IVA (21 % configurable), con IVA.
   const totalSinIvaCentimos = sumarCentimos(
-    materialConMargen,
-    manipulacionCentimos,
+    facturacion.materialCentimos,
+    linea.manipulacionCentimos,
     arranqueCentimos,
   );
   const ivaCentimos = aplicarPorcentaje(totalSinIvaCentimos, config.parametros.ivaPorcentaje);
@@ -427,26 +522,24 @@ export function calcularCotizacion(entrada: EntradaCotizacion, config: Configura
   return {
     ok: true,
     resultado: {
-      componentes,
-      ocupacion: ocupacion.detalle,
-      baldosasNecesarias,
-      baldosasConMerma,
-      unidadesFacturadas,
-      cajasFacturadas,
-      m2Facturados,
-      lineasManipulacion: lineasConMargen,
-      margen,
+      componentes: linea.componentes,
+      ocupacion: linea.ocupacion,
+      baldosasNecesarias: linea.baldosasNecesarias,
+      baldosasConMerma: linea.baldosasConMerma,
+      unidadesFacturadas: facturacion.unidadesFacturadas,
+      cajasFacturadas: facturacion.cajasFacturadas,
+      m2Facturados: facturacion.m2Facturados,
+      lineasManipulacion: linea.lineasManipulacion,
+      margen: linea.margen,
       desglose: {
-        materialCentimos: materialConMargen,
-        manipulacionCentimos,
+        materialCentimos: facturacion.materialCentimos,
+        manipulacionCentimos: linea.manipulacionCentimos,
         arranqueCentimos,
         totalSinIvaCentimos,
         ivaCentimos,
         totalConIvaCentimos,
       },
-      // Si no había tarifa original y el comercial introdujo el precio, el
-      // "original" mostrado es ese mismo valor (no hay tarifa que conservar).
-      precioMaterialOriginal: precioUnitarioOriginal ?? precioUnitarioAplicado,
+      precioMaterialOriginal: linea.precioUnitarioOriginal,
     },
   };
 }
