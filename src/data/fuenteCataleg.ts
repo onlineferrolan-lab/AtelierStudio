@@ -180,6 +180,8 @@ export function mapearArticuloCataleg(
     piezasPorCaja:
       campoNumero(json, 'peces_caixa') ?? piezasPorCajaDesdeEncaixat(encaixatM2, formato),
     m2PorCaja: encaixatM2,
+    // El contrato del API no expone la subfamilia (ver PENDIENTES.md §6).
+    subfamilia: null,
     imagenUrl: urlImagenPrestashop(referencia, prestashopImgBase),
     esManual: false,
   };

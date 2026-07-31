@@ -1,5 +1,5 @@
 {
-  "_nota": "Catálogo de figuras. Las recetas de las figuras activas son PROVISIONALES: se deducen de los dibujos de la tarifa PDF mientras el croquis acotado oficial de taller sigue pendiente (§3). Las figuras 'pendiente' no tienen tarifa confirmada (§6.5, §6.6) y se muestran bloqueadas.",
+  "_nota": "Catálogo de figuras. Las etiquetas de medida son «Largo» y «Ancho» (2026-07-30, indicación directa), y el ancho se pide antes que el largo; los ids internos siguen siendo longitud/fondo para no romper las recetas ni los casos dorados ya escritos. Las recetas de las figuras activas son PROVISIONALES: se deducen de los dibujos de la tarifa PDF mientras el croquis acotado oficial de taller sigue pendiente (§3). Los RODAPIÉS son nueve figuras (2026-07-31, indicación directa): tres alturas (7,2 · 8 · a medida) por tres cantos (recto · microbiselado · romado). En las de 7,2 y 8 la altura NO se teclea, va en el nombre y por eso es `valorFijoCm`; el canto solo cambia el dibujo, nunca la tarifa. Las nueve llevan `medidaPorMetros`, que es lo que habilita el segundo modo de cálculo del paso ③ (metros + unidades → largo por pieza). Con esto el antiguo «rodapié recto», retirado en 2026-07-29 por no tener tarifa, vuelve a la galería: el canto recto no tiene incremento. Las figuras sin tarifa confirmada (Figura 5, vierteaguas — §6.5) NO están en la galería: se retiraron 2026-07-29 a petición de dirección y su seguimiento vive en PENDIENTES.md (el estado 'pendiente' sigue soportado por si se reincorporan). Los pasamanos (2026-07-29, a petición del maestro) son la MISMA receta que su peldaño equivalente con el frontal/retorno (o la media caña) también en el lado opuesto; su tarifa repite PROVISIONALMENTE el precio del peldaño equivalente hasta que taller confirme tarifa (§6.6, PENDIENTES.md).",
   "figuras": [
     {
       "id": "figura-1",
@@ -9,19 +9,19 @@
       "croquisPendiente": true,
       "medidas": [
         {
-          "id": "longitud",
-          "etiqueta": "Longitud (cm)",
+          "id": "fondo",
+          "etiqueta": "Ancho (cm)",
           "minCm": 1
         },
         {
-          "id": "fondo",
-          "etiqueta": "Fondo (cm)",
+          "id": "longitud",
+          "etiqueta": "Largo (cm)",
           "minCm": 1
         },
         {
           "id": "alturaFrontal",
           "etiqueta": "Altura frontal (cm)",
-          "minCm": 1
+          "minCm": 4
         }
       ],
       "componentes": [
@@ -52,8 +52,7 @@
         "ranuras-f14",
         "goteron-f14",
         "espesado-f14"
-      ],
-      "tienePintado": false
+      ]
     },
     {
       "id": "figura-2",
@@ -63,19 +62,19 @@
       "croquisPendiente": true,
       "medidas": [
         {
-          "id": "longitud",
-          "etiqueta": "Longitud (cm)",
+          "id": "fondo",
+          "etiqueta": "Ancho (cm)",
           "minCm": 1
         },
         {
-          "id": "fondo",
-          "etiqueta": "Fondo (cm)",
+          "id": "longitud",
+          "etiqueta": "Largo (cm)",
           "minCm": 1
         },
         {
           "id": "alturaFrontal",
           "etiqueta": "Altura frontal (cm)",
-          "minCm": 1
+          "minCm": 4
         }
       ],
       "componentes": [
@@ -103,8 +102,7 @@
         "ranuras-f14",
         "goteron-f14",
         "espesado-f14"
-      ],
-      "tienePintado": false
+      ]
     },
     {
       "id": "figura-3",
@@ -114,19 +112,19 @@
       "croquisPendiente": true,
       "medidas": [
         {
-          "id": "longitud",
-          "etiqueta": "Longitud (cm)",
+          "id": "fondo",
+          "etiqueta": "Ancho (cm)",
           "minCm": 1
         },
         {
-          "id": "fondo",
-          "etiqueta": "Fondo (cm)",
+          "id": "longitud",
+          "etiqueta": "Largo (cm)",
           "minCm": 1
         },
         {
           "id": "alturaFrontal",
           "etiqueta": "Altura frontal (cm)",
-          "minCm": 1
+          "minCm": 4
         }
       ],
       "componentes": [
@@ -154,8 +152,7 @@
         "ranuras-f14",
         "goteron-f14",
         "espesado-f14"
-      ],
-      "tienePintado": false
+      ]
     },
     {
       "id": "figura-4",
@@ -165,19 +162,19 @@
       "croquisPendiente": true,
       "medidas": [
         {
-          "id": "longitud",
-          "etiqueta": "Longitud (cm)",
+          "id": "fondo",
+          "etiqueta": "Ancho (cm)",
           "minCm": 1
         },
         {
-          "id": "fondo",
-          "etiqueta": "Fondo (cm)",
+          "id": "longitud",
+          "etiqueta": "Largo (cm)",
           "minCm": 1
         },
         {
           "id": "alturaFrontal",
           "etiqueta": "Altura frontal (cm)",
-          "minCm": 1
+          "minCm": 4
         },
         {
           "id": "retorno",
@@ -215,8 +212,81 @@
         "ranuras-f14",
         "goteron-f14",
         "espesado-f14"
+      ]
+    },
+    {
+      "id": "tabica",
+      "nombre": "Tabica",
+      "estado": "activa",
+      "motivoPendiente": null,
+      "croquisPendiente": true,
+      "medidas": [
+        {
+          "id": "fondo",
+          "etiqueta": "Ancho (cm)",
+          "minCm": 1
+        },
+        {
+          "id": "longitud",
+          "etiqueta": "Largo (cm)",
+          "minCm": 1
+        },
+        {
+          "id": "alturaFrontal",
+          "etiqueta": "Altura frontal (cm)",
+          "minCm": 4
+        },
+        {
+          "id": "alturaZocalo",
+          "etiqueta": "Altura del zócalo (cm)",
+          "minCm": 1
+        }
       ],
-      "tienePintado": false
+      "componentes": [
+        {
+          "id": "tapa",
+          "largoDe": "longitud",
+          "anchoDe": "fondo"
+        },
+        {
+          "id": "frontal",
+          "largoDe": "longitud",
+          "anchoDe": "alturaFrontal"
+        },
+        {
+          "id": "zocalo",
+          "largoDe": "longitud",
+          "anchoDe": "alturaZocalo"
+        }
+      ],
+      "tarifa": {
+        "tipo": "porUmbral",
+        "medida": "alturaFrontal",
+        "umbralCm": 5,
+        "tarifaIdMenorOIgual": "f1-frontal-le5",
+        "tarifaIdMayor": "f1-frontal-gt5"
+      },
+      "longitudTarifa": {
+        "tipo": "medida",
+        "medida": "longitud"
+      },
+      "tarifaAdicional": {
+        "tarifa": {
+          "tipo": "fija",
+          "tarifaId": "corte"
+        },
+        "longitudTarifa": {
+          "tipo": "perimetro",
+          "largoDe": "longitud",
+          "anchoDe": "alturaZocalo"
+        }
+      },
+      "suplementos": [
+        "angular-f14",
+        "ranuras-f14",
+        "goteron-f14",
+        "espesado-f14"
+      ]
     },
     {
       "id": "peldano-romo",
@@ -226,13 +296,13 @@
       "croquisPendiente": true,
       "medidas": [
         {
-          "id": "longitud",
-          "etiqueta": "Longitud (cm)",
+          "id": "fondo",
+          "etiqueta": "Ancho (cm)",
           "minCm": 1
         },
         {
-          "id": "fondo",
-          "etiqueta": "Fondo (cm)",
+          "id": "longitud",
+          "etiqueta": "Largo (cm)",
           "minCm": 1
         }
       ],
@@ -256,61 +326,530 @@
         "ranuras-romo",
         "goteron-romo",
         "espesado-romo"
-      ],
-      "tienePintado": false
+      ]
     },
     {
-      "id": "rodapie-estandar",
-      "nombre": "Rodapié 7,2 y 8 cm",
+      "id": "pasamanos-1",
+      "nombre": "Pasamanos 1",
+      "estado": "activa",
+      "motivoPendiente": null,
+      "croquisPendiente": true,
+      "medidas": [
+        {
+          "id": "fondo",
+          "etiqueta": "Ancho (cm)",
+          "minCm": 1
+        },
+        {
+          "id": "longitud",
+          "etiqueta": "Largo (cm)",
+          "minCm": 1
+        },
+        {
+          "id": "alturaFrontal",
+          "etiqueta": "Altura frontal (cm)",
+          "minCm": 4
+        }
+      ],
+      "componentes": [
+        {
+          "id": "tapa",
+          "largoDe": "longitud",
+          "anchoDe": "fondo"
+        },
+        {
+          "id": "frontal",
+          "largoDe": "longitud",
+          "anchoDe": "alturaFrontal"
+        },
+        {
+          "id": "frontal-trasero",
+          "largoDe": "longitud",
+          "anchoDe": "alturaFrontal"
+        }
+      ],
+      "tarifa": {
+        "tipo": "porUmbral",
+        "medida": "alturaFrontal",
+        "umbralCm": 5,
+        "tarifaIdMenorOIgual": "pasamanos-1-frontal-le5",
+        "tarifaIdMayor": "pasamanos-1-frontal-gt5"
+      },
+      "longitudTarifa": {
+        "tipo": "medida",
+        "medida": "longitud"
+      },
+      "suplementos": [
+        "angular-f14",
+        "ranuras-f14",
+        "goteron-f14",
+        "espesado-f14"
+      ]
+    },
+    {
+      "id": "pasamanos-2",
+      "nombre": "Pasamanos 2",
+      "estado": "activa",
+      "motivoPendiente": null,
+      "croquisPendiente": true,
+      "medidas": [
+        {
+          "id": "fondo",
+          "etiqueta": "Ancho (cm)",
+          "minCm": 1
+        },
+        {
+          "id": "longitud",
+          "etiqueta": "Largo (cm)",
+          "minCm": 1
+        },
+        {
+          "id": "alturaFrontal",
+          "etiqueta": "Altura frontal (cm)",
+          "minCm": 4
+        }
+      ],
+      "componentes": [
+        {
+          "id": "tapa",
+          "largoDe": "longitud",
+          "anchoDe": "fondo"
+        },
+        {
+          "id": "frontal",
+          "largoDe": "longitud",
+          "anchoDe": "alturaFrontal"
+        },
+        {
+          "id": "frontal-trasero",
+          "largoDe": "longitud",
+          "anchoDe": "alturaFrontal"
+        }
+      ],
+      "tarifa": {
+        "tipo": "fija",
+        "tarifaId": "pasamanos-2"
+      },
+      "longitudTarifa": {
+        "tipo": "medida",
+        "medida": "longitud"
+      },
+      "suplementos": [
+        "angular-f14",
+        "ranuras-f14",
+        "goteron-f14",
+        "espesado-f14"
+      ]
+    },
+    {
+      "id": "pasamanos-3",
+      "nombre": "Pasamanos 3",
+      "estado": "activa",
+      "motivoPendiente": null,
+      "croquisPendiente": true,
+      "medidas": [
+        {
+          "id": "fondo",
+          "etiqueta": "Ancho (cm)",
+          "minCm": 1
+        },
+        {
+          "id": "longitud",
+          "etiqueta": "Largo (cm)",
+          "minCm": 1
+        },
+        {
+          "id": "alturaFrontal",
+          "etiqueta": "Altura frontal (cm)",
+          "minCm": 4
+        }
+      ],
+      "componentes": [
+        {
+          "id": "tapa",
+          "largoDe": "longitud",
+          "anchoDe": "fondo"
+        },
+        {
+          "id": "frontal",
+          "largoDe": "longitud",
+          "anchoDe": "alturaFrontal"
+        },
+        {
+          "id": "frontal-trasero",
+          "largoDe": "longitud",
+          "anchoDe": "alturaFrontal"
+        }
+      ],
+      "tarifa": {
+        "tipo": "fija",
+        "tarifaId": "pasamanos-3"
+      },
+      "longitudTarifa": {
+        "tipo": "medida",
+        "medida": "longitud"
+      },
+      "suplementos": [
+        "angular-f14",
+        "ranuras-f14",
+        "goteron-f14",
+        "espesado-f14"
+      ]
+    },
+    {
+      "id": "pasamanos-4",
+      "nombre": "Pasamanos 4",
+      "estado": "activa",
+      "motivoPendiente": null,
+      "croquisPendiente": true,
+      "medidas": [
+        {
+          "id": "fondo",
+          "etiqueta": "Ancho (cm)",
+          "minCm": 1
+        },
+        {
+          "id": "longitud",
+          "etiqueta": "Largo (cm)",
+          "minCm": 1
+        },
+        {
+          "id": "alturaFrontal",
+          "etiqueta": "Altura frontal (cm)",
+          "minCm": 4
+        },
+        {
+          "id": "retorno",
+          "etiqueta": "Retorno (cm)",
+          "minCm": 1
+        }
+      ],
+      "componentes": [
+        {
+          "id": "tapa",
+          "largoDe": "longitud",
+          "anchoDe": "fondo"
+        },
+        {
+          "id": "frontal",
+          "largoDe": "longitud",
+          "anchoDe": "alturaFrontal"
+        },
+        {
+          "id": "frontal-trasero",
+          "largoDe": "longitud",
+          "anchoDe": "alturaFrontal"
+        },
+        {
+          "id": "retorno",
+          "largoDe": "longitud",
+          "anchoDe": "retorno"
+        },
+        {
+          "id": "retorno-trasero",
+          "largoDe": "longitud",
+          "anchoDe": "retorno"
+        }
+      ],
+      "tarifa": {
+        "tipo": "fija",
+        "tarifaId": "pasamanos-4"
+      },
+      "longitudTarifa": {
+        "tipo": "medida",
+        "medida": "longitud"
+      },
+      "suplementos": [
+        "angular-f14",
+        "ranuras-f14",
+        "goteron-f14",
+        "espesado-f14"
+      ]
+    },
+    {
+      "id": "pasamanos-romo",
+      "nombre": "Pasamanos romo",
+      "estado": "activa",
+      "motivoPendiente": null,
+      "croquisPendiente": true,
+      "medidas": [
+        {
+          "id": "fondo",
+          "etiqueta": "Ancho (cm)",
+          "minCm": 1
+        },
+        {
+          "id": "longitud",
+          "etiqueta": "Largo (cm)",
+          "minCm": 1
+        }
+      ],
+      "componentes": [
+        {
+          "id": "tapa",
+          "largoDe": "longitud",
+          "anchoDe": "fondo"
+        }
+      ],
+      "tarifa": {
+        "tipo": "fija",
+        "tarifaId": "pasamanos-romo"
+      },
+      "longitudTarifa": {
+        "tipo": "medida",
+        "medida": "longitud"
+      },
+      "suplementos": [
+        "angular-romo",
+        "ranuras-romo",
+        "goteron-romo",
+        "espesado-romo"
+      ]
+    },
+    {
+      "id": "rodapie-72-recto",
+      "nombre": "Rodapié 7,2 canto recto",
       "estado": "activa",
       "motivoPendiente": null,
       "croquisPendiente": true,
       "medidas": [
         {
           "id": "longitud",
-          "etiqueta": "Longitud (cm)",
+          "etiqueta": "Largo (cm)",
           "minCm": 1
         },
         {
           "id": "altura",
           "etiqueta": "Altura (cm)",
           "minCm": 7.2,
-          "maxCm": 8,
-          "opcionesCm": [
-            7.2,
-            8
-          ]
+          "maxCm": 7.2,
+          "valorFijoCm": 7.2
         }
       ],
       "componentes": [
         {
           "id": "liston",
           "largoDe": "longitud",
-          "anchoDe": "altura"
+          "anchoDe": "altura",
+          "canto": "recto"
         }
       ],
       "tarifa": {
-        "tipo": "pintable",
-        "tarifaId": "rodapie-estandar",
-        "tarifaIdPintado": "rodapie-estandar-pintado"
+        "tipo": "fija",
+        "tarifaId": "rodapie-estandar"
       },
       "longitudTarifa": {
         "tipo": "medida",
         "medida": "longitud"
       },
-      "suplementos": [],
-      "tienePintado": true
+      "medidaPorMetros": "longitud",
+      "suplementos": []
     },
     {
-      "id": "rodapie-no-estandar",
-      "nombre": "Rodapié no estándar",
+      "id": "rodapie-72-microbiselado",
+      "nombre": "Rodapié 7,2 microbiselado",
       "estado": "activa",
       "motivoPendiente": null,
       "croquisPendiente": true,
       "medidas": [
         {
           "id": "longitud",
-          "etiqueta": "Longitud (cm)",
+          "etiqueta": "Largo (cm)",
+          "minCm": 1
+        },
+        {
+          "id": "altura",
+          "etiqueta": "Altura (cm)",
+          "minCm": 7.2,
+          "maxCm": 7.2,
+          "valorFijoCm": 7.2
+        }
+      ],
+      "componentes": [
+        {
+          "id": "liston",
+          "largoDe": "longitud",
+          "anchoDe": "altura",
+          "canto": "microbiselado"
+        }
+      ],
+      "tarifa": {
+        "tipo": "fija",
+        "tarifaId": "rodapie-estandar"
+      },
+      "longitudTarifa": {
+        "tipo": "medida",
+        "medida": "longitud"
+      },
+      "medidaPorMetros": "longitud",
+      "suplementos": []
+    },
+    {
+      "id": "rodapie-72-romado",
+      "nombre": "Rodapié 7,2 canto romado",
+      "estado": "activa",
+      "motivoPendiente": null,
+      "croquisPendiente": true,
+      "medidas": [
+        {
+          "id": "longitud",
+          "etiqueta": "Largo (cm)",
+          "minCm": 1
+        },
+        {
+          "id": "altura",
+          "etiqueta": "Altura (cm)",
+          "minCm": 7.2,
+          "maxCm": 7.2,
+          "valorFijoCm": 7.2
+        }
+      ],
+      "componentes": [
+        {
+          "id": "liston",
+          "largoDe": "longitud",
+          "anchoDe": "altura",
+          "canto": "romado"
+        }
+      ],
+      "tarifa": {
+        "tipo": "fija",
+        "tarifaId": "rodapie-estandar"
+      },
+      "longitudTarifa": {
+        "tipo": "medida",
+        "medida": "longitud"
+      },
+      "medidaPorMetros": "longitud",
+      "suplementos": []
+    },
+    {
+      "id": "rodapie-8-recto",
+      "nombre": "Rodapié 8 canto recto",
+      "estado": "activa",
+      "motivoPendiente": null,
+      "croquisPendiente": true,
+      "medidas": [
+        {
+          "id": "longitud",
+          "etiqueta": "Largo (cm)",
+          "minCm": 1
+        },
+        {
+          "id": "altura",
+          "etiqueta": "Altura (cm)",
+          "minCm": 8,
+          "maxCm": 8,
+          "valorFijoCm": 8
+        }
+      ],
+      "componentes": [
+        {
+          "id": "liston",
+          "largoDe": "longitud",
+          "anchoDe": "altura",
+          "canto": "recto"
+        }
+      ],
+      "tarifa": {
+        "tipo": "fija",
+        "tarifaId": "rodapie-estandar"
+      },
+      "longitudTarifa": {
+        "tipo": "medida",
+        "medida": "longitud"
+      },
+      "medidaPorMetros": "longitud",
+      "suplementos": []
+    },
+    {
+      "id": "rodapie-8-microbiselado",
+      "nombre": "Rodapié 8 microbiselado",
+      "estado": "activa",
+      "motivoPendiente": null,
+      "croquisPendiente": true,
+      "medidas": [
+        {
+          "id": "longitud",
+          "etiqueta": "Largo (cm)",
+          "minCm": 1
+        },
+        {
+          "id": "altura",
+          "etiqueta": "Altura (cm)",
+          "minCm": 8,
+          "maxCm": 8,
+          "valorFijoCm": 8
+        }
+      ],
+      "componentes": [
+        {
+          "id": "liston",
+          "largoDe": "longitud",
+          "anchoDe": "altura",
+          "canto": "microbiselado"
+        }
+      ],
+      "tarifa": {
+        "tipo": "fija",
+        "tarifaId": "rodapie-estandar"
+      },
+      "longitudTarifa": {
+        "tipo": "medida",
+        "medida": "longitud"
+      },
+      "medidaPorMetros": "longitud",
+      "suplementos": []
+    },
+    {
+      "id": "rodapie-8-romado",
+      "nombre": "Rodapié 8 canto romado",
+      "estado": "activa",
+      "motivoPendiente": null,
+      "croquisPendiente": true,
+      "medidas": [
+        {
+          "id": "longitud",
+          "etiqueta": "Largo (cm)",
+          "minCm": 1
+        },
+        {
+          "id": "altura",
+          "etiqueta": "Altura (cm)",
+          "minCm": 8,
+          "maxCm": 8,
+          "valorFijoCm": 8
+        }
+      ],
+      "componentes": [
+        {
+          "id": "liston",
+          "largoDe": "longitud",
+          "anchoDe": "altura",
+          "canto": "romado"
+        }
+      ],
+      "tarifa": {
+        "tipo": "fija",
+        "tarifaId": "rodapie-estandar"
+      },
+      "longitudTarifa": {
+        "tipo": "medida",
+        "medida": "longitud"
+      },
+      "medidaPorMetros": "longitud",
+      "suplementos": []
+    },
+    {
+      "id": "rodapie-medida-recto",
+      "nombre": "Rodapié a medida canto recto",
+      "estado": "activa",
+      "motivoPendiente": null,
+      "croquisPendiente": true,
+      "medidas": [
+        {
+          "id": "longitud",
+          "etiqueta": "Largo (cm)",
           "minCm": 1
         },
         {
@@ -323,20 +862,94 @@
         {
           "id": "liston",
           "largoDe": "longitud",
-          "anchoDe": "altura"
+          "anchoDe": "altura",
+          "canto": "recto"
         }
       ],
       "tarifa": {
-        "tipo": "pintable",
-        "tarifaId": "rodapie-no-estandar",
-        "tarifaIdPintado": "rodapie-no-estandar-pintado"
+        "tipo": "fija",
+        "tarifaId": "rodapie-no-estandar"
       },
       "longitudTarifa": {
         "tipo": "medida",
         "medida": "longitud"
       },
-      "suplementos": [],
-      "tienePintado": true
+      "medidaPorMetros": "longitud",
+      "suplementos": []
+    },
+    {
+      "id": "rodapie-medida-microbiselado",
+      "nombre": "Rodapié a medida microbiselado",
+      "estado": "activa",
+      "motivoPendiente": null,
+      "croquisPendiente": true,
+      "medidas": [
+        {
+          "id": "longitud",
+          "etiqueta": "Largo (cm)",
+          "minCm": 1
+        },
+        {
+          "id": "altura",
+          "etiqueta": "Altura (cm)",
+          "minCm": 1
+        }
+      ],
+      "componentes": [
+        {
+          "id": "liston",
+          "largoDe": "longitud",
+          "anchoDe": "altura",
+          "canto": "microbiselado"
+        }
+      ],
+      "tarifa": {
+        "tipo": "fija",
+        "tarifaId": "rodapie-no-estandar"
+      },
+      "longitudTarifa": {
+        "tipo": "medida",
+        "medida": "longitud"
+      },
+      "medidaPorMetros": "longitud",
+      "suplementos": []
+    },
+    {
+      "id": "rodapie-medida-romado",
+      "nombre": "Rodapié a medida canto romado",
+      "estado": "activa",
+      "motivoPendiente": null,
+      "croquisPendiente": true,
+      "medidas": [
+        {
+          "id": "longitud",
+          "etiqueta": "Largo (cm)",
+          "minCm": 1
+        },
+        {
+          "id": "altura",
+          "etiqueta": "Altura (cm)",
+          "minCm": 1
+        }
+      ],
+      "componentes": [
+        {
+          "id": "liston",
+          "largoDe": "longitud",
+          "anchoDe": "altura",
+          "canto": "romado"
+        }
+      ],
+      "tarifa": {
+        "tipo": "fija",
+        "tarifaId": "rodapie-no-estandar"
+      },
+      "longitudTarifa": {
+        "tipo": "medida",
+        "medida": "longitud"
+      },
+      "medidaPorMetros": "longitud",
+      "suplementos": []
     },
     {
       "id": "corte",
@@ -346,13 +959,13 @@
       "croquisPendiente": false,
       "medidas": [
         {
-          "id": "largo",
-          "etiqueta": "Largo (cm)",
+          "id": "ancho",
+          "etiqueta": "Ancho (cm)",
           "minCm": 1
         },
         {
-          "id": "ancho",
-          "etiqueta": "Ancho (cm)",
+          "id": "largo",
+          "etiqueta": "Largo (cm)",
           "minCm": 1
         }
       ],
@@ -372,60 +985,11 @@
         "largoDe": "largo",
         "anchoDe": "ancho"
       },
-      "suplementos": [],
-      "tienePintado": false
-    },
-    {
-      "id": "figura-5",
-      "nombre": "Figura 5",
-      "estado": "pendiente",
-      "motivoPendiente": "Sin tarifa ni croquis confirmados por taller (§6.5).",
-      "croquisPendiente": true,
-      "medidas": [],
-      "componentes": [],
-      "tarifa": null,
-      "longitudTarifa": null,
-      "suplementos": [],
-      "tienePintado": false
-    },
-    {
-      "id": "pasamanos",
-      "nombre": "Pasamanos",
-      "estado": "pendiente",
-      "motivoPendiente": "Sin tarifa confirmada (§6.6). Puede llevar dos manipulaciones y un solo arranque (§2).",
-      "croquisPendiente": true,
-      "medidas": [],
-      "componentes": [],
-      "tarifa": null,
-      "longitudTarifa": null,
-      "suplementos": [],
-      "tienePintado": false
-    },
-    {
-      "id": "vierteaguas",
-      "nombre": "Vierteaguas",
-      "estado": "pendiente",
-      "motivoPendiente": "Sin tarifa confirmada (§6.6).",
-      "croquisPendiente": true,
-      "medidas": [],
-      "componentes": [],
-      "tarifa": null,
-      "longitudTarifa": null,
-      "suplementos": [],
-      "tienePintado": false
-    },
-    {
-      "id": "rodapie-recto",
-      "nombre": "Rodapié recto",
-      "estado": "pendiente",
-      "motivoPendiente": "Pendiente de confirmar si se tarifa como 'corte de piezas' (§6.6).",
-      "croquisPendiente": true,
-      "medidas": [],
-      "componentes": [],
-      "tarifa": null,
-      "longitudTarifa": null,
-      "suplementos": [],
-      "tienePintado": false
+      "suplementos": [
+        "inglete-corte",
+        "microbisel-corte",
+        "sin-microbisel-corte"
+      ]
     }
   ]
 }

@@ -11,7 +11,7 @@
  * y se muestran marcados como PROVISIONAL en la interfaz.
  */
 
-import type { Centimos, Milesimas, Mm } from './types';
+import type { Centimos, MargenSubfamilia, Milesimas, Mm, TablaMargenes } from './types';
 import { centimos, eurosACentimos, eurosAMilesimas } from './money';
 import { mm } from './units';
 
@@ -26,10 +26,27 @@ export interface ParametrosTaller {
   readonly toleranciaMm: Mm;
   /** Saneado por lado de la baldosa. PROVISIONAL (§6.4: cuándo aplica, pendiente). */
   readonly saneadoPorLadoMm: Mm;
-  /** % de merma sobre baldosas de origen (§4: valor provisional de desarrollo 10 %). */
+  /**
+   * % de merma de reserva, solo para cuando todavía no hay material elegido y
+   * por tanto no se puede calcular la sugerida por formato.
+   */
   readonly mermaPorcentajeDefecto: number;
   /** Si el comercial puede editar la merma en la UI. PROVISIONAL (§6.10). */
   readonly mermaEditable: boolean;
+  /**
+   * Tramo de merma por formato (indicación directa 2026-07-31). Interpolación
+   * LINEAL sobre el LADO MAYOR de la baldosa: en `mermaLadoMenorCm` o menos se
+   * aplica `mermaPorcentajeLadoMenor`; en `mermaLadoMayorCm` o más,
+   * `mermaPorcentajeLadoMayor`; entre medias, proporcional.
+   */
+  readonly mermaLadoMenorCm: number;
+  readonly mermaPorcentajeLadoMenor: number;
+  readonly mermaLadoMayorCm: number;
+  readonly mermaPorcentajeLadoMayor: number;
+  /** Puntos porcentuales que suman las figuras numeradas (se SUMAN, no multiplican). */
+  readonly mermaExtraFiguraPuntos: number;
+  /** Ids de figura con el extra. En configuración, no en código (§0). */
+  readonly mermaFigurasConExtra: readonly string[];
   /** Arranque de máquina por orden de trabajo, en céntimos (§2: 60 €, editable). */
   readonly arranqueCentimos: Centimos;
   readonly ivaPorcentaje: number;
@@ -70,7 +87,21 @@ export interface CampoMedida {
   readonly maxCm: number | null;
   /** Si está presente, la medida solo puede tomar uno de estos valores (cm). */
   readonly opcionesCm: readonly number[] | null;
+  /**
+   * Medida que NO se teclea: la fija la propia figura (2026-07-31, indicación
+   * directa). Los rodapiés de 7,2 y de 8 llevan la altura en el nombre, así que
+   * no es una elección del comercial sino parte de la figura; la UI la enseña en
+   * solo lectura y la validación la da por puesta. Null = la teclea el comercial.
+   */
+  readonly valorFijoCm: number | null;
 }
+
+/**
+ * Canto superior del listón de rodapié. No cambia la tarifa (2026-07-31,
+ * indicación directa: el canto recto «no tiene incremento»), solo la forma que
+ * se dibuja en la miniatura, el visor 3D y el croquis de la orden.
+ */
+export type CantoListon = 'recto' | 'microbiselado' | 'romado';
 
 export interface ComponenteReceta {
   readonly id: string;
@@ -78,13 +109,14 @@ export interface ComponenteReceta {
   readonly largoDe: string;
   /** Medida de la que sale el ancho del componente. */
   readonly anchoDe: string;
+  /** Solo el componente 'liston': cómo se remata su canto superior. */
+  readonly canto: CantoListon | null;
 }
 
 /**
  * Cómo se obtiene la tarifa de una figura:
  *  - fija: una sola tarifa.
  *  - porUmbral: según una medida (Figura 1: frontal ≤ 5 cm / > 5 cm).
- *  - pintable: tarifa base y tarifa alternativa si va pintado (rodapiés).
  */
 export type ReglaTarifa =
   | { readonly tipo: 'fija'; readonly tarifaId: string }
@@ -94,8 +126,7 @@ export type ReglaTarifa =
       readonly umbralMm: Mm;
       readonly tarifaIdMenorOIgual: string;
       readonly tarifaIdMayor: string;
-    }
-  | { readonly tipo: 'pintable'; readonly tarifaId: string; readonly tarifaIdPintado: string };
+    };
 
 /**
  * Longitud a la que se aplica la tarifa lineal:
@@ -122,10 +153,31 @@ export interface Figura {
   /** Null en figuras 'pendiente' (sin tarifa confirmada, §6.5/§6.6). */
   readonly tarifa: ReglaTarifa | null;
   readonly longitudTarifa: ReglaLongitudTarifa | null;
+  /**
+   * SEGUNDA tarifa de la misma pieza, para figuras COMPUESTAS (indicación
+   * directa 2026-07-31: la tabica es «una figura 1 con un corte debajo de
+   * zócalo, y el precio es el de las dos combinadas»).
+   *
+   * Genera su propia línea de manipulación, no se funde con la principal: en
+   * taller y en el presupuesto se ve de qué se compone el precio. Null en las
+   * figuras normales, que es el caso de todas menos la tabica.
+   */
+  readonly tarifaAdicional: {
+    readonly tarifa: ReglaTarifa;
+    readonly longitudTarifa: ReglaLongitudTarifa;
+  } | null;
   /** Ids de suplementos aplicables (definidos en tarifas.json). */
   readonly suplementos: readonly string[];
-  /** true si la tarifa depende del conmutador "Pintado" del paso ④. */
-  readonly tienePintado: boolean;
+  /**
+   * Medida que puede deducirse de los METROS pedidos, en las figuras que se
+   * venden por metro lineal (rodapiés, 2026-07-31, indicación directa). Cuando
+   * no es null, el paso ③ ofrece un segundo modo de cálculo: en vez del largo de
+   * la pieza, el comercial indica cuántos metros quiere y en cuántas unidades, y
+   * el largo sale de dividir (`metros × 100 ÷ unidades`).
+   *
+   * Null = la figura solo admite el modo normal (largo + cantidad).
+   */
+  readonly medidaPorMetros: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -137,6 +189,11 @@ export interface Configuracion {
   readonly tarifas: Readonly<Record<string, TarifaLineal>>;
   readonly suplementos: Readonly<Record<string, Suplemento>>;
   readonly figuras: readonly Figura[];
+  /**
+   * Márgenes comerciales por subfamilia (2026-07-31). Generado del CSV del ERP
+   * por `scripts/generar-margenes.mjs`; ver `engine/margen.ts`.
+   */
+  readonly margenes: TablaMargenes;
 }
 
 export interface FuenteConfiguracion {
@@ -153,6 +210,12 @@ interface ParametrosJson {
   saneadoPorLadoMm: number;
   mermaPorcentajeDefecto: number;
   mermaEditable: boolean;
+  mermaLadoMenorCm: number;
+  mermaPorcentajeLadoMenor: number;
+  mermaLadoMayorCm: number;
+  mermaPorcentajeLadoMayor: number;
+  mermaExtraFiguraPuntos: number;
+  mermaFigurasConExtra: string[];
   arranqueMaquinaEuros: number;
   ivaPorcentaje: number;
 }
@@ -173,17 +236,33 @@ type ReglaTarifaJson =
       umbralCm: number;
       tarifaIdMenorOIgual: string;
       tarifaIdMayor: string;
-    }
-  | { tipo: 'pintable'; tarifaId: string; tarifaIdPintado: string };
+    };
 
 interface FigurasJson {
-  figuras: (Omit<Figura, 'tarifa' | 'medidas' | 'longitudTarifa'> & {
+  figuras: (Omit<
+    Figura,
+    | 'tarifa'
+    | 'medidas'
+    | 'componentes'
+    | 'longitudTarifa'
+    | 'tarifaAdicional'
+    | 'medidaPorMetros'
+  > & {
     tarifa: ReglaTarifaJson | null;
-    medidas: (Omit<CampoMedida, 'maxCm' | 'opcionesCm'> & {
+    medidas: (Omit<CampoMedida, 'maxCm' | 'opcionesCm' | 'valorFijoCm'> & {
       maxCm?: number | null;
       opcionesCm?: number[] | null;
+      valorFijoCm?: number | null;
     })[];
+    componentes: (Omit<ComponenteReceta, 'canto'> & { canto?: CantoListon | null })[];
+    /** Opcional: solo las figuras que se venden por metro lineal (rodapiés). */
+    medidaPorMetros?: string | null;
     longitudTarifa: ReglaLongitudTarifa | null;
+    /** Opcional: solo las figuras compuestas (tabica) lo traen. */
+    tarifaAdicional?: {
+      tarifa: ReglaTarifaJson;
+      longitudTarifa: ReglaLongitudTarifa;
+    } | null;
   })[];
 }
 
@@ -194,6 +273,12 @@ function parsearParametros(json: ParametrosJson): ParametrosTaller {
     saneadoPorLadoMm: mm(json.saneadoPorLadoMm),
     mermaPorcentajeDefecto: json.mermaPorcentajeDefecto,
     mermaEditable: json.mermaEditable,
+    mermaLadoMenorCm: json.mermaLadoMenorCm,
+    mermaPorcentajeLadoMenor: json.mermaPorcentajeLadoMenor,
+    mermaLadoMayorCm: json.mermaLadoMayorCm,
+    mermaPorcentajeLadoMayor: json.mermaPorcentajeLadoMayor,
+    mermaExtraFiguraPuntos: json.mermaExtraFiguraPuntos,
+    mermaFigurasConExtra: json.mermaFigurasConExtra,
     arranqueCentimos: eurosACentimos(json.arranqueMaquinaEuros),
     ivaPorcentaje: json.ivaPorcentaje,
   };
@@ -246,8 +331,22 @@ function parsearReglaTarifa(json: ReglaTarifaJson | null): ReglaTarifa | null {
 function parsearFiguras(json: FigurasJson): Figura[] {
   return json.figuras.map((f) => ({
     ...f,
-    medidas: f.medidas.map((m) => ({ ...m, maxCm: m.maxCm ?? null, opcionesCm: m.opcionesCm ?? null })),
+    medidas: f.medidas.map((m) => ({
+      ...m,
+      maxCm: m.maxCm ?? null,
+      opcionesCm: m.opcionesCm ?? null,
+      valorFijoCm: m.valorFijoCm ?? null,
+    })),
+    componentes: f.componentes.map((c) => ({ ...c, canto: c.canto ?? null })),
+    medidaPorMetros: f.medidaPorMetros ?? null,
     tarifa: parsearReglaTarifa(f.tarifa),
+    tarifaAdicional: f.tarifaAdicional
+      ? {
+          // parsearReglaTarifa nunca devuelve null si la entrada no es null.
+          tarifa: parsearReglaTarifa(f.tarifaAdicional.tarifa) as ReglaTarifa,
+          longitudTarifa: f.tarifaAdicional.longitudTarifa,
+        }
+      : null,
   }));
 }
 
@@ -264,9 +363,7 @@ export function validarConfiguracion(config: Configuracion): string[] {
     const tarifaIds =
       figura.tarifa.tipo === 'fija'
         ? [figura.tarifa.tarifaId]
-        : figura.tarifa.tipo === 'pintable'
-          ? [figura.tarifa.tarifaId, figura.tarifa.tarifaIdPintado]
-          : [figura.tarifa.tarifaIdMenorOIgual, figura.tarifa.tarifaIdMayor];
+        : [figura.tarifa.tarifaIdMenorOIgual, figura.tarifa.tarifaIdMayor];
     for (const id of tarifaIds) {
       if (!idsTarifa.includes(id)) {
         errores.push(`Figura '${figura.id}': tarifa desconocida '${id}'`);
@@ -285,6 +382,25 @@ export function validarConfiguracion(config: Configuracion): string[] {
         );
       }
     }
+    // El modo «por metros» tiene que decir de qué medida sale el largo.
+    if (figura.medidaPorMetros !== null && !idsMedida.includes(figura.medidaPorMetros)) {
+      errores.push(
+        `Figura '${figura.id}': medidaPorMetros '${figura.medidaPorMetros}' no es una medida declarada`,
+      );
+    }
+    // Una medida fija que no cumpliera sus propios límites dejaría la figura sin
+    // cotizar y sin que el comercial pudiera hacer nada: se caza al cargar.
+    for (const m of figura.medidas) {
+      if (m.valorFijoCm === null) continue;
+      const fueraDeRango =
+        m.valorFijoCm < m.minCm || (m.maxCm !== null && m.valorFijoCm > m.maxCm);
+      const fueraDeOpciones = m.opcionesCm !== null && !m.opcionesCm.includes(m.valorFijoCm);
+      if (fueraDeRango || fueraDeOpciones) {
+        errores.push(
+          `Figura '${figura.id}': el valor fijo de la medida '${m.id}' (${m.valorFijoCm} cm) no cumple sus propios límites`,
+        );
+      }
+    }
   }
   return errores;
 }
@@ -295,18 +411,20 @@ export function crearFuenteConfiguracionJson(
 ): FuenteConfiguracion {
   return {
     async cargar(): Promise<Configuracion> {
-      const [parametrosRes, tarifasRes, figurasRes] = await Promise.all([
+      const [parametrosRes, tarifasRes, figurasRes, margenesRes] = await Promise.all([
         fetch(`${baseUrl}/parametros.json`),
         fetch(`${baseUrl}/tarifas.json`),
         fetch(`${baseUrl}/figuras.json`),
+        fetch(`${baseUrl}/margenes.json`),
       ]);
-      for (const res of [parametrosRes, tarifasRes, figurasRes]) {
+      for (const res of [parametrosRes, tarifasRes, figurasRes, margenesRes]) {
         if (!res.ok) throw new Error(`No se pudo cargar la configuración: ${res.url}`);
       }
       const config: Configuracion = {
         parametros: parsearParametros((await parametrosRes.json()) as ParametrosJson),
         ...parsearTarifas((await tarifasRes.json()) as TarifasJson),
         figuras: parsearFiguras((await figurasRes.json()) as FigurasJson),
+        margenes: parsearMargenes((await margenesRes.json()) as MargenesJson),
       };
       const errores = validarConfiguracion(config);
       if (errores.length > 0) {
@@ -322,12 +440,36 @@ export function construirConfiguracion(
   parametrosJson: ParametrosJson,
   tarifasJson: TarifasJson,
   figurasJson: FigurasJson,
+  margenesJson?: MargenesJson,
 ): Configuracion {
   return {
     parametros: parsearParametros(parametrosJson),
     ...parsearTarifas(tarifasJson),
     figuras: parsearFiguras(figurasJson),
+    margenes: parsearMargenes(margenesJson),
   };
+}
+
+interface MargenesJson {
+  longitudSubfamilia?: number;
+  subfamilias?: Record<string, { nombre?: string; pvp: number; contratista: number }>;
+}
+
+/**
+ * Parsea la tabla de márgenes. Sin fichero (o vacío) devuelve una tabla VACÍA,
+ * no un margen 0: el motor distingue «no hay margen para esta subfamilia» —que
+ * bloquea la cotización hasta que se indique a mano— de «margen del 0 %».
+ */
+function parsearMargenes(json: MargenesJson | undefined): TablaMargenes {
+  const subfamilias: Record<string, MargenSubfamilia> = {};
+  for (const [codigo, fila] of Object.entries(json?.subfamilias ?? {})) {
+    subfamilias[codigo] = {
+      nombre: fila.nombre ?? codigo,
+      pvp: fila.pvp,
+      contratista: fila.contratista,
+    };
+  }
+  return { longitudSubfamilia: json?.longitudSubfamilia ?? 4, subfamilias };
 }
 
 /** Guarda de tipo para evitar `any` al leer importes sueltos. */

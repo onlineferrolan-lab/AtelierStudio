@@ -36,14 +36,25 @@ interface CasoDorado {
     m2PorCaja: number | null;
     esManual: boolean;
   };
-  origen: 'stock' | 'pedido';
   figuraId: string;
   medidasCm: Record<string, string>;
   cantidad: number;
   suplementos: string[];
-  pintado: boolean;
-  precioMaterialEditadoEuros: number | null;
+  /**
+   * A cuántas piezas se aplica cada suplemento POR PIEZA (hoy solo «Angular»).
+   * Opcional: sin él, cada suplemento por pieza se cobra a UNA pieza.
+   */
+  unidadesSuplemento?: Record<string, number>;
+  /** El cliente aporta las baldosas: material a 0. Opcional (por omisión, incluidos). */
+  azulejosNoIncluidos?: boolean;
   mermaPorcentaje: number;
+  /**
+   * Margen comercial del caso, en centésimas de punto (6600 = 66 %). Opcional:
+   * sin él el caso se entiende **A COSTE** (margen 0), que es como están los
+   * capturados antes de que existiera el margen. Ver PENDIENTES.md §6.
+   */
+  margenCentesimas?: number;
+  tipoMargen?: 'pvp' | 'contratista';
   esperado: {
     ok: boolean;
     errores?: string[];
@@ -55,7 +66,7 @@ interface CasoDorado {
     ocupacionMm?: number;
     dimensionUtilMm?: number;
     baldosaGirada?: boolean;
-    precioMaterialOriginal?: number;
+    piezasPorBaldosa?: number;
     materialCentimos?: number;
     manipulacionCentimos?: number;
     arranqueCentimos?: number;
@@ -87,7 +98,7 @@ function camposDelResultado(r: ResultadoCotizacion): Record<string, number | boo
     ocupacionMm: r.ocupacion.ocupacionMm,
     dimensionUtilMm: r.ocupacion.dimensionUtilMm,
     baldosaGirada: r.ocupacion.baldosaGirada,
-    precioMaterialOriginal: r.precioMaterialOriginal,
+    piezasPorBaldosa: r.ocupacion.piezasPorBaldosa,
     materialCentimos: r.desglose.materialCentimos,
     manipulacionCentimos: r.desglose.manipulacionCentimos,
     arranqueCentimos: r.desglose.arranqueCentimos,
@@ -127,6 +138,7 @@ function ejecutarCaso(caso: CasoDorado): SalidaMotor {
         : eurosACentimos(caso.material.precioUnidadEuros),
     piezasPorCaja: caso.material.piezasPorCaja,
     m2PorCaja: caso.material.m2PorCaja,
+    subfamilia: null,
     imagenUrl: null,
     esManual: caso.material.esManual,
   };
@@ -134,17 +146,15 @@ function ejecutarCaso(caso: CasoDorado): SalidaMotor {
   return calcularCotizacion(
     {
       material,
-      origen: caso.origen,
       figuraId: caso.figuraId,
       medidasMm: validacion.medidasMm,
       cantidad: caso.cantidad,
       suplementos: caso.suplementos,
-      pintado: caso.pintado,
-      precioMaterialEditado:
-        caso.precioMaterialEditadoEuros === null
-          ? null
-          : eurosACentimos(caso.precioMaterialEditadoEuros),
+      unidadesSuplemento: caso.unidadesSuplemento ?? {},
+      azulejosNoIncluidos: caso.azulejosNoIncluidos ?? false,
       mermaPorcentaje: caso.mermaPorcentaje,
+      tipoMargen: caso.tipoMargen ?? 'pvp',
+      margenManualCentesimas: caso.margenCentesimas ?? 0,
     },
     config,
   );

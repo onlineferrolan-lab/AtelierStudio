@@ -18,6 +18,7 @@ import { mm } from '../../../src/domain/units';
 import parametrosJson from '../../../public/config/parametros.json';
 import tarifasJson from '../../../public/config/tarifas.json';
 import figurasJson from '../../../public/config/figuras.json';
+import margenesJson from '../../../public/config/margenes.json';
 
 type ArgsConfiguracion = Parameters<typeof construirConfiguracion>;
 
@@ -29,6 +30,9 @@ export function cargarConfigReal(): Configuracion {
     parametrosJson as unknown as ArgsConfiguracion[0],
     tarifasJson as unknown as ArgsConfiguracion[1],
     figurasJson as unknown as ArgsConfiguracion[2],
+    // La tabla REAL de márgenes, no una de prueba: así los tests que la usan
+    // detectan que `margenes.json` se ha regenerado mal.
+    margenesJson as unknown as ArgsConfiguracion[3],
   );
   const errores = validarConfiguracion(config);
   if (errores.length > 0) {
@@ -50,13 +54,21 @@ export function materialErp(overrides: Partial<Material> = {}): Material {
     precioUnidadCentimos: null,
     piezasPorCaja: 4,
     m2PorCaja: 1.44,
+    subfamilia: null,
     imagenUrl: null,
     esManual: false,
     ...overrides,
   };
 }
 
-/** Material manual de prueba: 60×60 cm a 8 €/unidad. */
+/**
+ * Material manual de prueba: 60×60 cm a 8 €/unidad, 4 piezas/caja.
+ *
+ * Lleva datos de caja porque desde 2026-07-30 se factura por cajas completas en
+ * los dos orígenes: sin ellos no se podría cotizar. Los m²/caja son los que
+ * derivaría `crearMaterialManual` (4 × 0,36 = 1,44), para que el fixture sea
+ * coherente con el formato y no afirme un imposible.
+ */
 export function materialManual(overrides: Partial<Material> = {}): Material {
   return {
     referencia: 'MANUAL-1',
@@ -65,8 +77,9 @@ export function materialManual(overrides: Partial<Material> = {}): Material {
     formato: { largoMm: mm(600), anchoMm: mm(600) },
     precioM2Centimos: null,
     precioUnidadCentimos: centimos(800),
-    piezasPorCaja: null,
-    m2PorCaja: null,
+    piezasPorCaja: 4,
+    m2PorCaja: 1.44,
+    subfamilia: null,
     imagenUrl: null,
     esManual: true,
     ...overrides,
@@ -75,19 +88,26 @@ export function materialManual(overrides: Partial<Material> = {}): Material {
 
 /**
  * Entrada base válida: Figura 2, 50×30 cm con frontal de 4 cm, 5 piezas,
- * stock, merma 10 %. Sobrescribible por test.
+ * merma 10 %. Sobrescribible por test.
+ *
+ * **Margen 0 A PROPÓSITO.** Estos tests comprueban la aritmética de COSTE
+ * (ocupación, merma, cajas, tarifas, redondeos), y con un margen real todos los
+ * importes esperados llevarían el markup encima y dejarían de leerse. El margen
+ * tiene sus propios tests en `margen.test.ts`. Se pone como margen MANUAL porque
+ * la referencia del material de prueba no es numérica y no tiene subfamilia.
  */
 export function entradaBase(overrides: Partial<EntradaCotizacion> = {}): EntradaCotizacion {
   return {
     material: materialErp(),
-    origen: 'stock',
     figuraId: 'figura-2',
     medidasMm: { longitud: mm(500), fondo: mm(300), alturaFrontal: mm(40) },
     cantidad: 5,
     suplementos: [],
-    pintado: false,
-    precioMaterialEditado: null,
+    unidadesSuplemento: {},
+    azulejosNoIncluidos: false,
     mermaPorcentaje: 10,
+    tipoMargen: 'pvp',
+    margenManualCentesimas: 0,
     ...overrides,
   };
 }

@@ -6,24 +6,26 @@
  *   es de entrada manual) con acciones «Cambiar» (abre la pestaña Catálogo
  *   del panel derecho) y «Quitar».
  * - Sin material: botón grande «Seleccionar del catálogo».
- * - Origen del material: Stock / Pedido (afecta al redondeo de la facturación,
- *   §4; se explica con tooltip).
  * - Subsección plegable «Entrada manual» para cerámica fuera de ERP/PrestaShop.
+ *
+ * Ya NO hay selector de origen (stock/pedido): desde 2026-07-30 todo se factura
+ * por cajas completas, así que el origen no cambiaba ningún importe y sobraba.
  */
 
 import type { Material } from '../../domain/types';
-import { useAtelier } from '../state/quote-state';
+import { useConfig } from '../state/config-context';
+import { useAtelier, useMargenDeMaterial } from '../state/quote-state';
 import { usePanelDerecho } from '../shell/panel';
 import { usePasoCompletado, usePasos } from '../state/pasos-context';
-import { Boton, ControlSegmentado, Insignia, PasoCard } from '../components/primitivas';
-import { CampoGrupo } from './CampoGrupo';
+import { Boton, Insignia, PasoCard } from '../components/primitivas';
 import { EntradaManual } from './EntradaManual';
 import { ImagenMaterial } from './ImagenMaterial';
-import { formatoMaterialTexto, cajaMaterialTexto, precioMaterialTexto } from './materialUtil';
-
-const AYUDA_ORIGEN =
-  'Stock: la pieza sale de una caja ya abierta en almacén y se factura por piezas. ' +
-  'Pedido: se piden cajas completas al proveedor y todo el sobrante se cobra al cliente (§4).';
+import {
+  formatoMaterialTexto,
+  cajaMaterialTexto,
+  precioMaterialVista,
+  type PrecioMaterialVista,
+} from './materialUtil';
 
 // ---------------------------------------------------------------------------
 // Tarjeta-resumen del material seleccionado
@@ -31,10 +33,13 @@ const AYUDA_ORIGEN =
 
 function TarjetaResumen({
   material,
+  precio,
   alCambiar,
   alQuitar,
 }: {
   material: Material;
+  /** Precio de venta, el MISMO que muestra la tarjeta del catálogo (con margen). */
+  precio: PrecioMaterialVista;
   alCambiar: () => void;
   alQuitar: () => void;
 }): JSX.Element {
@@ -54,7 +59,12 @@ function TarjetaResumen({
         {cajaMaterialTexto(material) ? (
           <p className="text-xs text-slate-500">Caja: {cajaMaterialTexto(material)}</p>
         ) : null}
-        <p className="mt-0.5 text-sm font-semibold text-marca">{precioMaterialTexto(material)}</p>
+        <p
+          className={`mt-0.5 text-sm font-semibold ${precio.aviso ? 'text-amber-700' : 'text-marca'}`}
+          title={precio.aviso ?? undefined}
+        >
+          {precio.texto}
+        </p>
         <div className="mt-2 flex gap-2">
           <Boton variante="secundario" onClick={alCambiar}>
             Cambiar
@@ -74,16 +84,21 @@ function TarjetaResumen({
 
 export function PasoMaterial(): JSX.Element {
   const { estado, dispatch } = useAtelier();
+  const config = useConfig();
   const panel = usePanelDerecho();
   const pasos = usePasos();
   const material = estado.material;
   usePasoCompletado(1, material !== null);
+  // Con margen, como en el catálogo: si aquí se viera la tarifa pelada, la misma
+  // baldosa tendría dos precios distintos en la misma pantalla.
+  const margenDe = useMargenDeMaterial(config);
 
   return (
     <PasoCard numero={1} titulo="Material" abierto={pasos.estado[1] ?? false} alAlternar={() => pasos.alternar(1)}>
       {material ? (
         <TarjetaResumen
           material={material}
+          precio={precioMaterialVista(material, margenDe(material))}
           alCambiar={panel.abrirCatalogo}
           alQuitar={() => dispatch({ tipo: 'seleccionarMaterial', material: null })}
         />
@@ -92,22 +107,6 @@ export function PasoMaterial(): JSX.Element {
           Seleccionar del catálogo
         </Boton>
       )}
-
-      <div className="mt-4">
-        <CampoGrupo etiqueta="Origen del material" ayuda={AYUDA_ORIGEN}>
-          <div>
-            <ControlSegmentado
-              opciones={[
-                { valor: 'stock' as const, etiqueta: 'Stock' },
-                { valor: 'pedido' as const, etiqueta: 'Pedido' },
-              ]}
-              valor={estado.origen}
-              alCambiar={(origen) => dispatch({ tipo: 'cambiarOrigen', origen })}
-              ariaLabel="Origen del material"
-            />
-          </div>
-        </CampoGrupo>
-      </div>
 
       <EntradaManual alCrear={(m) => dispatch({ tipo: 'seleccionarMaterial', material: m })} />
     </PasoCard>

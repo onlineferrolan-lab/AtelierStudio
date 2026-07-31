@@ -1,0 +1,20 @@
+# Ficheros binarios: NUNCA convertir fines de línea.
+#
+# Por qué existe esto. El repo se trabaja en Windows con `core.autocrlf=true`, y
+# los PDF que genera jsPDF (la orden de trabajo y `public/manual-usuario.pdf`)
+# son casi todo ASCII: sin `.gitattributes`, Git los clasificaba como TEXTO y les
+# metía CR en el checkout. Comprobado: el manual salía de un clone con 9.677
+# bytes de más y los offsets de la tabla xref ya no cuadraban. Los lectores de
+# PDF lo recomponen y el fichero abre, así que no se notaba — pero además dejaba
+# los PDF marcados como modificados para siempre, sin haberlos tocado.
+#
+# `binary` = `-text -diff`: ni conversión de EOL ni intento de diff por líneas.
+*.pdf   binary
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.ico   binary
+*.woff  binary
+*.woff2 binary
+*.ttf   binary
+*.eot   binary

@@ -1,6 +1,6 @@
 /**
  * Tests de resolución de tarifas y longitud de tarifa contra la configuración
- * real (tarifas del PDF de taller, §2): fija / porUmbral / pintable.
+ * real (tarifas del PDF de taller, §2): fija / porUmbral.
  */
 
 import { figuraPorId, longitudTarifaMm, resolverTarifa } from '../../../src/domain/engine';
@@ -27,13 +27,15 @@ describe('resolverTarifa — tarifas del PDF por figura (§2)', () => {
     ['figura-3', 'figura-3', 250],
     ['figura-4', 'figura-4', 290],
     ['peldano-romo', 'peldano-romo', 45],
+    // Los rodapiés ya no son dos figuras con el id de su tarifa, sino nueve
+    // (altura × canto) que comparten tarifa: se prueban en su propio bloque.
     ['corte', 'corte', 17],
   ] as const)('%s → tarifa %s de %i milésimas/cm', (figuraId, tarifaId, milesimas) => {
     const f = figura(figuraId);
     const medidasMinimas = medidas(
       Object.fromEntries(f.medidas.map((m) => [m.id, Math.max(10, Math.round(m.minCm * 10))])),
     );
-    const tarifa = resolverTarifa(f, medidasMinimas, false, config);
+    const tarifa = resolverTarifa(f, medidasMinimas, config);
     expect(tarifa.id).toBe(tarifaId);
     expect(tarifa.milesimasPorCm).toBe(milesimas);
   });
@@ -42,7 +44,6 @@ describe('resolverTarifa — tarifas del PDF por figura (§2)', () => {
     const tarifa = resolverTarifa(
       figura('figura-1'),
       medidas({ alturaFrontal: 50 }),
-      false,
       config,
     );
     expect(tarifa.id).toBe('f1-frontal-le5');
@@ -53,40 +54,32 @@ describe('resolverTarifa — tarifas del PDF por figura (§2)', () => {
     const tarifa = resolverTarifa(
       figura('figura-1'),
       medidas({ alturaFrontal: 51 }),
-      false,
       config,
     );
     expect(tarifa.id).toBe('f1-frontal-gt5');
     expect(tarifa.milesimasPorCm).toBe(230);
   });
 
+  // Los nueve rodapiés (2026-07-31) se tarifan por ALTURA, nunca por canto: el
+  // canto recto «no tiene incremento» (indicación directa), así que las tres
+  // variantes de cada altura tienen que caer en la misma tarifa. Es la regla que
+  // más fácil se rompería al tocar figuras.json, de ahí que se prueben las nueve.
   it.each([
-    [false, 'rodapie-estandar', 17],
-    [true, 'rodapie-estandar-pintado', 25],
+    ['rodapie-72-recto', 72, 'rodapie-estandar', 17],
+    ['rodapie-72-microbiselado', 72, 'rodapie-estandar', 17],
+    ['rodapie-72-romado', 72, 'rodapie-estandar', 17],
+    ['rodapie-8-recto', 80, 'rodapie-estandar', 17],
+    ['rodapie-8-microbiselado', 80, 'rodapie-estandar', 17],
+    ['rodapie-8-romado', 80, 'rodapie-estandar', 17],
+    ['rodapie-medida-recto', 100, 'rodapie-no-estandar', 34],
+    ['rodapie-medida-microbiselado', 100, 'rodapie-no-estandar', 34],
+    ['rodapie-medida-romado', 100, 'rodapie-no-estandar', 34],
   ] as const)(
-    'rodapié estándar pintado=%s → %s (%i milésimas/cm)',
-    (pintado, tarifaId, milesimas) => {
+    '%s (altura %i mm) → %s (%i milésimas/cm)',
+    (figuraId, alturaMm, tarifaId, milesimas) => {
       const tarifa = resolverTarifa(
-        figura('rodapie-estandar'),
-        medidas({ longitud: 500, altura: 72 }),
-        pintado,
-        config,
-      );
-      expect(tarifa.id).toBe(tarifaId);
-      expect(tarifa.milesimasPorCm).toBe(milesimas);
-    },
-  );
-
-  it.each([
-    [false, 'rodapie-no-estandar', 34],
-    [true, 'rodapie-no-estandar-pintado', 42],
-  ] as const)(
-    'rodapié no estándar pintado=%s → %s (%i milésimas/cm)',
-    (pintado, tarifaId, milesimas) => {
-      const tarifa = resolverTarifa(
-        figura('rodapie-no-estandar'),
-        medidas({ longitud: 500, altura: 100 }),
-        pintado,
+        figura(figuraId),
+        medidas({ longitud: 500, altura: alturaMm }),
         config,
       );
       expect(tarifa.id).toBe(tarifaId);
@@ -95,7 +88,10 @@ describe('resolverTarifa — tarifas del PDF por figura (§2)', () => {
   );
 
   it('figura sin tarifa (pendiente, §6) lanza error de configuración', () => {
-    expect(() => resolverTarifa(figura('figura-5'), {}, false, config)).toThrow(/no tiene tarifa/);
+    // Sin figuras pendientes en la configuración real (retiradas 2026-07-29):
+    // el caso se reproduce con una figura sintética sin regla de tarifa.
+    const sinTarifa: Figura = { ...figura('figura-2'), tarifa: null };
+    expect(() => resolverTarifa(sinTarifa, {}, config)).toThrow(/no tiene tarifa/);
   });
 });
 
@@ -103,7 +99,7 @@ describe('longitudTarifaMm', () => {
   it('figuras con regla "medida": la longitud de la pieza', () => {
     expect(longitudTarifaMm(figura('figura-2'), medidas({ longitud: 1234 }))).toBe(1234);
     expect(
-      longitudTarifaMm(figura('rodapie-estandar'), medidas({ longitud: 500, altura: 72 })),
+      longitudTarifaMm(figura('rodapie-72-romado'), medidas({ longitud: 500, altura: 72 })),
     ).toBe(500);
   });
 
@@ -112,6 +108,9 @@ describe('longitudTarifaMm', () => {
   });
 
   it('figura sin regla de longitud (pendiente) lanza error de configuración', () => {
-    expect(() => longitudTarifaMm(figura('pasamanos'), {})).toThrow(/no tiene regla de longitud/);
+    // Las figuras pendientes se retiraron de la galería (2026-07-29); el caso
+    // se reproduce con una figura sintética sin regla de longitud (§6.5/§6.6).
+    const sinLongitud: Figura = { ...figura('figura-2'), longitudTarifa: null };
+    expect(() => longitudTarifaMm(sinLongitud, {})).toThrow(/no tiene regla de longitud/);
   });
 });

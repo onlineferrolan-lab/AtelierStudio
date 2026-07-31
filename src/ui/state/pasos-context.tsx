@@ -2,25 +2,24 @@
  * Apertura/cierre de las tarjetas de paso (①-④) del panel izquierdo.
  *
  * Empieza con solo el paso 1 abierto; al completarse un paso (transición de
- * incompleto → completo) se cierra automáticamente y se abre el siguiente
- * (decisión de UX: guiar el flujo sin tocar el motor ni el estado de la
- * cotización). El usuario puede reabrir o cerrar cualquier paso a mano en
- * cualquier momento; hacerlo no se deshace por este automatismo.
+ * incompleto → completo) se abre el siguiente para guiar el flujo, sin tocar el
+ * motor ni el estado de la cotización.
  *
- * Excepción — paso ③ Medidas (ver `PasoMedidas`/`PasoSuplementos`): NUNCA se
- * cierra solo porque las medidas ya sean válidas (`useAbrirAlCompletar` abre
- * el ④ sin tocar el ③). El ③ solo se cierra si el comercial ya está actuando
- * en Suplementos: activa uno, o mueve el ratón por esa tarjeta.
+ * REGLA (2026-07-29, indicación directa): el automatismo solo ABRE pasos, nunca
+ * cierra ninguno. Cerrar es siempre del comercial, con clic en la cabecera de la
+ * tarjeta (`alternar`). Antes el avance cerraba el paso que se completaba y
+ * Suplementos cerraba el ③ al activar un suplemento o al pasar el ratón por
+ * encima; las tres cosas se han quitado, porque cerraban tarjetas que el
+ * comercial estaba usando (y la del ratón, sin que hubiera tocado nada).
  */
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 
 interface ContextoPasos {
   readonly estado: Readonly<Record<number, boolean>>;
+  /** Abre o cierra un paso. Único camino para CERRAR: siempre acción del comercial. */
   readonly alternar: (numero: number) => void;
-  readonly avanzar: (numero: number) => void;
   readonly abrir: (numero: number) => void;
-  readonly cerrar: (numero: number) => void;
 }
 
 const Contexto = createContext<ContextoPasos | null>(null);
@@ -39,21 +38,11 @@ export function ProveedorPasos({
     setEstado((previo) => ({ ...previo, [numero]: !(previo[numero] ?? false) }));
   }, []);
 
-  const avanzar = useCallback((numero: number) => {
-    setEstado((previo) => ({ ...previo, [numero]: false, [numero + 1]: true }));
-  }, []);
-
   const abrir = useCallback((numero: number) => {
     setEstado((previo) => ({ ...previo, [numero]: true }));
   }, []);
 
-  const cerrar = useCallback((numero: number) => {
-    setEstado((previo) => ({ ...previo, [numero]: false }));
-  }, []);
-
-  return (
-    <Contexto.Provider value={{ estado, alternar, avanzar, abrir, cerrar }}>{children}</Contexto.Provider>
-  );
+  return <Contexto.Provider value={{ estado, alternar, abrir }}>{children}</Contexto.Provider>;
 }
 
 export function usePasos(): ContextoPasos {
@@ -63,42 +52,20 @@ export function usePasos(): ContextoPasos {
 }
 
 /**
- * Al pasar de incompleto a completo, cierra este paso y abre el siguiente.
- * Cada `PasoX` llama esto con su propia condición de "completo" (§ ver cada
- * paso: material seleccionado, figura elegida, medidas válidas...).
+ * Al pasar `numero` de incompleto a completo, ABRE el paso siguiente. No cierra
+ * nada, ni el propio paso ni ningún otro: el comercial puede seguir ajustando
+ * lo que ya tenía abierto mientras el siguiente aparece debajo. Cada `PasoX`
+ * llama esto con su propia condición de "completo" (§ ver cada paso: material
+ * seleccionado, figura elegida, medidas válidas...).
  *
  * `retrasoMs` (por defecto 0, instantáneo): en pasos de texto libre (medidas)
  * un solo dígito ya puede ser un valor válido (p. ej. mínimo 1 cm) sin que el
  * comercial haya terminado de teclear — con retraso, si vuelve a quedar
- * incompleto antes de que pase el tiempo (sigue escribiendo, borra...), el
- * avance se cancela y no se nota. En pasos de una sola acción (seleccionar
+ * incompleto antes de que pase el tiempo (sigue escribiendo, borra...), la
+ * apertura se cancela y no se nota. En pasos de una sola acción (seleccionar
  * material/figura) no hace falta: 0 está bien.
  */
 export function usePasoCompletado(numero: number, completo: boolean, retrasoMs = 0): void {
-  const { avanzar } = usePasos();
-  const eraCompleto = useRef(completo);
-  useEffect(() => {
-    const transicionoACompleto = completo && !eraCompleto.current;
-    eraCompleto.current = completo;
-    if (!transicionoACompleto) return;
-
-    if (retrasoMs === 0) {
-      avanzar(numero);
-      return;
-    }
-    const temporizador = setTimeout(() => avanzar(numero), retrasoMs);
-    return () => clearTimeout(temporizador);
-  }, [completo, numero, avanzar, retrasoMs]);
-}
-
-/**
- * Al pasar de incompleto a completo, ABRE el paso indicado SIN cerrar ningún
- * otro (a diferencia de `usePasoCompletado`). Para el paso ③ Medidas: se
- * quiere que Suplementos se pueda ir viendo/rellenando sin que Medidas se
- * cierre solo (el comercial puede seguir ajustando medidas). Quien cierra el
- * ③ es `usePasos().cerrar(3)`, llamado desde Suplementos (ver PasoSuplementos).
- */
-export function useAbrirAlCompletar(numero: number, completo: boolean, retrasoMs = 0): void {
   const { abrir } = usePasos();
   const eraCompleto = useRef(completo);
   useEffect(() => {
@@ -107,10 +74,10 @@ export function useAbrirAlCompletar(numero: number, completo: boolean, retrasoMs
     if (!transicionoACompleto) return;
 
     if (retrasoMs === 0) {
-      abrir(numero);
+      abrir(numero + 1);
       return;
     }
-    const temporizador = setTimeout(() => abrir(numero), retrasoMs);
+    const temporizador = setTimeout(() => abrir(numero + 1), retrasoMs);
     return () => clearTimeout(temporizador);
   }, [completo, numero, abrir, retrasoMs]);
 }

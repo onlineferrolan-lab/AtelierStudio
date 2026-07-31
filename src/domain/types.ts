@@ -44,16 +44,22 @@ export interface Material {
   readonly precioM2Centimos: Centimos | null;
   /** Precio por baldosa para material de entrada manual. */
   readonly precioUnidadCentimos: Centimos | null;
-  /** Dato logístico del ERP para material a pedido (cajas completas). */
+  /** Dato logístico para facturar por cajas completas. Obligatorio para cotizar. */
   readonly piezasPorCaja: number | null;
   readonly m2PorCaja: number | null;
+  /**
+   * Subfamilia del artículo (id numérico del ERP). **No se usa en ningún
+   * cálculo todavía** (2026-07-30): se recoge para poder aplicar el margen
+   * comercial en el futuro, que dependerá del fabricante/familia
+   * (ver PENDIENTES.md §6). Hoy solo la rellena el alta manual; los artículos
+   * del catálogo la traen a `null` porque el contrato del API no la expone.
+   */
+  readonly subfamilia: number | null;
   /** URL de la textura/imagen (web service PrestaShop). Null si no hay. */
   readonly imagenUrl: string | null;
   /** true cuando la pieza no está ni en ERP ni en PrestaShop y se da de alta a mano. */
   readonly esManual: boolean;
 }
-
-export type OrigenMaterial = 'stock' | 'pedido';
 
 // ---------------------------------------------------------------------------
 // Figuras y medidas
@@ -74,23 +80,91 @@ export type SuplementosActivos = Readonly<Record<string, boolean>>;
 
 export interface EntradaCotizacion {
   readonly material: Material;
-  readonly origen: OrigenMaterial;
   readonly figuraId: string;
   /** Medidas ya convertidas a milímetros enteros. */
   readonly medidasMm: Readonly<Record<string, Mm>>;
   readonly cantidad: number;
   /** Ids de suplementos activos (deben existir en la figura). */
   readonly suplementos: readonly string[];
-  /** Tarifa alternativa cuando el rodapié va pintado. */
-  readonly pintado: boolean;
   /**
-   * Precio de material editado por el comercial (céntimos/m² o céntimos/unidad
-   * según el tipo de material). Null = usar la tarifa TARP por defecto.
+   * A cuántas piezas se aplica cada suplemento POR PIEZA, por id de suplemento.
+   *
+   * «Angular» es un remate del extremo del peldaño: en un tramo de escalera solo
+   * lo llevan las piezas de esquina, no todas (2026-07-30, indicación directa).
+   * Los suplementos por CM recorren la pieza entera y no aparecen aquí.
+   *
+   * Un id activo sin entrada se cobra a UNA pieza; el motor rechaza valores no
+   * enteros, menores que 1 o mayores que la cantidad pedida.
    */
-  readonly precioMaterialEditado: Centimos | null;
+  readonly unidadesSuplemento: Readonly<Record<string, number>>;
+  /**
+   * El cliente aporta las baldosas: se cobra la manipulación, no el material
+   * (2026-07-31, indicación directa). El importe de material queda a 0 y la
+   * tarifa del artículo deja de ser obligatoria para poder cotizar; el resto del
+   * cálculo NO cambia — se sigue diciendo cuántas baldosas y cajas hacen falta,
+   * que es lo que el cliente tiene que traer.
+   */
+  readonly azulejosNoIncluidos: boolean;
   /** % de merma aplicado (visible/editable en UI; valor por defecto de config). */
   readonly mermaPorcentaje: number;
+  /**
+   * Qué margen comercial se aplica: PVP (MTP) o contratista (MTC). Se elige en
+   * «Parámetros avanzados»; por defecto PVP (2026-07-31, indicación directa).
+   */
+  readonly tipoMargen: TipoMargen;
+  /**
+   * Margen indicado A MANO, en centésimas de punto, para los artículos cuya
+   * subfamilia no está en la tabla del ERP (486 de 28.732). Null = usar el de la
+   * tabla; si la tabla no lo tiene y esto es null, el motor NO cotiza y lo dice.
+   */
+  readonly margenManualCentesimas: MargenCentesimas | null;
 }
+
+// ---------------------------------------------------------------------------
+// Margen comercial por subfamilia (2026-07-31)
+// ---------------------------------------------------------------------------
+
+/** Margen en centésimas de punto porcentual: 66 % = 6600, 44,93 % = 4493. */
+export type MargenCentesimas = number;
+
+/** Los dos márgenes que da el ERP: MTP (PVP) y MTC (contratista). */
+export type TipoMargen = 'pvp' | 'contratista';
+
+export interface MargenSubfamilia {
+  readonly nombre: string;
+  /** MTP, margen PVP. */
+  readonly pvp: MargenCentesimas;
+  /** MTC, margen contratista. */
+  readonly contratista: MargenCentesimas;
+}
+
+export interface TablaMargenes {
+  /** Cuántos dígitos de la referencia forman la subfamilia (4 hoy). */
+  readonly longitudSubfamilia: number;
+  readonly subfamilias: Readonly<Record<string, MargenSubfamilia>>;
+}
+
+/** Margen efectivamente aplicado, para poder mostrarlo y auditarlo. */
+export interface MargenAplicado {
+  readonly tipo: TipoMargen;
+  /** Centésimas de punto: 6600 = 66 %. */
+  readonly centesimas: MargenCentesimas;
+  /** Subfamilia de la que sale, o null si es un margen indicado a mano. */
+  readonly subfamilia: string | null;
+  readonly nombreSubfamilia: string | null;
+  /** true si lo ha escrito el comercial porque la subfamilia no está en la tabla. */
+  readonly manual: boolean;
+}
+
+/**
+ * Resultado de resolver el margen de un artículo: el que se le aplica, o —si su
+ * subfamilia no está en la tabla y nadie ha escrito uno a mano— la subfamilia que
+ * falta, para poder decirlo. Lo usan el motor (que entonces no cotiza) y la UI del
+ * catálogo (que entonces no enseña un precio de coste como si fuera de venta).
+ */
+export type ResolucionMargen =
+  | { readonly ok: true; readonly margen: MargenAplicado }
+  | { readonly ok: false; readonly subfamilia: string | null };
 
 /** Error de validación con mensaje concreto para el comercial (§1.③). */
 export interface ErrorValidacion {
@@ -116,6 +190,11 @@ export interface DetalleOcupacion {
   readonly numCortes: number;
   /** true si la baldosa se ha girado 90° para que la pieza quepa. */
   readonly baldosaGirada: boolean;
+  /**
+   * Piezas COMPLETAS que salen de una baldosa en la orientación elegida
+   * (empaquetado en rejilla, receta provisional §4; ≥ 1 porque la pieza cabe).
+   */
+  readonly piezasPorBaldosa: number;
 }
 
 export interface LineaManipulacion {
@@ -141,15 +220,18 @@ export interface ResultadoCotizacion {
   readonly baldosasNecesarias: number;
   /** Baldosas tras aplicar el % de merma (redondeo hacia arriba). */
   readonly baldosasConMerma: number;
-  /** Piezas (stock) o piezas dentro de cajas completas (pedido) facturadas. */
+  /** Piezas facturadas: las de las cajas completas, sobrante incluido. */
   readonly unidadesFacturadas: number;
-  /** Cajas facturadas (solo origen 'pedido'; 0 en 'stock'). */
+  /** Cajas completas facturadas; siempre ≥ 1 (se factura por cajas). */
   readonly cajasFacturadas: number;
   readonly m2Facturados: number;
   readonly lineasManipulacion: readonly LineaManipulacion[];
   readonly desglose: DesgloseCotizacion;
-  /** Precio de tarifa antes de la edición del comercial (para mostrarlo junto al editado). */
-  readonly precioMaterialOriginal: Centimos;
+  /**
+   * Margen aplicado a los importes de este resultado. Todos los importes del
+   * desglose y de las líneas ya lo llevan incorporado.
+   */
+  readonly margen: MargenAplicado;
 }
 
 /**
@@ -159,3 +241,86 @@ export interface ResultadoCotizacion {
 export type SalidaMotor =
   | { readonly ok: true; readonly resultado: ResultadoCotizacion }
   | { readonly ok: false; readonly errores: readonly ErrorValidacion[] };
+
+// ---------------------------------------------------------------------------
+// PEDIDO: varias piezas en una sola orden de trabajo (2026-07-31)
+// ---------------------------------------------------------------------------
+
+/**
+ * Una pieza dentro del pedido, ya calculada. Es lo mismo que un
+ * `ResultadoCotizacion` MENOS todo lo que depende de la caja: las cajas, las
+ * unidades y el importe del material no son de la pieza, son del GRUPO de
+ * material del que sale (ver `GrupoMaterialPedido`).
+ */
+export interface ResultadoLineaPedido {
+  /** Posición de la línea en el pedido (0-based), para poder señalarla en la UI. */
+  readonly indice: number;
+  readonly figuraId: string;
+  readonly cantidad: number;
+  /** Clave del grupo de material del que sale esta pieza. */
+  readonly claveGrupo: string;
+  readonly componentes: readonly ComponentePieza[];
+  readonly ocupacion: DetalleOcupacion;
+  readonly baldosasNecesarias: number;
+  readonly baldosasConMerma: number;
+  readonly mermaPorcentaje: number;
+  readonly lineasManipulacion: readonly LineaManipulacion[];
+  /** Suma de sus líneas de manipulación, con el margen ya aplicado. */
+  readonly manipulacionCentimos: Centimos;
+  readonly margen: MargenAplicado;
+}
+
+/**
+ * Todas las piezas del pedido que salen del MISMO artículo. Es aquí donde vive
+ * el ahorro del pedido: las cajas se cuentan UNA VEZ sobre la suma de baldosas
+ * de todas sus piezas, en vez de una tanda de cajas por cada corte distinto.
+ */
+export interface GrupoMaterialPedido {
+  readonly clave: string;
+  readonly material: Material;
+  /** Índices de las líneas del pedido que se cortan de este material. */
+  readonly indicesLinea: readonly number[];
+  /** Suma de las baldosas con merma de sus líneas. */
+  readonly baldosasConMerma: number;
+  readonly cajasFacturadas: number;
+  readonly unidadesFacturadas: number;
+  readonly m2Facturados: number;
+  /** Baldosas de la última caja que quedan sin usar (las que se cobran de más). */
+  readonly baldosasSobrantes: number;
+  /** Importe del material del grupo, con el margen ya aplicado. */
+  readonly materialCentimos: Centimos;
+  /** Cajas que habrían salido cotizando cada pieza por separado. */
+  readonly cajasSinAgrupar: number;
+  /** Arranque de máquina del grupo (uno por material, ver `pedido.ts`). */
+  readonly arranqueCentimos: Centimos;
+  readonly margen: MargenAplicado;
+  /** Precio de tarifa del material del grupo (€/m² del ERP o €/ud. en manual). */
+  readonly precioMaterial: Centimos;
+  /** El cliente aporta las baldosas de este artículo: `materialCentimos` es 0. */
+  readonly azulejosNoIncluidos: boolean;
+}
+
+export interface ResultadoPedido {
+  readonly lineas: readonly ResultadoLineaPedido[];
+  readonly grupos: readonly GrupoMaterialPedido[];
+  readonly desglose: DesgloseCotizacion;
+  /** Cajas que se ahorran por compartir caja entre cortes distintos. */
+  readonly cajasAhorradas: number;
+  /**
+   * Diferencia (sin IVA) entre cotizar cada pieza en su propia orden y este
+   * pedido: cajas compartidas + un solo arranque por material. Nunca negativa.
+   */
+  readonly ahorroCentimos: Centimos;
+  /** Total sin IVA que habría salido pieza a pieza, para poder enseñar el ahorro. */
+  readonly totalSinAgruparCentimos: Centimos;
+}
+
+/** Error de validación con la línea del pedido a la que pertenece (null = del pedido entero). */
+export interface ErrorLineaPedido {
+  readonly indiceLinea: number | null;
+  readonly error: ErrorValidacion;
+}
+
+export type SalidaPedido =
+  | { readonly ok: true; readonly resultado: ResultadoPedido }
+  | { readonly ok: false; readonly errores: readonly ErrorLineaPedido[] };

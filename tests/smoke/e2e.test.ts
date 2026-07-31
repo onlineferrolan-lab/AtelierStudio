@@ -21,11 +21,15 @@ describe('smoke e2e', () => {
           referencia: 'T-1', descripcion: 'Test', marca: null,
           formato: { largoMm: mm(1200), anchoMm: mm(600) },
           precioM2Centimos: eurosACentimos(25), precioUnidadCentimos: null,
-          piezasPorCaja: 2, m2PorCaja: 1.44, imagenUrl: null, esManual: false,
+          piezasPorCaja: 2, m2PorCaja: 1.44, subfamilia: null,
+          imagenUrl: null, esManual: false,
         },
-        origen: 'stock', figuraId: 'figura-1', medidasMm: v.medidasMm,
-        cantidad: 10, suplementos: ['angular-f14', 'ranuras-f14'], pintado: false,
-        precioMaterialEditado: null, mermaPorcentaje: 10,
+        figuraId: 'figura-1', medidasMm: v.medidasMm,
+        cantidad: 10, suplementos: ['angular-f14', 'ranuras-f14'],
+        unidadesSuplemento: { 'angular-f14': 2 },
+        azulejosNoIncluidos: false, mermaPorcentaje: 10,
+        // Margen 0: el smoke comprueba el coste, no el markup (ver util.ts).
+        tipoMargen: 'pvp', margenManualCentesimas: 0,
       },
       config,
     );
@@ -38,9 +42,13 @@ describe('smoke e2e', () => {
       material: d.materialCentimos, manipulacion: d.manipulacionCentimos,
       arranque: d.arranqueCentimos, sinIva: d.totalSinIvaCentimos, conIva: d.totalConIvaCentimos,
     });
-    // 10 baldosas → 11 con merma; material 11×0,72 m²×25 € = 198 €; manipulación
-    // (0,19×100 + 2 + 0,02×100)×10 = 230 €; +60 arranque; IVA 21 %.
-    expect(d.totalSinIvaCentimos).toBe(48800);
-    expect(d.totalConIvaCentimos).toBe(59048);
+    // 10 baldosas → 11 con merma. Se factura por cajas completas (2 piezas/caja):
+    // ceil(11/2) = 6 cajas → 8,64 m² × 25 € = 216 € de material.
+    // Manipulación: (0,19×100 + 0,02×100)×10 piezas = 210 €, más el angular, que
+    // solo llevan 2 piezas (2 €×2 = 4 €) = 214 €; +60 arranque; IVA 21 %.
+    expect(d.materialCentimos).toBe(21600);
+    expect(d.manipulacionCentimos).toBe(21400);
+    expect(d.totalSinIvaCentimos).toBe(49000);
+    expect(d.totalConIvaCentimos).toBe(59290); // 490 × 1,21, IVA exacto de 102,90 €
   });
 });

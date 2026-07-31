@@ -1,0 +1,5 @@
+{
+  "_aviso": "Artículos OCULTOS del catálogo: no se muestran en el buscador. 1) «referenciasOcultas»: zócalos y piezas especiales (indicación del encargo 2026-07-28). PROVISIONAL: el encargo identificó los artículos por id de feature de PrestaShop (168, 401, 711, 726, 739, 745, 749, 762, 778, 782, 797, 799, 1300, 53), pero el API del catàleg no expone features — hay que mapear esas features a referencias (backoffice de PrestaShop) y volcarlas aquí. 2) «palabrasTituloOcultas»: mosaicos y rodapiés (producto acabado, no material base de corte; indicación de dirección 2026-07-28) — se oculta todo artículo cuyo título contiene la palabra, comparando normalizado (minúsculas y sin tildes: «RODAPIE» cubre «RODAPIÉ …»). Ver PENDIENTES.md §4.8.",
+  "referenciasOcultas": [],
+  "palabrasTituloOcultas": ["MOSAICO", "RODAPIE"]
+}

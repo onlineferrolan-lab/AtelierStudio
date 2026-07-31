@@ -1,17 +1,17 @@
 /**
  * Tests integrales de calcularCotizacion contra la configuración real
  * (tarifas del PDF §2, parámetros PROVISIONALES de taller): tarifas por figura,
- * suplementos, ocupación, merma, stock/pedido, material manual, override de
- * precio, arranque único, IVA, determinismo y ausencia de floats.
+ * suplementos, ocupación, merma, stock/pedido, material manual, azulejos no
+ * incluidos, arranque único, IVA, determinismo y ausencia de floats.
  *
  * Parámetros de config usados: disco 3 mm, tolerancia 2 mm, saneado 5 mm/lado,
  * arranque 60 € (6000 céntimos), IVA 21 %.
  */
 
-import { calcularCotizacion } from '../../../src/domain/engine';
+import { calcularCotizacion, figuraPorId } from '../../../src/domain/engine';
+import type { Configuracion, Figura } from '../../../src/domain/config';
 import type { Mm, ResultadoCotizacion, SalidaMotor } from '../../../src/domain/types';
 import { mm } from '../../../src/domain/units';
-import { centimos } from '../../../src/domain/money';
 import { cargarConfigReal, entradaBase, materialErp, materialManual } from './util';
 
 const config = cargarConfigReal();
@@ -48,30 +48,31 @@ describe('calcularCotizacion — caso base (Figura 2, stock)', () => {
       dimensionUtilMm: 600,
       numCortes: 1,
       baldosaGirada: false,
+      piezasPorBaldosa: 1, // una pieza de 35,5×50 cm llena prácticamente la baldosa 60×60
     });
   });
 
-  it('baldosas = cantidad (veta §4) y merma con ceil: 5 × 1,10 → 6', () => {
+  it('baldosas = ceil(cantidad / piezasPorBaldosa); aquí cabe 1 pieza por baldosa → 5, y merma con ceil: 5 × 1,10 → 6', () => {
     expect(r.baldosasNecesarias).toBe(5);
     expect(r.baldosasConMerma).toBe(6);
   });
 
-  it('stock → se factura por piezas, sin cajas', () => {
-    expect(r.unidadesFacturadas).toBe(6);
-    expect(r.cajasFacturadas).toBe(0);
-    expect(r.m2Facturados).toBe(2.16); // 6 × 0,36 m²
+  it('stock también se factura por cajas completas (2026-07-30)', () => {
+    // 6 baldosas con merma, 4 por caja → 2 cajas y se cobran las 8 piezas.
+    expect(r.cajasFacturadas).toBe(2);
+    expect(r.unidadesFacturadas).toBe(8);
+    expect(r.m2Facturados).toBe(2.88); // 2 × 1,44 m²/caja
   });
 
-  it('desglose completo con IVA 21 % (171,50 € → 36,02 € half-up → 207,52 €)', () => {
+  it('desglose completo con IVA 21 % (189,50 € → 39,80 € half-up → 229,30 €)', () => {
     expect(r.desglose).toEqual({
-      materialCentimos: 5400, // 2,16 m² × 25 €/m²
+      materialCentimos: 7200, // 2,88 m² × 25 €/m²
       manipulacionCentimos: 5750, // 50 cm × 0,23 €/cm × 5
       arranqueCentimos: 6000,
-      totalSinIvaCentimos: 17150,
-      ivaCentimos: 3602, // round(171,50 × 0,21 = 36,015) half-up
-      totalConIvaCentimos: 20752,
+      totalSinIvaCentimos: 18950,
+      ivaCentimos: 3980, // round(189,50 × 0,21 = 39,795) half-up
+      totalConIvaCentimos: 22930,
     });
-    expect(r.precioMaterialOriginal).toBe(2500);
   });
 
   it('línea de manipulación con concepto legible', () => {
@@ -81,36 +82,64 @@ describe('calcularCotizacion — caso base (Figura 2, stock)', () => {
   });
 });
 
-describe('calcularCotizacion — cada figura activa contra su tarifa del PDF (§2)', () => {
-  // Cantidad 1, merma 0 → baldosasConMerma 1; material = 0,36 m² × 25 € = 900 céntimos.
-  const casos: [string, Record<string, Mm>, boolean, number][] = [
-    ['figura-1', { longitud: mm(500), fondo: mm(300), alturaFrontal: mm(40) }, false, 950], // ≤5 cm: 0,19
-    ['figura-1', { longitud: mm(500), fondo: mm(300), alturaFrontal: mm(60) }, false, 1150], // >5 cm: 0,23
-    ['figura-2', medidasF2, false, 1150], // 0,23
-    ['figura-3', medidasF2, false, 1250], // 0,25
-    ['figura-4', { ...medidasF2, retorno: mm(100) }, false, 1450], // 0,29
-    ['peldano-romo', { longitud: mm(500), fondo: mm(300) }, false, 225], // 0,045
-    ['rodapie-estandar', { longitud: mm(500), altura: mm(72) }, false, 85], // 0,017
-    ['rodapie-estandar', { longitud: mm(500), altura: mm(72) }, true, 125], // pintado 0,025
-    ['rodapie-no-estandar', { longitud: mm(500), altura: mm(100) }, false, 170], // 0,034
-    ['rodapie-no-estandar', { longitud: mm(500), altura: mm(100) }, true, 210], // pintado 0,042
-    ['corte', { largo: mm(300), ancho: mm(200) }, false, 170], // 0,017 × perímetro 100 cm
+describe('calcularCotizacion — cada figura activa contra su tarifa (§2; pasamanos PROVISIONAL §6.6)', () => {
+  // Cantidad 1, merma 0 → baldosasConMerma 1 → 1 caja (4 piezas, 1,44 m²);
+  // material = 1,44 m² × 25 € = 3600 céntimos, igual en todos los casos.
+  const casos: [string, Record<string, Mm>, number][] = [
+    ['figura-1', { longitud: mm(500), fondo: mm(300), alturaFrontal: mm(40) }, 950], // ≤5 cm: 0,19
+    ['figura-1', { longitud: mm(500), fondo: mm(300), alturaFrontal: mm(60) }, 1150], // >5 cm: 0,23
+    ['figura-2', medidasF2, 1150], // 0,23
+    ['figura-3', medidasF2, 1250], // 0,25
+    ['figura-4', { ...medidasF2, retorno: mm(100) }, 1450], // 0,29
+    ['peldano-romo', { longitud: mm(500), fondo: mm(300) }, 225], // 0,045
+    // Pasamanos: tarifa PROVISIONAL = precio del peldaño equivalente (§6.6, PENDIENTES.md).
+    ['pasamanos-1', { longitud: mm(500), fondo: mm(300), alturaFrontal: mm(40) }, 950], // ≤5 cm: 0,19
+    ['pasamanos-1', { longitud: mm(500), fondo: mm(300), alturaFrontal: mm(60) }, 1150], // >5 cm: 0,23
+    ['pasamanos-2', medidasF2, 1150], // 0,23
+    ['pasamanos-3', medidasF2, 1250], // 0,25
+    ['pasamanos-4', { ...medidasF2, retorno: mm(50) }, 1450], // 0,29
+    ['pasamanos-romo', { longitud: mm(500), fondo: mm(300) }, 225], // 0,045
+    // Rodapiés: tarifa por altura, nunca por canto (2026-07-31). Se prueban los
+    // tres cantos de 7,2 con el mismo importe, que es lo que dice la regla.
+    ['rodapie-72-recto', { longitud: mm(500), altura: mm(72) }, 85], // 0,017
+    ['rodapie-72-microbiselado', { longitud: mm(500), altura: mm(72) }, 85], // 0,017
+    ['rodapie-72-romado', { longitud: mm(500), altura: mm(72) }, 85], // 0,017
+    ['rodapie-8-romado', { longitud: mm(500), altura: mm(80) }, 85], // 0,017
+    ['rodapie-medida-recto', { longitud: mm(500), altura: mm(100) }, 170], // 0,034
+    ['rodapie-medida-romado', { longitud: mm(500), altura: mm(100) }, 170], // 0,034
+    ['corte', { largo: mm(300), ancho: mm(200) }, 170], // 0,017 × perímetro 100 cm
   ];
   it.each(casos)(
-    '%s %s pintado=%s → %i céntimos de manipulación',
-    (figuraId, medidas, pintado, esperada) => {
+    '%s %s → %i céntimos de manipulación',
+    (figuraId, medidas, esperada) => {
       const r = esperarOk(
         calcularCotizacion(
-          entradaBase({ figuraId, medidasMm: medidas, pintado, cantidad: 1, mermaPorcentaje: 0 }),
+          entradaBase({ figuraId, medidasMm: medidas, cantidad: 1, mermaPorcentaje: 0 }),
           config,
         ),
       );
       expect(r.desglose.manipulacionCentimos).toBe(esperada);
-      expect(r.desglose.materialCentimos).toBe(900);
+      expect(r.desglose.materialCentimos).toBe(3600);
       expect(r.desglose.arranqueCentimos).toBe(6000);
-      expect(r.desglose.totalSinIvaCentimos).toBe(900 + esperada + 6000);
+      expect(r.desglose.totalSinIvaCentimos).toBe(3600 + esperada + 6000);
     },
   );
+
+  /**
+   * La caída (altura frontal) tiene un mínimo de 4 cm (2026-07-30, indicación
+   * directa). Se comprueba el borde por los dos lados: 4 cm entra, 3,9 no.
+   */
+  it('caída mínima de 4 cm: 40 mm vale, 39 mm no', () => {
+    const medidasCon = (alturaFrontal: Mm) => ({
+      longitud: mm(500),
+      fondo: mm(300),
+      alturaFrontal,
+    });
+    expect(calcularCotizacion(entradaBase({ medidasMm: medidasCon(mm(40)) }), config).ok).toBe(true);
+    const corta = calcularCotizacion(entradaBase({ medidasMm: medidasCon(mm(39)) }), config);
+    expect(corta.ok).toBe(false);
+    expect(esperarErrores(corta).join(' ')).toMatch(/Altura frontal.*menor que 4 cm/);
+  });
 
   it('umbral frontal 5 cm: exactamente 50 mm → 0,19; 51 mm → 0,23', () => {
     const le = esperarOk(
@@ -138,24 +167,125 @@ describe('calcularCotizacion — cada figura activa contra su tarifa del PDF (§
     );
     expect(gt.desglose.manipulacionCentimos).toBe(1150); // 0,23 €/cm
   });
+
+  it('pasamanos: la receta duplica el frontal (y el retorno en el 4) sobre la baldosa', () => {
+    const r = esperarOk(
+      calcularCotizacion(
+        entradaBase({ figuraId: 'pasamanos-1', cantidad: 1, mermaPorcentaje: 0 }),
+        config,
+      ),
+    );
+    expect(r.componentes.map((c) => c.id)).toEqual(['tapa', 'frontal', 'frontal-trasero']);
+    const r4 = esperarOk(
+      calcularCotizacion(
+        entradaBase({
+          figuraId: 'pasamanos-4',
+          medidasMm: { ...medidasF2, retorno: mm(50) },
+          cantidad: 1,
+          mermaPorcentaje: 0,
+        }),
+        config,
+      ),
+    );
+    expect(r4.componentes.map((c) => c.id)).toEqual([
+      'tapa',
+      'frontal',
+      'frontal-trasero',
+      'retorno',
+      'retorno-trasero',
+    ]);
+  });
+
+  it('pasamanos: la línea de manipulación nombra la tarifa del pasamanos, no la del peldaño', () => {
+    const r = esperarOk(
+      calcularCotizacion(
+        entradaBase({ figuraId: 'pasamanos-2', cantidad: 1, mermaPorcentaje: 0 }),
+        config,
+      ),
+    );
+    expect(r.lineasManipulacion[0].concepto).toBe('Pasamanos 2 — 50 cm × 1 ud.');
+  });
 });
 
 describe('calcularCotizacion — suplementos (tarifas del PDF §2)', () => {
   it('Figuras 1–4: angular 2 €/pieza; ranuras/goterón 0,02; espesado 0,06 €/cm', () => {
     const r = esperarOk(
       calcularCotizacion(
-        entradaBase({ suplementos: ['angular-f14', 'ranuras-f14', 'goteron-f14', 'espesado-f14'] }),
+        entradaBase({
+          suplementos: ['angular-f14', 'ranuras-f14', 'goteron-f14', 'espesado-f14'],
+          // El angular remata solo 2 de las 5 piezas; los de por cm van a todas.
+          unidadesSuplemento: { 'angular-f14': 2 },
+        }),
         config,
       ),
     );
     expect(r.lineasManipulacion).toEqual([
       { concepto: 'Figura 2 — 50 cm × 5 ud.', centimos: 5750 },
-      { concepto: 'Angular — 5 ud.', centimos: 1000 }, // 2 € × 5
+      { concepto: 'Angular — 2 ud.', centimos: 400 }, // 2 € × 2 piezas, no × 5
       { concepto: 'Tres ranuras antideslizantes — 50 cm × 5 ud.', centimos: 500 }, // 0,02 × 50 × 5
       { concepto: 'Ranura (goterón) — 50 cm × 5 ud.', centimos: 500 },
       { concepto: 'Material espesado — 50 cm × 5 ud.', centimos: 1500 }, // 0,06 × 50 × 5
     ]);
-    expect(r.desglose.manipulacionCentimos).toBe(9250);
+    expect(r.desglose.manipulacionCentimos).toBe(8650);
+  });
+
+  it('sin unidades declaradas, el angular se cobra a UNA pieza (no a todas)', () => {
+    const r = esperarOk(
+      calcularCotizacion(entradaBase({ suplementos: ['angular-f14'] }), config),
+    );
+    expect(r.lineasManipulacion[1]).toEqual({ concepto: 'Angular — 1 ud.', centimos: 200 });
+  });
+
+  it('el angular se puede aplicar a todas las piezas si de verdad lo llevan todas', () => {
+    const r = esperarOk(
+      calcularCotizacion(
+        entradaBase({ suplementos: ['angular-f14'], unidadesSuplemento: { 'angular-f14': 5 } }),
+        config,
+      ),
+    );
+    expect(r.lineasManipulacion[1]).toEqual({ concepto: 'Angular — 5 ud.', centimos: 1000 });
+  });
+
+  it('rechaza aplicar el angular a más piezas de las que hay', () => {
+    const salida = calcularCotizacion(
+      entradaBase({ suplementos: ['angular-f14'], unidadesSuplemento: { 'angular-f14': 6 } }),
+      config,
+    );
+    expect(salida.ok).toBe(false);
+    if (salida.ok) return;
+    expect(salida.errores[0].mensaje).toMatch(/a 6 piezas: solo hay 5/);
+  });
+
+  it('rechaza unidades de angular que no sean enteros mayores que 0', () => {
+    for (const unidades of [0, -1, 1.5]) {
+      const salida = calcularCotizacion(
+        entradaBase({
+          suplementos: ['angular-f14'],
+          unidadesSuplemento: { 'angular-f14': unidades },
+        }),
+        config,
+      );
+      expect(salida.ok).toBe(false);
+      if (salida.ok) continue;
+      expect(salida.errores[0].mensaje).toMatch(/entero mayor que 0/);
+    }
+  });
+
+  it('las unidades solo afectan a los suplementos por pieza, no a los de por cm', () => {
+    const r = esperarOk(
+      calcularCotizacion(
+        entradaBase({
+          suplementos: ['ranuras-f14'],
+          unidadesSuplemento: { 'ranuras-f14': 1 },
+        }),
+        config,
+      ),
+    );
+    // Las ranuras recorren la pieza entera: 0,02 × 50 cm × las 5 piezas.
+    expect(r.lineasManipulacion[1]).toEqual({
+      concepto: 'Tres ranuras antideslizantes — 50 cm × 5 ud.',
+      centimos: 500,
+    });
   });
 
   it('Peldaño romo: angular 1 €/pieza; espesado 0,03 €/cm', () => {
@@ -167,6 +297,7 @@ describe('calcularCotizacion — suplementos (tarifas del PDF §2)', () => {
           cantidad: 2,
           mermaPorcentaje: 0,
           suplementos: ['angular-romo', 'espesado-romo'],
+          unidadesSuplemento: { 'angular-romo': 2 },
         }),
         config,
       ),
@@ -179,13 +310,60 @@ describe('calcularCotizacion — suplementos (tarifas del PDF §2)', () => {
     expect(r.desglose.manipulacionCentimos).toBe(950);
   });
 
+  /**
+   * Acabados de canto del corte de piezas (2026-07-31, indicación directa).
+   * Inglete y microbisel a 0,034 €/cm de COSTE; se cobran sobre la misma
+   * longitud que la tarifa de corte, que en esta figura es el PERÍMETRO.
+   */
+  it('Corte de piezas: inglete y microbisel a 0,034 €/cm sobre el perímetro', () => {
+    const r = esperarOk(
+      calcularCotizacion(
+        entradaBase({
+          figuraId: 'corte',
+          medidasMm: { largo: mm(300), ancho: mm(200) },
+          cantidad: 2,
+          mermaPorcentaje: 0,
+          suplementos: ['inglete-corte', 'microbisel-corte'],
+        }),
+        config,
+      ),
+    );
+    // Perímetro 2 × (30 + 20) = 100 cm.
+    expect(r.lineasManipulacion).toEqual([
+      { concepto: 'Corte de piezas — 100 cm × 2 ud.', centimos: 340 }, // 0,017 × 100 × 2
+      { concepto: 'Inglete — 100 cm × 2 ud.', centimos: 680 }, // 0,034 × 100 × 2
+      { concepto: 'Microbisel — 100 cm × 2 ud.', centimos: 680 },
+    ]);
+  });
+
+  /** «Sin microbisel» no cobra: está para que la elección conste en la orden. */
+  it('Corte de piezas: «Sin microbisel» aparece en el desglose a 0 €', () => {
+    const r = esperarOk(
+      calcularCotizacion(
+        entradaBase({
+          figuraId: 'corte',
+          medidasMm: { largo: mm(300), ancho: mm(200) },
+          cantidad: 2,
+          mermaPorcentaje: 0,
+          suplementos: ['sin-microbisel-corte'],
+        }),
+        config,
+      ),
+    );
+    expect(r.lineasManipulacion[1]).toEqual({
+      concepto: 'Sin microbisel — 100 cm × 2 ud.',
+      centimos: 0,
+    });
+    expect(r.desglose.manipulacionCentimos).toBe(340);
+  });
+
   it('el orden de líneas es el canónico de la configuración, no el de la entrada', () => {
     const r = esperarOk(
       calcularCotizacion(entradaBase({ suplementos: ['espesado-f14', 'angular-f14'] }), config),
     );
     expect(r.lineasManipulacion.map((l) => l.concepto)).toEqual([
       'Figura 2 — 50 cm × 5 ud.',
-      'Angular — 5 ud.',
+      'Angular — 1 ud.',
       'Material espesado — 50 cm × 5 ud.',
     ]);
   });
@@ -221,9 +399,110 @@ describe('calcularCotizacion — merma (§4: ceil, sin "mínimo 3" §6.1)', () =
   });
 });
 
-describe('calcularCotizacion — stock vs pedido (§4)', () => {
-  it('pedido → cajas completas; el sobrante se cobra al cliente', () => {
-    const r = esperarOk(calcularCotizacion(entradaBase({ origen: 'pedido' }), config));
+describe('calcularCotizacion — empaquetado: varias piezas por baldosa (dirección 2026-07-28)', () => {
+  // El ejemplo del encargo: piezas de 10×10 cm cortadas de una baldosa de
+  // 110×110 cm. Con la receta provisional (disco 3 mm, saneado 5 mm/lado,
+  // tolerancia 2 mm): a lo ancho floor((1100−10−2+3)/103) = 10 y a lo largo
+  // floor((1100+3)/103) = 10 → 100 piezas por baldosa.
+  // m2PorCaja coherente con el formato: 4 piezas × 1,21 m² = 4,84 m²/caja. Antes
+  // heredaba 1,44 (el de la baldosa 60×60), imposible para una de 110×110; no se
+  // notaba porque en stock los m² salían del formato y la caja no se usaba.
+  const baldosa110 = materialErp({
+    formato: { largoMm: mm(1100), anchoMm: mm(1100) },
+    m2PorCaja: 4.84,
+  });
+  const corte10x10 = { largo: mm(100), ancho: mm(100) };
+
+  it('3 piezas de 10×10 cm salen de UNA baldosa de 110×110, no de 3', () => {
+    const r = esperarOk(
+      calcularCotizacion(
+        entradaBase({
+          material: baldosa110,
+          figuraId: 'corte',
+          medidasMm: corte10x10,
+          cantidad: 3,
+          mermaPorcentaje: 0,
+        }),
+        config,
+      ),
+    );
+    expect(r.ocupacion.piezasPorBaldosa).toBe(100);
+    expect(r.baldosasNecesarias).toBe(1);
+    // Basta 1 baldosa, pero se factura la caja entera: 4 piezas, 4,84 m².
+    expect(r.unidadesFacturadas).toBe(4);
+    expect(r.m2Facturados).toBe(4.84);
+    expect(r.desglose.materialCentimos).toBe(12100); // 4,84 m² × 25 €/m²
+  });
+
+  it('baldosas = ceil(cantidad / piezasPorBaldosa): 250 piezas de 10×10 → 3 baldosas', () => {
+    const r = esperarOk(
+      calcularCotizacion(
+        entradaBase({
+          material: baldosa110,
+          figuraId: 'corte',
+          medidasMm: corte10x10,
+          cantidad: 250,
+          mermaPorcentaje: 0,
+        }),
+        config,
+      ),
+    );
+    expect(r.baldosasNecesarias).toBe(3);
+  });
+
+  it('rodapié de 50×10 cm en baldosa 60×60: 5 por baldosa; 5 ud → 1 baldosa, 6 ud → 2', () => {
+    // a lo ancho floor((600−10−2+3)/103) = 5; a lo largo floor(603/503) = 1 → 5.
+    const medidas = { longitud: mm(500), altura: mm(100) };
+    const cinco = esperarOk(
+      calcularCotizacion(
+        entradaBase({
+          figuraId: 'rodapie-medida-romado',
+          medidasMm: medidas,
+          cantidad: 5,
+          mermaPorcentaje: 0,
+        }),
+        config,
+      ),
+    );
+    expect(cinco.ocupacion.piezasPorBaldosa).toBe(5);
+    expect(cinco.baldosasNecesarias).toBe(1);
+    const seis = esperarOk(
+      calcularCotizacion(
+        entradaBase({
+          figuraId: 'rodapie-medida-romado',
+          medidasMm: medidas,
+          cantidad: 6,
+          mermaPorcentaje: 0,
+        }),
+        config,
+      ),
+    );
+    expect(seis.baldosasNecesarias).toBe(2);
+    // 2 baldosas caben en 1 caja de 4 → se factura la caja: 1,44 m² × 25 €/m².
+    expect(seis.desglose.materialCentimos).toBe(3600);
+  });
+
+  it('la merma se aplica sobre las baldosas ya empaquetadas: 101 piezas de 10×10 → 2 baldosas → 3 con merma 10 %', () => {
+    const r = esperarOk(
+      calcularCotizacion(
+        entradaBase({
+          material: baldosa110,
+          figuraId: 'corte',
+          medidasMm: corte10x10,
+          cantidad: 101,
+          mermaPorcentaje: 10,
+        }),
+        config,
+      ),
+    );
+    expect(r.baldosasNecesarias).toBe(2);
+    expect(r.baldosasConMerma).toBe(3); // ceil(2 × 1,10)
+  });
+});
+
+describe('calcularCotizacion — facturación por cajas (§4)', () => {
+  it('se factura la caja completa; el sobrante se cobra al cliente', () => {
+    const r = esperarOk(calcularCotizacion(entradaBase(), config));
     expect(r.baldosasConMerma).toBe(6);
     expect(r.cajasFacturadas).toBe(2); // ceil(6 / 4 piezas por caja)
     expect(r.unidadesFacturadas).toBe(8); // 2 × 4: sobrante facturado
@@ -232,43 +511,39 @@ describe('calcularCotizacion — stock vs pedido (§4)', () => {
     expect(r.desglose.totalSinIvaCentimos).toBe(7200 + 5750 + 6000);
   });
 
-  it('pedido sin «piezas por caja» en el ERP → error claro de validación', () => {
+  it('sin «piezas por caja» → error claro de validación', () => {
     const mensajes = esperarErrores(
-      calcularCotizacion(
-        entradaBase({ origen: 'pedido', material: materialErp({ piezasPorCaja: null }) }),
-        config,
-      ),
+      calcularCotizacion(entradaBase({ material: materialErp({ piezasPorCaja: null }) }), config),
     );
     expect(mensajes.join(' ')).toMatch(/piezas por caja/);
   });
 
-  it('pedido sin «m² por caja» en el ERP → error claro de validación', () => {
+  it('sin «m² por caja» → error claro de validación', () => {
     const mensajes = esperarErrores(
-      calcularCotizacion(
-        entradaBase({ origen: 'pedido', material: materialErp({ m2PorCaja: null }) }),
-        config,
-      ),
+      calcularCotizacion(entradaBase({ material: materialErp({ m2PorCaja: null }) }), config),
     );
     expect(mensajes.join(' ')).toMatch(/m² por caja/);
   });
 });
 
-describe('calcularCotizacion — material manual y precio editado', () => {
+describe('calcularCotizacion — material manual y azulejos no incluidos', () => {
   it('manual → precio por unidad × unidades facturadas', () => {
     const r = esperarOk(calcularCotizacion(entradaBase({ material: materialManual() }), config));
-    expect(r.unidadesFacturadas).toBe(6);
-    expect(r.desglose.materialCentimos).toBe(4800); // 6 × 8 €
-    expect(r.precioMaterialOriginal).toBe(800);
+    expect(r.unidadesFacturadas).toBe(8); // 2 cajas de 4
+    expect(r.desglose.materialCentimos).toBe(6400); // 8 × 8 €
   });
 
-  it('manual a pedido sin datos logísticos → error claro', () => {
+  it('manual sin datos de caja → error claro (no se puede facturar por cajas)', () => {
     const mensajes = esperarErrores(
-      calcularCotizacion(entradaBase({ material: materialManual(), origen: 'pedido' }), config),
+      calcularCotizacion(
+        entradaBase({ material: materialManual({ piezasPorCaja: null }) }),
+        config,
+      ),
     );
     expect(mensajes.join(' ')).toMatch(/piezas por caja/);
   });
 
-  it('manual sin precio y sin edición del comercial → error de validación', () => {
+  it('manual sin precio y con azulejos incluidos → error de validación', () => {
     const mensajes = esperarErrores(
       calcularCotizacion(
         entradaBase({ material: materialManual({ precioUnidadCentimos: null }) }),
@@ -278,7 +553,7 @@ describe('calcularCotizacion — material manual y precio editado', () => {
     expect(mensajes.join(' ')).toMatch(/no tiene precio por unidad/);
   });
 
-  it('ERP sin tarifa TARP y sin edición → error de validación', () => {
+  it('ERP sin tarifa TARP y con azulejos incluidos → error de validación', () => {
     const mensajes = esperarErrores(
       calcularCotizacion(
         entradaBase({ material: materialErp({ precioM2Centimos: null }) }),
@@ -288,37 +563,41 @@ describe('calcularCotizacion — material manual y precio editado', () => {
     expect(mensajes.join(' ')).toMatch(/TARP/);
   });
 
-  it('precioMaterialEditado sustituye a la tarifa €/m² y el original se conserva', () => {
-    const r = esperarOk(
-      calcularCotizacion(entradaBase({ precioMaterialEditado: centimos(3000) }), config),
-    );
-    expect(r.desglose.materialCentimos).toBe(6480); // 2,16 m² × 30 €/m²
-    expect(r.precioMaterialOriginal).toBe(2500); // tarifa TARP intacta
+  it('azulejos no incluidos → material a 0; manipulación y arranque se cobran igual', () => {
+    const r = esperarOk(calcularCotizacion(entradaBase({ azulejosNoIncluidos: true }), config));
+    expect(r.desglose.materialCentimos).toBe(0);
+    // Mismos importes que el caso base salvo el material (7200 céntimos menos).
+    expect(r.desglose.manipulacionCentimos).toBe(5750);
+    expect(r.desglose.arranqueCentimos).toBe(6000);
+    expect(r.desglose.totalSinIvaCentimos).toBe(11750);
+    // Lo logístico no cambia: el cliente tiene que traer estas baldosas.
+    expect(r.baldosasConMerma).toBe(6);
+    expect(r.cajasFacturadas).toBe(2);
+    expect(r.m2Facturados).toBe(2.88);
   });
 
-  it('precioMaterialEditado en manual sustituye al precio por unidad', () => {
+  it('azulejos no incluidos en material manual → también 0', () => {
     const r = esperarOk(
       calcularCotizacion(
-        entradaBase({ material: materialManual(), precioMaterialEditado: centimos(900) }),
+        entradaBase({ material: materialManual(), azulejosNoIncluidos: true }),
         config,
       ),
     );
-    expect(r.desglose.materialCentimos).toBe(5400); // 6 × 9 €
-    expect(r.precioMaterialOriginal).toBe(800);
+    expect(r.desglose.materialCentimos).toBe(0);
   });
 
-  it('sin tarifa original pero con precio editado: el original mostrado es el editado', () => {
+  it('azulejos no incluidos permite cotizar un artículo sin tarifa TARP', () => {
     const r = esperarOk(
       calcularCotizacion(
         entradaBase({
           material: materialErp({ precioM2Centimos: null }),
-          precioMaterialEditado: centimos(3000),
+          azulejosNoIncluidos: true,
         }),
         config,
       ),
     );
-    expect(r.desglose.materialCentimos).toBe(6480);
-    expect(r.precioMaterialOriginal).toBe(3000);
+    expect(r.desglose.materialCentimos).toBe(0);
+    expect(r.desglose.totalSinIvaCentimos).toBe(11750);
   });
 });
 
@@ -351,23 +630,18 @@ describe('calcularCotizacion — ocupación: no cabe y giro 90°', () => {
 describe('calcularCotizacion — errores como valor (nunca lanza por entrada de usuario)', () => {
   it.each([
     ['figura inexistente', entradaBase({ figuraId: 'no-existe' }), /no existe en la configuración/],
-    [
-      'figura pendiente (§6.5)',
-      entradaBase({ figuraId: 'figura-5' }),
-      /no está disponible todavía/,
-    ],
     ['cantidad 0', entradaBase({ cantidad: 0 }), /cantidad debe ser un número entero mayor que 0/],
     ['cantidad no entera', entradaBase({ cantidad: 2.5 }), /cantidad debe ser un número entero/],
     ['merma negativa', entradaBase({ mermaPorcentaje: -5 }), /merma debe ser un porcentaje válido/],
     [
       'medida ausente',
       entradaBase({ medidasMm: { longitud: mm(500), alturaFrontal: mm(40) } }),
-      /Falta la medida «Fondo»/,
+      /Falta la medida «Ancho»/,
     ],
     [
       'medida fuera de rango (revalidación del motor)',
       entradaBase({ medidasMm: { longitud: mm(500), fondo: mm(300), alturaFrontal: mm(5) } }),
-      /no puede ser menor que 1 cm/,
+      /no puede ser menor que 4 cm/,
     ],
     [
       'suplemento inexistente',
@@ -377,16 +651,11 @@ describe('calcularCotizacion — errores como valor (nunca lanza por entrada de 
     [
       'suplemento no aplicable a la figura',
       entradaBase({
-        figuraId: 'rodapie-estandar',
+        figuraId: 'rodapie-72-romado',
         medidasMm: { longitud: mm(500), altura: mm(72) },
         suplementos: ['angular-f14'],
       }),
-      /no disponible para «Rodapié 7,2 y 8 cm»/,
-    ],
-    [
-      'precio editado negativo',
-      entradaBase({ precioMaterialEditado: centimos(-100) }),
-      /no puede ser negativo/,
+      /no disponible para «Rodapié 7,2 canto romado»/,
     ],
   ])('%s', (_nombre, entrada, patron) => {
     const salida = calcularCotizacion(entrada, config);
@@ -396,16 +665,32 @@ describe('calcularCotizacion — errores como valor (nunca lanza por entrada de 
   });
 
   it('el motivo de la figura pendiente se incluye en el mensaje', () => {
+    // Las figuras pendientes se retiraron de la galería (2026-07-29); el estado
+    // 'pendiente' sigue soportado y se prueba con una figura sintética (§6.6).
+    const base = figuraPorId(config, 'figura-2');
+    if (!base) throw new Error('figura-2 no encontrada en la configuración de pruebas');
+    const pendiente: Figura = {
+      ...base,
+      id: 'prueba-pendiente',
+      nombre: 'Prueba pendiente',
+      estado: 'pendiente',
+      motivoPendiente: 'Sin tarifa confirmada (§6.6).',
+    };
+    const configConPendiente: Configuracion = {
+      ...config,
+      figuras: [...config.figuras, pendiente],
+    };
     const mensajes = esperarErrores(
-      calcularCotizacion(entradaBase({ figuraId: 'pasamanos' }), config),
+      calcularCotizacion(entradaBase({ figuraId: 'prueba-pendiente' }), configConPendiente),
     );
+    expect(mensajes.join(' ')).toMatch(/no está disponible todavía/);
     expect(mensajes.join(' ')).toMatch(/Sin tarifa confirmada \(§6\.6\)/);
   });
 });
 
 describe('calcularCotizacion — determinismo y precisión entera (§1)', () => {
   it('mismo input → mismo output, siempre', () => {
-    const entrada = entradaBase({ suplementos: ['angular-f14', 'ranuras-f14'], origen: 'pedido' });
+    const entrada = entradaBase({ suplementos: ['angular-f14', 'ranuras-f14'] });
     const a = calcularCotizacion(entrada, config);
     const b = calcularCotizacion(entrada, config);
     expect(a).toEqual(b);
@@ -414,17 +699,15 @@ describe('calcularCotizacion — determinismo y precisión entera (§1)', () => 
   it('todos los importes del resultado son céntimos ENTEROS (prohibido float)', () => {
     const casos = [
       entradaBase(),
-      entradaBase({ origen: 'pedido' }),
       entradaBase({
         figuraId: 'peldano-romo',
         medidasMm: { longitud: mm(333), fondo: mm(222) },
         cantidad: 7,
       }),
       entradaBase({
-        figuraId: 'rodapie-no-estandar',
+        figuraId: 'rodapie-medida-romado',
         medidasMm: { longitud: mm(123), altura: mm(45) },
         cantidad: 3,
-        pintado: true,
       }),
       entradaBase({
         suplementos: ['angular-f14', 'ranuras-f14', 'goteron-f14', 'espesado-f14'],
@@ -435,7 +718,6 @@ describe('calcularCotizacion — determinismo y precisión entera (§1)', () => 
       const r = esperarOk(calcularCotizacion(entrada, config));
       const importes = [
         ...Object.values(r.desglose),
-        r.precioMaterialOriginal,
         ...r.lineasManipulacion.map((l) => l.centimos),
       ];
       for (const importe of importes) {

@@ -1,8 +1,8 @@
 /**
- * Test de integración paso ③ Medidas + paso ④ Suplementos: el ③ nunca se
- * cierra solo por completarse (a diferencia de ①/②); solo lo cierra el ④,
- * y solo cuando el comercial ya actúa allí (activa un suplemento, o mueve
- * el ratón por esa tarjeta). Ver `pasos-context.tsx`.
+ * Test de integración paso ③ Medidas + paso ④ Suplementos: al validarse las
+ * medidas se abre el ④, y el ③ se queda abierto. NADA cierra el ③ solo — ni
+ * completarse, ni activar un suplemento, ni pasar el ratón por el ④ (el
+ * automatismo solo abre pasos, 2026-07-29). Ver `pasos-context.tsx`.
  */
 
 import { act, fireEvent, render, screen } from '@testing-library/react';
@@ -27,7 +27,7 @@ function montar(): { api: () => Api } {
     return null;
   }
   render(
-    <ProveedorAtelier config={construirConfigPrueba()}>
+    <ProveedorAtelier>
       {/* Paso 3 ya abierto (como si acabara de llegar desde el paso 2); el 4 empieza cerrado. */}
       <ProveedorPasos inicial={{ 3: true }}>
         <PasoMedidas />
@@ -52,7 +52,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-describe('Medidas → Suplementos: apertura y cierre automáticos', () => {
+describe('Medidas → Suplementos: apertura automática, sin cierres', () => {
   it('al completar las medidas se abre Suplementos, pero Medidas sigue abierto', () => {
     const { api } = montar();
     act(() => api().dispatch({ tipo: 'seleccionarMaterial', material: materialPrueba() }));
@@ -61,8 +61,8 @@ describe('Medidas → Suplementos: apertura y cierre automáticos', () => {
     // Suplementos todavía cerrado: no se ve ninguno de sus conmutadores.
     expect(screen.queryByRole('checkbox', { name: /Angular/ })).not.toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText(/^Longitud/), { target: { value: '15' } });
-    fireEvent.change(screen.getByLabelText(/^Fondo/), { target: { value: '15' } });
+    fireEvent.change(screen.getByLabelText(/^Largo/), { target: { value: '15' } });
+    fireEvent.change(screen.getByLabelText(/^Ancho/), { target: { value: '15' } });
     fireEvent.change(screen.getByLabelText(/^Altura frontal/), { target: { value: '4' } });
 
     act(() => {
@@ -72,15 +72,15 @@ describe('Medidas → Suplementos: apertura y cierre automáticos', () => {
     // Suplementos ya está abierto...
     expect(screen.getByRole('checkbox', { name: /Angular/ })).toBeInTheDocument();
     // ...y Medidas NO se ha cerrado solo: sus campos siguen visibles.
-    expect(screen.getByLabelText(/^Longitud/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Largo/)).toBeInTheDocument();
   });
 
-  it('activar un suplemento cierra Medidas', () => {
+  it('activar un suplemento NO cierra Medidas', () => {
     const { api } = montar();
     act(() => api().dispatch({ tipo: 'seleccionarMaterial', material: materialPrueba() }));
     act(() => api().dispatch({ tipo: 'seleccionarFigura', figuraId: 'figura-1' }));
-    fireEvent.change(screen.getByLabelText(/^Longitud/), { target: { value: '15' } });
-    fireEvent.change(screen.getByLabelText(/^Fondo/), { target: { value: '15' } });
+    fireEvent.change(screen.getByLabelText(/^Largo/), { target: { value: '15' } });
+    fireEvent.change(screen.getByLabelText(/^Ancho/), { target: { value: '15' } });
     fireEvent.change(screen.getByLabelText(/^Altura frontal/), { target: { value: '4' } });
     act(() => {
       vi.runAllTimers();
@@ -88,16 +88,16 @@ describe('Medidas → Suplementos: apertura y cierre automáticos', () => {
 
     fireEvent.click(screen.getByRole('checkbox', { name: /Angular/ }));
 
-    expect(screen.queryByLabelText(/^Longitud/)).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/^Largo/)).toBeInTheDocument();
     expect(api().estado.suplementos['angular-f14']).toBe(true);
   });
 
-  it('mover el ratón sobre Suplementos cierra Medidas', () => {
+  it('mover el ratón sobre Suplementos NO cierra Medidas', () => {
     const { api } = montar();
     act(() => api().dispatch({ tipo: 'seleccionarMaterial', material: materialPrueba() }));
     act(() => api().dispatch({ tipo: 'seleccionarFigura', figuraId: 'figura-1' }));
-    fireEvent.change(screen.getByLabelText(/^Longitud/), { target: { value: '15' } });
-    fireEvent.change(screen.getByLabelText(/^Fondo/), { target: { value: '15' } });
+    fireEvent.change(screen.getByLabelText(/^Largo/), { target: { value: '15' } });
+    fireEvent.change(screen.getByLabelText(/^Ancho/), { target: { value: '15' } });
     fireEvent.change(screen.getByLabelText(/^Altura frontal/), { target: { value: '4' } });
     act(() => {
       vi.runAllTimers();
@@ -105,6 +105,6 @@ describe('Medidas → Suplementos: apertura y cierre automáticos', () => {
 
     fireEvent.mouseMove(screen.getByText('Suplementos'));
 
-    expect(screen.queryByLabelText(/^Longitud/)).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/^Largo/)).toBeInTheDocument();
   });
 });

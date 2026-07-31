@@ -17,19 +17,25 @@
 import { render } from '@testing-library/react';
 import type { ReactElement } from 'react';
 import { ProveedorAtelier, useAtelier } from '../../../../src/ui/state/quote-state';
-import { ProveedorPasos } from '../../../../src/ui/state/pasos-context';
-import { construirConfigPrueba } from './config-prueba';
+import { ProveedorPasos, usePasos } from '../../../../src/ui/state/pasos-context';
 
 export type AtelierApi = ReturnType<typeof useAtelier>;
+export type PasosApi = ReturnType<typeof usePasos>;
 
-export function montarPasos(ui: ReactElement): { api: () => AtelierApi } {
+export function montarPasos(ui: ReactElement): {
+  api: () => AtelierApi;
+  /** Estado de apertura de los pasos, para simular que el comercial abre/cierra tarjetas. */
+  pasos: () => PasosApi;
+} {
   let actual: AtelierApi | null = null;
+  let actualPasos: PasosApi | null = null;
   function Captura(): null {
     actual = useAtelier();
+    actualPasos = usePasos();
     return null;
   }
   render(
-    <ProveedorAtelier config={construirConfigPrueba()}>
+    <ProveedorAtelier>
       <ProveedorPasos inicial={{ 1: true, 2: true, 3: true, 4: true }}>
         {ui}
         <Captura />
@@ -40,6 +46,10 @@ export function montarPasos(ui: ReactElement): { api: () => AtelierApi } {
     api: () => {
       if (!actual) throw new Error('El estado de Atelier aún no está montado');
       return actual;
+    },
+    pasos: () => {
+      if (!actualPasos) throw new Error('El estado de los pasos aún no está montado');
+      return actualPasos;
     },
   };
 }

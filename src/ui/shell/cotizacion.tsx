@@ -8,8 +8,9 @@
  *    errores de validación).
  *  - Datos logísticos cuando hay resultado: baldosas necesarias, baldosas con
  *    merma, piezas/cajas facturadas y m² facturados.
- *  - Precio del material editable por el comercial en €, con la tarifa original
- *    siempre visible junto al editado y botón de restablecer (§1 «Cotización»).
+ *  - «Azulejos no incluidos»: casilla para cuando el cliente aporta las baldosas.
+ *    El material sale a 0 € y la línea del desglose lo dice; el resto del cálculo
+ *    (baldosas, merma, cajas) no cambia, porque es lo que el cliente debe traer.
  *  - % de merma visible para el comercial (§4); editable solo si
  *    `parametros.mermaEditable`. PROVISIONAL (§6.9/§6.10): valor y editabilidad
  *    pendientes de taller/dirección — se marca en el tooltip de ayuda, sin
@@ -18,25 +19,28 @@
  *    del paso ③ (medidas) se ocultan hasta que el comercial ha tecleado algo
  *    ahí (`medidasTecleadas`, mismo criterio que `PasoMedidas`): recién
  *    elegida la figura, "vacío" no es todavía un error que enseñar.
- *  - «Generar PDF»: construye `DatosOrdenTrabajo` (construirEntrada + resultado)
+ *  - «Generar PDF»: construye `DatosOrdenTrabajo` (construirEntrada + resultado
+ *    + la sección de la pieza para el croquis + los comentarios y sus adjuntos)
  *    y llama a `generarPdfOrdenTrabajo`; cualquier error se muestra en pantalla
  *    sin romper la app.
  */
 
 import { useState } from 'react';
-import { figuraPorId } from '../../domain/engine';
+import { figuraPorId, mermaSugeridaPorcentaje } from '../../domain/engine';
 import { formatearEuros } from '../../domain/money';
 import type { Centimos } from '../../domain/types';
-import { generarPdfOrdenTrabajo } from '../../pdf/ordenTrabajo';
-import { Boton, Campo, EntradaNumero } from '../components/primitivas';
+import { construirSeccion, rasgosDeSuplementos } from '../../piezas/piezaDeFigura';
+import { Boton, Campo, EntradaNumero, FilaConmutador } from '../components/primitivas';
 import { useConfig } from '../state/config-context';
+import { ParametrosAvanzados } from './ParametrosAvanzados';
 import { construirEntrada, medidasTecleadas, useAtelier, useSalidaMotor } from '../state/quote-state';
 
-// Filtros de tecleo: solo números positivos con hasta 2 decimales. Sin ellos,
-// un texto no parseable llegaría a `construirEntrada` como NaN y rompería la
-// conversión a céntimos (money.ts exige enteros).
-const RE_IMPORTE_EUROS = /^\d{0,7}([.,]\d{0,2})?$/;
+// Filtro de tecleo del % de merma: solo números positivos con hasta 2 decimales.
+// Sin él, un texto no parseable llegaría a `construirEntrada` como NaN.
 const RE_PORCENTAJE = /^\d{0,3}([.,]\d{0,2})?$/;
+
+/** La merma sugerida puede caer en decimales (16,67 %); se muestran hasta dos. */
+const FORMATO_MERMA = new Intl.NumberFormat('es-ES', { maximumFractionDigits: 2 });
 
 function formatearM2(m2: number): string {
   return `${new Intl.NumberFormat('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(m2)} m²`;
@@ -82,6 +86,7 @@ export function PanelCotizacion(): JSX.Element {
   const [generandoPdf, setGenerandoPdf] = useState(false);
 
   const resultado = salida !== null && salida.ok ? salida.resultado : null;
+  const hayPedido = estado.carrito.length > 0;
   const medidasIniciadas = medidasTecleadas(estado);
   // «Cantidad» nunca empieza vacía: su error se enseña siempre. Las medidas
   // de la figura sí empiezan vacías al elegirla (mismo criterio que PasoMedidas).
@@ -93,24 +98,14 @@ export function PanelCotizacion(): JSX.Element {
       : [];
   const desglose = resultado?.desglose ?? null;
 
-  // Tarifa original visible junto al precio editado (§1). Con resultado manda
-  // `precioMaterialOriginal` del motor; sin él, la tarifa del propio material
-  // (TARP en €/m², o €/unidad en material manual).
   const material = estado.material;
-  const unidadPrecio = material !== null && material.precioM2Centimos === null ? '€/unidad' : '€/m²';
-  const tarifaOriginalCentimos =
-    resultado?.precioMaterialOriginal ??
-    material?.precioM2Centimos ??
-    material?.precioUnidadCentimos ??
-    null;
-  const tarifaOriginalTexto =
-    tarifaOriginalCentimos === null ? null : `${formatearEuros(tarifaOriginalCentimos)}${unidadPrecio === '€/m²' ? '/m²' : '/unidad'}`;
 
-  function alCambiarPrecio(valor: string): void {
-    if (RE_IMPORTE_EUROS.test(valor)) {
-      dispatch({ tipo: 'cambiarPrecioMaterialEditado', euros: valor });
-    }
-  }
+  // Merma sugerida por el formato de la baldosa (+ extra de figura numerada).
+  // Sin material aún no hay formato del que deducirla, así que no se muestra.
+  const mermaSugeridaTxt =
+    material === null
+      ? null
+      : FORMATO_MERMA.format(mermaSugeridaPorcentaje(material.formato, estado.figuraId, config));
 
   function alCambiarMerma(valor: string): void {
     if (RE_PORCENTAJE.test(valor)) {
@@ -120,7 +115,7 @@ export function PanelCotizacion(): JSX.Element {
 
   function alReiniciar(): void {
     setErrorPdf(null);
-    dispatch({ tipo: 'reiniciar', mermaPorcentajeDefecto: config.parametros.mermaPorcentajeDefecto });
+    dispatch({ tipo: 'reiniciar' });
   }
 
   async function alGenerarPdf(): Promise<void> {
@@ -142,19 +137,32 @@ export function PanelCotizacion(): JSX.Element {
 
     setGenerandoPdf(true);
     try {
+      // jsPDF (y sus dependencias) pesan ~580 kB y solo hacen falta al pulsar
+      // este botón: se cargan aquí, no en la primera pantalla.
+      const { generarPdfOrdenTrabajo } = await import('../../pdf/ordenTrabajo');
       await generarPdfOrdenTrabajo({
         material: construida.entrada.material,
-        origen: construida.entrada.origen,
         figura,
         medidasMm: construida.medidasMm,
         cantidad: construida.entrada.cantidad,
         suplementosActivos: construida.entrada.suplementos,
-        pintado: construida.entrada.pintado,
-        precioMaterialEditadoEuros: estado.precioMaterialEditadoEuros,
+        unidadesSuplemento: construida.entrada.unidadesSuplemento,
+        azulejosNoIncluidos: construida.entrada.azulejosNoIncluidos,
         mermaPorcentaje: construida.entrada.mermaPorcentaje,
+        comentarios: estado.comentarios,
+        adjuntos: estado.adjuntos,
         resultado: salida.resultado,
         config,
         fecha: new Date(),
+        // Croquis de la pieza: la MISMA sección que extruye el visor 3D, para
+        // que el dibujo del taller no pueda discrepar del modelo. Con los
+        // suplementos activos, para que el croquis enseñe dónde van las ranuras.
+        seccion: construirSeccion(
+          figura,
+          construida.medidasMm,
+          undefined,
+          rasgosDeSuplementos(construida.entrada.suplementos),
+        ),
       });
     } catch (error: unknown) {
       setErrorPdf(error instanceof Error ? error.message : 'Error desconocido al generar el PDF.');
@@ -178,6 +186,10 @@ export function PanelCotizacion(): JSX.Element {
 
         {resultado !== null ? (
           <dl className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-md bg-slate-50 p-3 text-sm">
+            <DatoLogistico
+              etiqueta="Piezas por baldosa"
+              valor={String(resultado.ocupacion.piezasPorBaldosa)}
+            />
             <DatoLogistico etiqueta="Baldosas necesarias" valor={String(resultado.baldosasNecesarias)} />
             <DatoLogistico etiqueta="Baldosas con merma" valor={String(resultado.baldosasConMerma)} />
             <DatoLogistico etiqueta="Piezas facturadas" valor={String(resultado.unidadesFacturadas)} />
@@ -192,7 +204,10 @@ export function PanelCotizacion(): JSX.Element {
         ) : null}
 
         <div className="flex flex-col gap-1.5">
-          <FilaImporte concepto="Material" valor={desglose ? desglose.materialCentimos : null} />
+          <FilaImporte
+            concepto={estado.azulejosNoIncluidos ? 'Material (no incluido)' : 'Material'}
+            valor={desglose ? desglose.materialCentimos : null}
+          />
           <FilaImporte
             concepto="Manipulación (con suplementos)"
             valor={desglose ? desglose.manipulacionCentimos : null}
@@ -217,53 +232,51 @@ export function PanelCotizacion(): JSX.Element {
         </div>
 
         {material !== null ? (
-          <div className="flex flex-col gap-2 rounded-md border border-slate-200 p-3">
-            <Campo
-              etiqueta={`Precio del material (${unidadPrecio})`}
-              ayuda="Por defecto se aplica la tarifa del artículo; el comercial puede editarla. El valor original queda visible junto al editado."
-            >
-              <EntradaNumero
-                valor={estado.precioMaterialEditadoEuros}
-                alCambiar={alCambiarPrecio}
-                placeholder={tarifaOriginalTexto ?? ''}
-                aria-label="Precio del material editado, en euros"
-              />
-            </Campo>
-            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
-              <span>
-                Tarifa original:{' '}
-                <strong className="text-slate-700">{tarifaOriginalTexto ?? 'sin tarifa'}</strong>
-              </span>
-              {estado.precioMaterialEditadoEuros !== '' ? (
-                <Boton
-                  variante="secundario"
-                  onClick={() => dispatch({ tipo: 'cambiarPrecioMaterialEditado', euros: '' })}
-                >
-                  Restablecer a tarifa
-                </Boton>
-              ) : null}
-            </div>
+          <div className="rounded-md border border-slate-200 p-1">
+            <FilaConmutador
+              etiqueta="Azulejos no incluidos"
+              detalle="Los aporta el cliente: se cotiza solo la manipulación (material a 0 €). Las baldosas y cajas necesarias se siguen calculando."
+              activo={estado.azulejosNoIncluidos}
+              alCambiar={(noIncluidos) =>
+                dispatch({ tipo: 'cambiarAzulejosNoIncluidos', noIncluidos })
+              }
+            />
           </div>
         ) : null}
 
         <div className="flex flex-col gap-1">
           <Campo
             etiqueta="Merma sobre baldosas (%)"
-            ayuda="Porcentaje aplicado sobre las baldosas de origen, redondeando hacia arriba (§4). Valor provisional de desarrollo: pendiente de taller (§6.9)."
+            ayuda="Porcentaje aplicado sobre las baldosas de origen, redondeando hacia arriba (§4). Se propone según el formato de la baldosa (lado mayor: 60 cm o menos → 10 %, 120 cm o más → 20 %, proporcional en medio) más el extra de las figuras numeradas. Puedes sobrescribirlo."
           >
             <EntradaNumero
-              valor={estado.mermaPorcentaje}
+              valor={estado.mermaEditadaPorcentaje}
               alCambiar={alCambiarMerma}
               disabled={!config.parametros.mermaEditable}
+              placeholder={mermaSugeridaTxt ?? undefined}
               aria-label="Porcentaje de merma"
             />
           </Campo>
+          {/* Igual que el precio del material: la sugerencia queda visible aunque
+              se sobrescriba, para que se vea que la edición fue deliberada. */}
+          {mermaSugeridaTxt !== null ? (
+            <p className="text-xs text-slate-500">
+              {estado.mermaEditadaPorcentaje.trim() === ''
+                ? `Sugerida por el formato: ${mermaSugeridaTxt} %`
+                : `Editada. Sugerida por el formato: ${mermaSugeridaTxt} %`}
+            </p>
+          ) : null}
           {!config.parametros.mermaEditable ? (
             <p className="text-xs text-slate-500">
               Edición desactivada en configuración (§6.10, pendiente de dirección).
             </p>
           ) : null}
         </div>
+
+        <ParametrosAvanzados
+          margenAplicado={resultado?.margen ?? null}
+          faltaMargen={erroresMotor.some((e) => e.mensaje.includes('margen'))}
+        />
 
         {erroresMotor.length > 0 ? (
           <div role="alert" className="rounded-md border border-red-200 bg-red-50 p-3">
@@ -277,12 +290,33 @@ export function PanelCotizacion(): JSX.Element {
         ) : null}
 
         <div className="flex flex-col gap-2 border-t border-slate-100 pt-3">
-          <Boton onClick={() => void alGenerarPdf()} disabled={resultado === null || generandoPdf}>
-            {generandoPdf ? 'Generando PDF…' : 'Generar PDF'}
+          {/* «Generar PDF» arriba y a lo ancho: es el final del flujo de una
+              pieza, el caso normal. Debajo, «Añadir al pedido» y «Reiniciar»
+              comparten fila — las dos sacan de esta pieza, una guardándola y la
+              otra tirándola, así que se leen juntas (2026-07-31).
+
+              El énfasis sí sigue al flujo: en cuanto hay pedido empezado manda
+              «Añadir al pedido», porque a partir de la segunda pieza lo que se
+              quiere es seguir sumando y no sacar el PDF de una sola. */}
+          <Boton
+            variante={hayPedido ? 'secundario' : 'primario'}
+            onClick={() => void alGenerarPdf()}
+            disabled={resultado === null || generandoPdf}
+          >
+            {generandoPdf ? 'Generando PDF…' : 'Generar PDF de esta pieza'}
           </Boton>
-          <Boton variante="secundario" onClick={alReiniciar}>
-            Reiniciar
-          </Boton>
+          <div className="grid grid-cols-2 gap-2">
+            <Boton
+              variante={hayPedido ? 'primario' : 'secundario'}
+              onClick={() => dispatch({ tipo: 'anadirAlPedido' })}
+              disabled={resultado === null}
+            >
+              Añadir al pedido
+            </Boton>
+            <Boton variante="secundario" onClick={alReiniciar}>
+              Reiniciar
+            </Boton>
+          </div>
           {errorPdf !== null ? (
             <p role="alert" className="text-sm text-red-600">
               {errorPdf}

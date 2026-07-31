@@ -22,6 +22,8 @@ const DATOS: DatosMaterialManual = {
   largoCm: 33.3,
   anchoCm: 25,
   precioUnidadEuros: 4.5,
+  piezasPorCaja: 8,
+  subfamilia: 9411,
   imagenUrl: null,
 };
 
@@ -40,12 +42,41 @@ describe('crearMaterialManual', () => {
     expect(m.imagenUrl).toBeNull();
   });
 
-  it('el material manual no tiene tarifa por m² ni datos de caja', () => {
+  it('no tiene tarifa por m² ni marca, pero sí datos de caja', () => {
     const m = crearMaterialManual(DATOS);
     expect(m.precioM2Centimos).toBeNull();
-    expect(m.piezasPorCaja).toBeNull();
-    expect(m.m2PorCaja).toBeNull();
     expect(m.marca).toBeNull();
+    // Desde 2026-07-30 se factura por cajas completas: sin estos datos no se
+    // podría cotizar un material manual.
+    expect(m.piezasPorCaja).toBe(8);
+  });
+
+  /**
+   * Los m²/caja NO se piden al comercial: se derivan del formato. Importa que el
+   * valor derivado sobreviva a la cuantización del motor (Math.round(x × 1e6)),
+   * porque de ahí sale el importe del material.
+   */
+  it('deriva los m²/caja del formato, sin pérdida al cuantizar a mm²', () => {
+    const m = crearMaterialManual(DATOS);
+    expect(m.m2PorCaja).toBe(0.666); // 8 × 33,3 × 25 cm = 0,666 m²
+    expect(Math.round((m.m2PorCaja as number) * 1_000_000)).toBe(8 * 333 * 250);
+  });
+
+  /**
+   * La subfamilia es la clave del MARGEN comercial, así que desde 2026-07-31 es
+   * obligatoria: sin ella el material no se puede cotizar. Antes se recogía como
+   * opcional «para el futuro»; ese futuro ya llegó.
+   */
+  it('guarda la subfamilia, que es de donde sale el margen', () => {
+    expect(crearMaterialManual({ ...DATOS, subfamilia: 1420 }).subfamilia).toBe(1420);
+  });
+
+  it('rechaza una subfamilia ausente o que no sea un entero', () => {
+    expect(() => crearMaterialManual({ ...DATOS, subfamilia: 12.5 })).toThrow(/subfamilia/);
+    expect(() => crearMaterialManual({ ...DATOS, subfamilia: -3 })).toThrow(/subfamilia/);
+    expect(() =>
+      crearMaterialManual({ ...DATOS, subfamilia: null as unknown as number }),
+    ).toThrow(/subfamilia/);
   });
 
   it('genera referencias locales únicas MANUAL-<timestamp>', () => {
@@ -68,6 +99,8 @@ describe('crearMaterialManual', () => {
     expect(() => crearMaterialManual({ ...DATOS, largoCm: 0 })).toThrow(/mayores que 0/);
     expect(() => crearMaterialManual({ ...DATOS, anchoCm: -5 })).toThrow(/mayores que 0/);
     expect(() => crearMaterialManual({ ...DATOS, precioUnidadEuros: -1 })).toThrow(/negativo/);
+    expect(() => crearMaterialManual({ ...DATOS, piezasPorCaja: 0 })).toThrow(/piezas por caja/);
+    expect(() => crearMaterialManual({ ...DATOS, piezasPorCaja: 2.5 })).toThrow(/piezas por caja/);
   });
 });
 

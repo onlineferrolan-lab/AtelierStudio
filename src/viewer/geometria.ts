@@ -1,57 +1,40 @@
 /**
- * Construcción de la geometría 3D de la pieza a partir de la figura y sus medidas.
+ * Malla three.js de la pieza: extruye la sección a lo largo del largo (eje x).
  *
- * Capa de REPRESENTACIÓN: las medidas llegan como `Mm` (enteros del dominio) y
- * aquí se convierten a unidades de escena (1 unidad = 1 cm) como float de
- * dibujo. La regla §1 ("prohibido float para geometría") gobierna el cálculo
- * de dominio; este módulo solo pinta y nunca alimenta cotizaciones.
+ * La FORMA no se decide aquí. `src/piezas/piezaDeFigura.ts` (puro, sin three)
+ * traduce figura + medidas en una sección y sus cotas; este módulo solo la
+ * convierte en geometría. La separación existe para que el PDF de orden de
+ * trabajo pueda dibujar el croquis sin cargar three.js.
  *
- * La receta (qué componentes hay y de qué medida sale cada dimensión) se lee de
- * `figura.componentes` (configuración, §3), nunca se hardcodea. El ensamblaje
- * de cada figura sigue la indicación directa del encargo (2026-07-24):
- *  - Figuras 1–4: todas la misma L escuadrada (tapa apoyada sobre el frontal,
- *    caras a ras, sin chaflán ni escalón). La Figura 4 añade el retorno
- *    horizontal en la base, sobresaliendo hacia dentro.
- *  - Peldaño romo: tapa con el canto delantero redondeado con radio = grosor.
- *
- * PROVISIONAL mientras no haya croquis ACOTADO oficial (§3): el grosor de
- * baldosa usado para dibujar el frontal/retorno es una constante de
- * desarrollo (ver más abajo), no un dato real de la pieza. Ver PENDIENTES.md.
+ * Por qué una extrusión y no un apilado de cajas: las uniones a 45° y la base a
+ * ras de los dientes salen exactas, no hay caras coincidentes (z-fighting) y la
+ * textura se ajusta una sola vez a la pieza — con varias mallas,
+ * `remapearUvAAjuste` estiraba la imagen completa sobre CADA caja.
  */
 
 import * as THREE from 'three';
-import type { ComponenteReceta, Figura } from '../domain/config';
+import type { Figura } from '../domain/config';
+import type { SeccionPieza } from '../piezas/seccionPieza';
+import {
+  GROSOR_BALDOSA_PROVISIONAL,
+  ensamblar,
+  type CotaPieza,
+} from '../piezas/piezaDeFigura';
+import { SIN_SUPLEMENTOS, type SuplementosSeccion } from '../piezas/seccionPieza';
 import type { Mm } from '../domain/types';
-import { mm } from '../domain/units';
 import { crearMaterialNeutro } from './materiales';
 
-/** 1 unidad de escena = 1 cm (proporciones reales, §1 "Visor 3D"). */
-const UNIDADES_POR_MM = 0.1;
-
-/**
- * PROVISIONAL (TODO taller): grosor de la baldosa. Ni `parametros.json` ni
- * `Material.formato` recogen todavía el grosor, y las props del visor no
- * incluyen configuración; se usa 10 mm (habitual en pavimento) hasta que el
- * dato viva en configuración. SOLO afecta a la representación, no al cálculo.
- */
-export const GROSOR_BALDOSA_PROVISIONAL: Mm = mm(10);
-
-export type EjeCota = 'x' | 'y' | 'z';
-
-/** Dónde se apoya visualmente la línea de cota respecto a la pieza. */
-export type PlanoCota =
-  'frenteInferior' | 'lateralDerecho' | 'lateralIzquierdo' | 'verticalFrontal';
-
-export interface CotaPieza {
-  /** Id de la medida de la figura ('longitud', 'fondo', 'retorno'...). */
-  readonly medida: string;
-  readonly valorMm: Mm;
-  readonly eje: EjeCota;
-  readonly plano: PlanoCota;
-  /** Extremos de la cota sobre su eje, en unidades de escena ya centradas. */
-  readonly desde: number;
-  readonly hasta: number;
-}
+// Reexportado para que el visor y sus tests sigan teniendo un único punto de
+// entrada, aunque la lógica pura viva en `src/piezas/`.
+export {
+  GROSOR_BALDOSA_PROVISIONAL,
+  construirSeccion,
+  faltanMedidasParaPieza,
+  rasgosDeSuplementos,
+  type CotaPieza,
+  type EjeCota,
+  type PlanoCota,
+} from '../piezas/piezaDeFigura';
 
 export interface PiezaConstruida {
   /** Mallas de la pieza con material neutro (la textura se aplica aparte). */
@@ -64,23 +47,15 @@ export interface PiezaConstruida {
   readonly dimensionMaxima: number;
 }
 
-/** true si a la receta le falta alguna medida (figura sin receta o medidas incompletas). */
-export function faltanMedidasParaPieza(
-  figura: Figura,
-  medidasMm: Readonly<Record<string, Mm>>,
-): boolean {
-  return figura.componentes.some(
-    (c) => medidasMm[c.largoDe] === undefined || medidasMm[c.anchoDe] === undefined,
-  );
+/** Convierte el contorno compartido (z, y) en la forma que extruye three.js. */
+function formaDeSeccion(seccion: SeccionPieza): THREE.Shape {
+  const forma = new THREE.Shape();
+  const [primero, ...resto] = seccion.contorno;
+  forma.moveTo(primero[0], primero[1]);
+  for (const [z, y] of resto) forma.lineTo(z, y);
+  forma.closePath();
+  return forma;
 }
-
-interface CotaCruda extends Omit<CotaPieza, 'desde' | 'hasta'> {
-  readonly desde: number;
-  readonly hasta: number;
-}
-
-/** Repetición de textura para mallas extruidas (sus UV vienen en unidades de escena). */
-const REPETICION_TEXTURA_EXTRUIDA = 0.08;
 
 /**
  * Extruye un perfil 2D (fondo, alto) a lo largo del largo (eje X), dejando el
@@ -106,107 +81,14 @@ export function construirPieza(
   figura: Figura,
   medidasMm: Readonly<Record<string, Mm>>,
   grosorMm: Mm = GROSOR_BALDOSA_PROVISIONAL,
+  suplementos: SuplementosSeccion = SIN_SUPLEMENTOS,
 ): PiezaConstruida | null {
-  if (figura.componentes.length === 0 || faltanMedidasParaPieza(figura, medidasMm)) return null;
+  const ensamblaje = ensamblar(figura, medidasMm, grosorMm, suplementos);
+  if (!ensamblaje) return null;
+  const { seccion, largo, cotas } = ensamblaje;
 
-  const aEscena = (valor: Mm): number => valor * UNIDADES_POR_MM;
-  const g = aEscena(grosorMm);
   const malla = new THREE.Group();
-  const material = crearMaterialNeutro();
-  const cotas: CotaCruda[] = [];
-  const ids = new Set(figura.componentes.map((c) => c.id));
-  const componente = (id: string): ComponenteReceta | undefined =>
-    figura.componentes.find((c) => c.id === id);
-
-  const agregarCaja = (
-    largo: number,
-    alto: number,
-    fondo: number,
-    x: number,
-    y: number,
-    z: number,
-  ): void => {
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(largo, alto, fondo), material);
-    mesh.position.set(x, y, z);
-    malla.add(mesh);
-  };
-  const agregarExtruida = (perfil: THREE.Shape, largo: number): void => {
-    const mesh = new THREE.Mesh(extruirPerfil(perfil, largo), material);
-    mesh.userData.repetirTexturaPorUnidad = REPETICION_TEXTURA_EXTRUIDA;
-    malla.add(mesh);
-  };
-  const cota = (
-    medida: string,
-    eje: EjeCota,
-    plano: PlanoCota,
-    desde: number,
-    hasta: number,
-  ): void => {
-    cotas.push({ medida, valorMm: medidasMm[medida], eje, plano, desde, hasta });
-  };
-
-  if (ids.has('tapa') && ids.has('frontal')) {
-    // Peldaños: tapa + frontal (Figuras 1–4).
-    const tapa = componente('tapa');
-    const frontal = componente('frontal');
-    if (!tapa || !frontal) return null;
-    const largo = aEscena(medidasMm[tapa.largoDe]);
-    const F = aEscena(medidasMm[tapa.anchoDe]); // fondo (z)
-    const h = aEscena(medidasMm[frontal.anchoDe]); // altura del frontal bajo la tapa (y)
-    cota(tapa.largoDe, 'x', 'frenteInferior', 0, largo);
-    cota(tapa.anchoDe, 'z', 'lateralDerecho', 0, F);
-    cota(frontal.anchoDe, 'y', 'verticalFrontal', 0, h);
-
-    // Todas las figuras con tapa + frontal (1–4) comparten la misma L a ras
-    // (tapa apoyada sobre el frontal, sin chaflán/escalón): decisión directa
-    // del encargo (2026-07-24), revierte el intento anterior de escalera.
-    agregarCaja(largo, g, F, largo / 2, h + g / 2, F / 2);
-    agregarCaja(largo, h, g, largo / 2, h / 2, F - g / 2);
-    const retorno = componente('retorno');
-    if (retorno) {
-      const anchoRetorno = aEscena(medidasMm[retorno.anchoDe]);
-      agregarCaja(largo, g, anchoRetorno, largo / 2, g / 2, F - g - anchoRetorno / 2);
-      cota(retorno.anchoDe, 'z', 'lateralIzquierdo', F - g - anchoRetorno, F - g);
-    }
-  } else if (ids.has('tapa')) {
-    // Peldaño romo: tapa con el canto delantero redondeado (radio = grosor).
-    const tapa = componente('tapa');
-    if (!tapa) return null;
-    const largo = aEscena(medidasMm[tapa.largoDe]);
-    const fondo = aEscena(medidasMm[tapa.anchoDe]);
-    // Perfil en el plano (fondo, alto): rectángulo con la esquina delantera
-    // superior sustituida por un arco de 90° y radio = grosor (media caña).
-    const perfil = new THREE.Shape();
-    perfil.moveTo(0, 0);
-    perfil.lineTo(fondo, 0);
-    perfil.absarc(fondo - g, 0, g, 0, Math.PI / 2, false);
-    perfil.lineTo(0, g);
-    perfil.closePath();
-    agregarExtruida(perfil, largo);
-    cota(tapa.largoDe, 'x', 'frenteInferior', 0, largo);
-    cota(tapa.anchoDe, 'z', 'lateralDerecho', 0, fondo);
-  } else if (ids.has('liston')) {
-    // Rodapiés: listón fino de pie (largo × alto, grosor de baldosa).
-    const liston = componente('liston');
-    if (!liston) return null;
-    const largo = aEscena(medidasMm[liston.largoDe]);
-    const altura = aEscena(medidasMm[liston.anchoDe]);
-    agregarCaja(largo, altura, g, largo / 2, altura / 2, g / 2);
-    cota(liston.largoDe, 'x', 'frenteInferior', 0, largo);
-    cota(liston.anchoDe, 'y', 'verticalFrontal', 0, altura);
-  } else if (ids.has('pieza')) {
-    // Corte: pieza plana rectangular tumbada.
-    const pieza = componente('pieza');
-    if (!pieza) return null;
-    const largo = aEscena(medidasMm[pieza.largoDe]);
-    const ancho = aEscena(medidasMm[pieza.anchoDe]);
-    agregarCaja(largo, g, ancho, largo / 2, g / 2, ancho / 2);
-    cota(pieza.largoDe, 'x', 'frenteInferior', 0, largo);
-    cota(pieza.anchoDe, 'z', 'lateralDerecho', 0, ancho);
-  } else {
-    // Receta con componentes que el visor no sabe ensamblar (no inventar, §0).
-    return null;
-  }
+  malla.add(new THREE.Mesh(extruirPerfil(formaDeSeccion(seccion), largo), crearMaterialNeutro()));
 
   // Centrar la pieza en el origen para orbitar y encuadrar alrededor de ella.
   malla.updateMatrixWorld(true);

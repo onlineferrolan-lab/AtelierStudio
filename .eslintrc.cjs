@@ -26,12 +26,15 @@ module.exports = {
           'estadoInicial',
           'useAtelier',
           'construirEntrada',
+          'construirEntradaDePieza',
+          'construirEntradasPedido',
           'useSalidaMotor',
+          'usePedido',
+          'useMargenDeMaterial',
           'useMedidasValidadas',
           'medidasTecleadas',
           'usePasos',
           'usePasoCompletado',
-          'useAbrirAlCompletar',
         ],
       },
     ],
@@ -41,6 +44,12 @@ module.exports = {
     {
       files: ['tests/**/*.ts', 'tests/**/*.tsx'],
       env: { node: true },
+    },
+    {
+      // Scripts de línea de comandos (generación del índice del catálogo y del
+      // manual de usuario): corren en Node, no en el navegador.
+      files: ['scripts/**/*.mjs'],
+      env: { node: true, browser: false },
     },
   ],
 };
