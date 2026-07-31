@@ -11,6 +11,7 @@ import {
   SIN_SUPLEMENTOS,
   cajaSeccion,
   seccionEscuadra,
+  seccionListon,
   seccionRomo,
   type SeccionPieza,
 } from '../../../src/piezas/seccionPieza';
@@ -175,6 +176,75 @@ describe('material espesado', () => {
       suplementos: { antideslizante: true, goteron: true, espesado: true },
     });
     expect(area(soloEsp) - area(todo)).toBeCloseTo(AREA_ANTIDESLIZANTES + AREA_GOTERON, 9);
+  });
+});
+
+/**
+ * El canto romado NO es una media caña. Cuando lo era (semicircunferencia de
+ * radio medio espesor) el taller lo rechazó: en sección salía una «U» tumbada y
+ * la pieza real tiene la cara frontal casi recta con las esquinas matadas —una
+ * «D»— porque la curva vuela solo un cuarto del espesor (2026-07-31, indicación
+ * directa). Estas pruebas fijan esa proporción: es lo único que distingue las dos
+ * formas, y las cajas envolventes son idénticas, así que nada más lo detectaría.
+ */
+describe('forma del canto romado', () => {
+  const VUELO = 1 / 4;
+
+  it('la curva recorre el espesor entero pero vuela un cuarto de él', () => {
+    const fondo = 33;
+    const grosor = 2;
+    const s = seccionRomo({ fondo, grosor, doble: false });
+    const caja = cajaSeccion(s);
+    // Llega al frente y cubre el espesor: el canto no deja ninguna arista viva.
+    expect(caja.zMax).toBeCloseTo(fondo, 9);
+    expect(caja.yMax - caja.yMin).toBeCloseTo(grosor, 9);
+    // Y el vuelo es de un cuarto: la cara frontal arranca en fondo − espesor/4,
+    // no en fondo − espesor/2 (que es lo que daba la media caña).
+    const arranque = Math.min(...s.contorno.filter(([z]) => z > fondo - grosor).map(([z]) => z));
+    expect(fondo - arranque).toBeCloseTo(grosor * VUELO, 9);
+  });
+
+  it('a media altura la curva ya está fuera: es un arco, no un chaflán', () => {
+    const fondo = 33;
+    const grosor = 2;
+    const s = seccionRomo({ fondo, grosor, doble: false });
+    // El punto más saliente está a media altura (el semieje mayor es el vertical).
+    const masSaliente = s.contorno.reduce((a, b) => (b[0] > a[0] ? b : a));
+    expect(masSaliente[0]).toBeCloseTo(fondo, 9);
+    expect(masSaliente[1]).toBeCloseTo(grosor / 2, 9);
+    // Y a un cuarto de altura ya vuela más de la mitad de su vuelo: si fuese un
+    // chaflán recto iría justo a la mitad.
+    const zCuarto = Math.max(
+      ...s.contorno.filter(([, y]) => Math.abs(y - grosor / 4) < 1e-9).map(([z]) => z),
+    );
+    expect(zCuarto).toBeGreaterThan(fondo - grosor * VUELO * 0.5);
+  });
+
+  it('el pasamanos romo lo lleva en los dos cantos, con el mismo vuelo', () => {
+    const fondo = 33;
+    const grosor = 2;
+    const s = seccionRomo({ fondo, grosor, doble: true });
+    const caja = cajaSeccion(s);
+    expect(caja.zMin).toBeCloseTo(0, 9);
+    expect(caja.zMax).toBeCloseTo(fondo, 9);
+    // Simétrica: lo que vuela por delante vuela por detrás.
+    const zs = s.contorno.map(([z]) => z);
+    const dentroDelante = Math.min(...zs.filter((z) => z > fondo - grosor));
+    const dentroDetras = Math.max(...zs.filter((z) => z < grosor));
+    expect(fondo - dentroDelante).toBeCloseTo(dentroDetras, 9);
+    expect(dentroDetras).toBeCloseTo(grosor * VUELO, 9);
+  });
+
+  it('el rodapié lleva el mismo canto tumbado: cruza el grueso y sube un cuarto', () => {
+    const altura = 8;
+    const grosor = 1.2;
+    const s = seccionListon({ altura, grosor });
+    const caja = cajaSeccion(s);
+    expect(caja.yMax).toBeCloseTo(altura, 9);
+    expect(caja.zMax - caja.zMin).toBeCloseTo(grosor, 9);
+    // La cara superior arranca a altura − grosor/4, no a altura − grosor/2.
+    const arranque = Math.min(...s.contorno.filter(([, y]) => y > altura - grosor).map(([, y]) => y));
+    expect(altura - arranque).toBeCloseTo(grosor * VUELO, 9);
   });
 });
 

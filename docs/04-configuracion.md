@@ -215,7 +215,7 @@ taller no haya confirmado (regla §0).
 
 Los pasamanos (`pasamanos-1`…`pasamanos-4`, `pasamanos-romo`) ya están activos (2026-07-29,
 a petición del maestro): misma receta que su peldaño equivalente con la manipulación en el
-lado opuesto (`frontal-trasero`, `retorno-trasero`, doble media caña). Su tarifa repite
+lado opuesto (`frontal-trasero`, `retorno-trasero`, doble canto romado). Su tarifa repite
 **PROVISIONALMENTE** el precio del peldaño equivalente hasta que taller confirme (§6.6).
 
 ## `margenes.json` — margen comercial por subfamilia (2026-07-31)

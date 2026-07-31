@@ -54,10 +54,16 @@ Lo implementado es **PROVISIONAL** (cada figura lleva `croquisPendiente: true` e
   (ocupación y tarifa) sigue siendo tapa + frontal (+ retorno). Esto reemplaza las notas
   anteriores sobre "escalera" / "L a ras" (2026-07-24), que se contradecían entre sí.
   **Sigue faltando el croquis ACOTADO**: los dibujos dan la forma, no las medidas.
-- Peldaño romo: tapa única; en 3D lleva media caña de radio = medio grosor (o sea el grosor
-  entero de diámetro, la semicircunferencia que se ve en el dibujo de la tarifa).
-- Rodapiés: listón de pie con el canto superior en media caña, según «Rodapeu romat o bisellat»
-  de la tarifa y la banda clara del dibujo.
+- Peldaño romo: tapa única con el canto delantero **romado**. **2026-07-31 (indicación
+  directa):** NO es una media caña. Se dibujó como semicircunferencia de radio medio grosor
+  (leyendo así el dibujo de la tarifa) y el taller lo corrigió: en sección salía una «U»
+  tumbada y el canto real es una «D» de lomo plano — la curva recorre el espesor entero pero
+  vuela solo **un cuarto** de él (`VUELO_ROMADO` en `src/piezas/seccionPieza.ts`), así que la
+  cara frontal queda casi recta con las dos esquinas matadas. El vuelo exacto sigue siendo
+  PROVISIONAL: es un cuarto por indicación, no por croquis acotado.
+- Rodapiés: listón de pie con el canto superior **romado**, según «Rodapeu romat o bisellat»
+  de la tarifa y la banda clara del dibujo. Es el mismo canto del peldaño tumbado (cruza el
+  grueso entero, sube un cuarto de él), por coherencia: la tarifa los llama «romat» igual.
 - Grosor de baldosa en el visor: constante provisional 10 mm (no existe el dato; ¿vive en el ERP?).
 - Giro de 90° de la baldosa: hoy se prueban ambas orientaciones y se elige la que quepa
   (regla exacta por figura pendiente del croquis, §4).
@@ -67,7 +73,7 @@ Lo implementado es **PROVISIONAL** (cada figura lleva `croquisPendiente: true` e
   Nuevas figuras pedidas: **pasamanos 1, 2, 3 y 4** y **pasamanos romo**.
 - **2026-07-29 (pasamanos creados):** los cinco pasamanos ya están activos en
   `figuras.json` con la MISMA receta que su peldaño equivalente más la manipulación en el
-  lado opuesto (`frontal-trasero`, `retorno-trasero` en Pasamanos 4, doble media caña en
+  lado opuesto (`frontal-trasero`, `retorno-trasero` en Pasamanos 4, doble canto romado en
   Pasamanos romo), por indicación directa del encargo. Su tarifa (`pasamanos-*` en
   `tarifas.json`) repite PROVISIONALMENTE el precio del peldaño equivalente — confirmar
   tarifa real con taller (§6.6); el croquis acotado sigue pendiente para todos.

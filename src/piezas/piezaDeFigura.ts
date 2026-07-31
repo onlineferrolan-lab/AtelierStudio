@@ -44,7 +44,7 @@ export const GROSOR_BALDOSA_PROVISIONAL: Mm = mm(10);
  * Dientes tras el frontal por figura, según los dibujos de referencia de la
  * tarifa: la nariz mide `dientes + 1` grosores. La receta `[tapa, frontal]` es
  * idéntica en las Figuras 1–3, así que el nº de dientes se distingue aquí por id
- * de figura — igual que la doble media caña del pasamanos romo. La Figura 4 NO
+ * de figura — igual que el doble canto romado del pasamanos romo. La Figura 4 NO
  * lleva dientes: su seña es el retorno. PROVISIONAL (§3): solo representación;
  * no toca ocupación ni tarifa.
  */
@@ -213,9 +213,9 @@ export function ensamblar(
     return { seccion, largo, cotas };
   }
   if (ids.has('tapa')) {
-    // Peldaño romo: losa con media caña en el canto delantero. Pasamanos romo:
-    // la misma media caña también en el trasero. Su receta ([tapa]) es idéntica
-    // a la del peldaño romo, así que la doble media caña se distingue aquí por
+    // Peldaño romo: losa con el canto delantero romado. Pasamanos romo: el
+    // mismo canto romado también en el trasero. Su receta ([tapa]) es idéntica
+    // a la del peldaño romo, así que el doble romado se distingue aquí por
     // id de figura — PROVISIONAL (§3).
     const tapa = componente('tapa');
     if (!tapa) return null;
@@ -227,7 +227,7 @@ export function ensamblar(
     return { seccion: seccionRomo({ fondo, grosor: g, doble, suplementos }), largo, cotas };
   }
   if (ids.has('liston')) {
-    // Rodapiés: listón de pie con el canto superior en media caña.
+    // Rodapiés: listón de pie con el canto superior romado.
     const liston = componente('liston');
     if (!liston) return null;
     const largo = aEscena(medidasMm[liston.largoDe]);

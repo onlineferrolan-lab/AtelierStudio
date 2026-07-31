@@ -82,9 +82,9 @@ Ensamblajes soportados hoy (forma según los dibujos de la tarifa PDF vectorizad
 | `tapa` + `frontal` + `retorno` | Figura 4 | Sin dientes: el retorno engorda la nariz hacia dentro, maciza (nariz = grosor + retorno) |
 | … + `frontal-trasero` | Pasamanos 1–3 | La misma sección en espejo (∩): la nariz también en el canto opuesto |
 | … + `frontal-trasero` + `retorno` + `retorno-trasero` | Pasamanos 4 | La Figura 4 en espejo: nariz con retorno en ambos cantos |
-| `tapa` (sola) | Peldaño romo | Losa de un grosor con media caña en el canto delantero: semicircunferencia de radio medio grosor (el grosor entero de diámetro) |
-| `tapa` (sola), id `pasamanos-romo` | Pasamanos romo | La misma losa con la media caña también en el canto trasero |
-| `liston` | Rodapiés | Listón de pie (largo × alto, grosor de baldosa) con el canto superior en media caña («Rodapeu romat o bisellat» de la tarifa) |
+| `tapa` (sola) | Peldaño romo | Losa de un grosor con el canto delantero **romado**: arco de elipse que recorre el grosor entero y vuela un cuarto de él (`VUELO_ROMADO`), o sea cara frontal casi recta y las dos esquinas matadas. En sección es una «D» de lomo plano, **no** una media caña (2026-07-31, indicación directa) |
+| `tapa` (sola), id `pasamanos-romo` | Pasamanos romo | La misma losa con el canto romado también en el trasero |
+| `liston` | Rodapiés | Listón de pie (largo × alto, grosor de baldosa) con el canto superior **romado** («Rodapeu romat o bisellat» de la tarifa): el mismo canto tumbado — cruza el grueso entero y sube un cuarto de él |
 | `pieza` | Corte | Pieza plana rectangular tumbada, sin canto manipulado |
 | Cualquier otra combinación | — | `null`: el visor no inventa ensamblajes (§0) y el componente muestra el estado vacío |
 
@@ -100,7 +100,7 @@ Cuatro decisiones a conocer antes de tocar el ensamblaje:
   (Antes se le dibujaban dos dientes *y* el retorno, y luego un ⊏ hueco.)
 - **El nº de dientes se decide por `figura.id`** (`DIENTES_POR_FIGURA` en
   `src/viewer/geometria.ts`): las Figuras 1–3 comparten receta `[tapa, frontal]`, así que la
-  sección se distingue por id — igual que la doble media caña del pasamanos romo. Es solo
+  sección se distingue por id — igual que el doble canto romado del pasamanos romo. Es solo
   representación: la ocupación y la tarifa no cambian. PROVISIONAL hasta el croquis acotado
   oficial de taller (§3). Ver [PENDIENTES.md](../PENDIENTES.md) §2.
 - **Los pasamanos repiten la sección de su peldaño equivalente en espejo** (2026-07-29,
@@ -118,7 +118,7 @@ recibe los ids activos en la prop `suplementos` y `rasgosDeSuplementos`
 |---|---|
 | Tres ranuras antideslizantes | Tres muescas en la cara de huella, desde el canto delantero hacia dentro |
 | Ranura (goterón) | Una muesca en el canto INFERIOR del frontal, centrada en su grueso — por ahí escurre el agua que baja por la contrahuella. En el peldaño romo, que no tiene frontal, va en la cara inferior junto al canto delantero. En los pasamanos, en los dos frontales |
-| Material espesado | La tapa se monta con el doble de grosor (una capa más); la nariz sigue siendo de tejuelos del grosor de baldosa. En el peldaño romo engorda la losa entera y su media caña |
+| Material espesado | La tapa se monta con el doble de grosor (una capa más); la nariz sigue siendo de tejuelos del grosor de baldosa. En el peldaño romo engorda la losa entera y con ella su canto romado (el vuelo es una fracción del espesor, así que crece con él) |
 | **Angular** | **No se representa**: se cobra por pieza, es un remate del extremo y no se puede expresar en la sección. Ver PENDIENTES.md |
 
 Las medidas de las ranuras y el factor del espesado son **PROVISIONALES**: la
