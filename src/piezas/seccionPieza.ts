@@ -156,24 +156,44 @@ function centrosAntideslizantes(zCantoDelantero: number, sentidoHaciaDentro: 1 |
   );
 }
 
-/** Segmentos por arco de media caña (24 es par, así el punto extremo cae exacto). */
+/** Segmentos por arco del canto romado (24 es par, así el punto extremo cae exacto). */
 const SEGMENTOS_ARCO = 24;
 
 /**
- * Arco de radio `r` centrado en (cz, cy), de `desde` a `hasta` radianes.
- * Muestreado inclusivo en ambos extremos.
+ * Cuánto VUELA el canto romado, en fracción del espesor de la pieza.
+ *
+ * El canto romado NO es una media caña. Se dibujó así hasta 2026-07-31 —
+ * semicircunferencia de radio medio espesor— y no es la pieza: en sección salía
+ * una «U» tumbada (⊃), toda la testa en un arco de curvatura constante. La
+ * curva de verdad recorre el espesor entero pero SALE POCO, un cuarto del
+ * espesor (2026-07-31, indicación directa), así que la testa se lee como una
+ * «D» de lomo plano: cara frontal casi recta y las dos esquinas matadas por la
+ * misma curva.
+ *
+ * Es un arco de ELIPSE, no de circunferencia: una circunferencia de radio
+ * espesor/4 no llega a cubrir el espesor entero, y el canto romado no deja
+ * ninguna arista viva.
+ */
+const VUELO_ROMADO = 1 / 4;
+
+/**
+ * Arco de elipse de semiejes `rz` (en el eje del fondo) y `ry` (en el del alto)
+ * centrado en (cz, cy), de `desde` a `hasta` radianes. Muestreado inclusivo en
+ * ambos extremos. Con `rz === ry` es una circunferencia; el canto romado lo usa
+ * con `rz < ry` para achatar la curva (ver `VUELO_ROMADO`).
  */
 function arco(
   cz: number,
   cy: number,
-  r: number,
+  rz: number,
+  ry: number,
   desde: number,
   hasta: number,
 ): readonly PuntoSeccion[] {
   const puntos: PuntoSeccion[] = [];
   for (let i = 0; i <= SEGMENTOS_ARCO; i += 1) {
     const a = desde + ((hasta - desde) * i) / SEGMENTOS_ARCO;
-    puntos.push([cz + r * Math.cos(a), cy + r * Math.sin(a)]);
+    puntos.push([cz + rz * Math.cos(a), cy + ry * Math.sin(a)]);
   }
   return puntos;
 }
@@ -395,9 +415,17 @@ export function seccionEscuadra({
 }
 
 /**
- * Peldaño romo: losa de un grosor con media caña en el canto delantero (radio =
- * medio grosor, o sea el grosor entero de diámetro). Con `doble`, también en el
- * canto trasero (pasamanos romo).
+ * Peldaño romo: losa de un grosor con el canto delantero ROMADO. Con `doble`,
+ * también el trasero (pasamanos romo).
+ *
+ * El canto romado es una curva ACHATADA que recorre el espesor entero y vuela
+ * un cuarto de él (ver `VUELO_ROMADO`): en sección es la «D» de lomo plano de
+ * la pieza real, no la «U» tumbada que salía de la media caña.
+ *
+ *      fondo                     frente
+ *        +=========================\
+ *        |                          |   ← cara frontal casi recta,
+ *        +=========================/      esquinas matadas por la curva
  */
 export function seccionRomo({
   fondo,
@@ -410,12 +438,15 @@ export function seccionRomo({
   readonly doble: boolean;
   readonly suplementos?: SuplementosSeccion;
 }): SeccionPieza {
-  // El espesado hace más gruesa la losa entera, y con ella la media caña.
+  // El espesado hace más gruesa la losa entera, y con ella el canto romado.
   const espesor = grosorConEspesado(grosor, suplementos);
-  const r = espesor / 2;
-  const zTrasero = doble ? r : 0;
-  // El canto delantero de la losa romo es el arranque de la media caña.
-  const zCanto = fondo - r;
+  // La curva cubre el espesor entero (semieje `ry`) y vuela un cuarto de él
+  // (semieje `rz`): de ahí que la testa quede en «D» y no en media caña.
+  const ry = espesor / 2;
+  const rz = espesor * VUELO_ROMADO;
+  const zTrasero = doble ? rz : 0;
+  // El canto delantero de la losa romo es el arranque de la curva.
+  const zCanto = fondo - rz;
   // Sin frontal donde ponerlo, el goterón del romo va en la cara inferior, junto
   // al canto delantero (ver `MARGEN_GOTERON_ROMO`).
   const base = suplementos.goteron
@@ -443,16 +474,21 @@ export function seccionRomo({
 
   const contorno: PuntoSeccion[] = [
     ...base,
-    ...arco(fondo - r, r, r, -Math.PI / 2, Math.PI / 2),
+    ...arco(zCanto, ry, rz, ry, -Math.PI / 2, Math.PI / 2),
     ...huella,
   ];
-  if (doble) contorno.push(...arco(r, r, r, Math.PI / 2, (Math.PI * 3) / 2));
+  if (doble) contorno.push(...arco(rz, ry, rz, ry, Math.PI / 2, (Math.PI * 3) / 2));
   return { contorno, juntas: [] };
 }
 
 /**
- * Rodapié: listón de pie de un grosor con el canto superior en media caña
- * («Rodapeu romat o bisellat» de la tarifa).
+ * Rodapié: listón de pie de un grosor con el canto superior ROMADO («Rodapeu
+ * romat o bisellat» de la tarifa).
+ *
+ * Es el mismo canto romado del peldaño, tumbado: la curva cruza el grueso
+ * entero del listón y sube solo un cuarto de él (ver `VUELO_ROMADO`), así que la
+ * cara superior queda casi plana con las dos aristas matadas — no la cúpula de
+ * media caña que se dibujaba antes.
  */
 export function seccionListon({
   altura,
@@ -461,10 +497,13 @@ export function seccionListon({
   readonly altura: number;
   readonly grosor: number;
 }): SeccionPieza {
-  const r = Math.min(grosor / 2, altura / 2);
-  const cima = altura - r;
+  const rz = Math.min(grosor / 2, altura / 2);
+  // Tope defensivo por si algún día entra un listón más bajo que su propio
+  // vuelo: la curva no puede comerse el listón entero.
+  const ry = Math.min(grosor * VUELO_ROMADO, altura / 2);
+  const cima = altura - ry;
   return {
-    contorno: [[0, 0], [grosor, 0], ...arco(r, cima, r, 0, Math.PI)],
+    contorno: [[0, 0], [grosor, 0], ...arco(rz, cima, rz, ry, 0, Math.PI)],
     juntas: [],
   };
 }

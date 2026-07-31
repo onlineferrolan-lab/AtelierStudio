@@ -4,8 +4,9 @@
 > equivocadas al medir los SVG de referencia.** Lo implementado, y la referencia buena, están en
 > [docs/07-visor-3d.md](docs/07-visor-3d.md) y [PENDIENTES.md](PENDIENTES.md) §2. Correcciones:
 > los dientes van a plena altura y con la base a ras del frontal (no en escalera ni con anchos
-> 0,7/0,6); la Figura 4 no lleva dientes, solo el retorno; el peldaño romo lleva media caña de
-> radio medio grosor (no radio = grosor); y la pieza NO se dibuja «larga y delgada» — la tarifa
+> 0,7/0,6); la Figura 4 no lleva dientes, solo el retorno; el canto del peldaño romo no es una
+> media caña (2026-07-31: curva achatada de vuelo = un cuarto del espesor, «D» y no «U» —
+> ver PENDIENTES.md §2); y la pieza NO se dibuja «larga y delgada» — la tarifa
 > dibuja una losa gruesa y a 96 × 64 px hay que exagerar la sección para que se distinga.
 > Se conserva este documento solo como registro del encargo original.
 
@@ -88,12 +89,13 @@ ras del canto delantero.
 - **figura-4**: frontal **alzado** sobre el retorno: retorno en la base (0,5 de
   alto, 1,0 de profundidad hacia dentro), frontal 1,5 encima, tapa 0,5 (total
   2,5; fondo total del perfil 1,5).
-- **peldano-romo**: losa única de 0,5 con el canto delantero redondeado (media
-  caña: arco de 90°, radio = grosor).
+- **peldano-romo**: losa única de 0,5 con el canto delantero romado. (El encargo
+  original decía «media caña»; corregido 2026-07-31: curva achatada de vuelo = un
+  cuarto del espesor.)
 - **pasamanos-1 / 2 / 3 / 4**: el mismo dibujo que su Figura equivalente pero
   aplicado **también en el lado opuesto** (espejo: frontal, dientes y retorno
   en ambos cantos; chaflán en ambos cantos superiores).
-- **pasamanos-romo**: losa con la media caña en **ambos** cantos.
+- **pasamanos-romo**: losa con el canto romado en **ambos** cantos.
 - **rodapie-estandar** y **rodapie-no-estandar**: listón vertical (largo × ≈7,5
   alto × 0,5 grosor). Comparten dibujo.
 - **corte**: placa plana tumbada de 0,5 de grosor.

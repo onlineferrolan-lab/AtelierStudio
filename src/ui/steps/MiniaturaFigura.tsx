@@ -5,7 +5,7 @@
  * 2023), vectorizados y entregados como referencia: la pieza en vista de tres
  * cuartos desde arriba-delante, con trazo fino y **la sección transversal a la
  * vista en la testa del extremo cercano** — que es donde se distingue una figura
- * de otra (chaflán, dientes, retorno, media caña). El color es gris claro, no la
+ * de otra (chaflán, dientes, retorno, canto romado). El color es gris claro, no la
  * terracota del original (ver la paleta más abajo).
  *
  * Cómo se dibuja (un solo motor para las 13 figuras):
@@ -203,53 +203,75 @@ function seccionEscuadra({
 
 const SEGMENTOS_ARCO = 10;
 
-/** Media caña: semicircunferencia de radio medio grosor, de `desde` a `hasta` grados. */
-function arco(cz: number, cy: number, desde: number, hasta: number): readonly Punto[] {
-  const radio = G / 2;
+/**
+ * Cuánto vuela el canto romado, en fracción del grosor. Es el mismo número que
+ * `VUELO_ROMADO` en `src/piezas/seccionPieza.ts` y NO se exagera aunque el resto
+ * de la miniatura sí lo esté: la queja de 2026-07-31 fue justamente que el canto
+ * romado se dibujaba como una media caña —una «U» tumbada— cuando la pieza real
+ * tiene la cara frontal casi recta y solo las esquinas matadas («D»). Un dibujo
+ * con la forma equivocada no se arregla haciéndola más grande.
+ */
+const VUELO_ROMADO = 1 / 4;
+
+/**
+ * Arco de elipse de semiejes `rz` (fondo) y `ry` (alto), de `desde` a `hasta`
+ * GRADOS. El canto romado lo usa achatado (`rz < ry`, o al revés en el rodapié).
+ */
+function arco(
+  cz: number,
+  cy: number,
+  rz: number,
+  ry: number,
+  desde: number,
+  hasta: number,
+): readonly Punto[] {
   const puntos: Punto[] = [];
   for (let i = 0; i <= SEGMENTOS_ARCO; i += 1) {
     const angulo = ((desde + ((hasta - desde) * i) / SEGMENTOS_ARCO) * Math.PI) / 180;
-    puntos.push([cz + radio * Math.cos(angulo), cy + radio * Math.sin(angulo)]);
+    puntos.push([cz + rz * Math.cos(angulo), cy + ry * Math.sin(angulo)]);
   }
   return puntos;
 }
 
 /**
- * Peldaño romo: una sola losa de un grosor con el canto delantero en media caña
- * (semicircunferencia de radio medio grosor, o sea el grosor entero de diámetro,
- * como en el dibujo de la tarifa). `doble` la repite en el canto trasero
- * (pasamanos romo).
+ * Peldaño romo: una sola losa de un grosor con el canto delantero ROMADO — una
+ * curva achatada que cubre el grosor entero y vuela un cuarto de él, no la media
+ * caña que se dibujaba antes (ver `VUELO_ROMADO`). `doble` lo repite en el canto
+ * trasero (pasamanos romo).
  */
 function seccionRomo({ doble }: { readonly doble: boolean }): Seccion {
-  const r = G / 2;
-  const zNariz = FONDO - r;
-  const zTrasero = doble ? r : 0;
+  const ry = G / 2;
+  const rz = G * VUELO_ROMADO;
+  const zNariz = FONDO - rz;
+  const zTrasero = doble ? rz : 0;
   const tramos: Tramo[] = [
     { puntos: [[zTrasero, 0], [zNariz, 0]], cara: null },
-    { puntos: arco(zNariz, r, -90, 90), cara: 'canto' },
+    { puntos: arco(zNariz, ry, rz, ry, -90, 90), cara: 'canto' },
     { puntos: [[zNariz, G], [zTrasero, G]], cara: 'superior' },
   ];
   tramos.push(
     doble
-      ? { puntos: arco(r, r, 90, 270), cara: null }
+      ? { puntos: arco(rz, ry, rz, ry, 90, 270), cara: null }
       : { puntos: [[0, G], [0, 0]], cara: null },
   );
   return { tramos, juntas: [], largo: LARGO };
 }
 
 /**
- * Rodapié: listón de pie con el canto superior romo o biselado («Rodapeu romat o
- * bisellat» en la tarifa; el dibujo lleva la banda clara arriba). Los dos
- * rodapiés comparten dibujo.
+ * Rodapié: listón de pie con el canto superior romado o biselado («Rodapeu romat
+ * o bisellat» en la tarifa; el dibujo lleva la banda clara arriba). Los dos
+ * rodapiés comparten dibujo. El canto es el del peldaño romo tumbado: cruza el
+ * grueso entero y sube un cuarto de él.
  */
 function seccionListon(): Seccion {
-  const r = G / 2;
-  const cima = ALTO_RODAPIE - r;
+  const rz = G / 2;
+  const ry = G * VUELO_ROMADO;
+  const cima = ALTO_RODAPIE - ry;
   return {
     tramos: [
       { puntos: [[0, 0], [G, 0]], cara: null },
       { puntos: [[G, 0], [G, cima]], cara: 'frontal' },
-      { puntos: arco(r, cima, 0, 180), cara: 'canto' },
+      { puntos: arco(rz, cima, rz, ry, 0, 180), cara: 'canto' },
       { puntos: [[0, cima], [0, 0]], cara: null },
     ],
     juntas: [],
