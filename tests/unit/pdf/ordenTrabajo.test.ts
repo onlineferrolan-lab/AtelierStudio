@@ -29,19 +29,20 @@ const figura: Figura = {
   motivoPendiente: null,
   croquisPendiente: true,
   medidas: [
-    { id: 'longitud', etiqueta: 'Largo (cm)', minCm: 1, maxCm: null, opcionesCm: null },
-    { id: 'fondo', etiqueta: 'Ancho (cm)', minCm: 1, maxCm: null, opcionesCm: null },
+    { id: 'longitud', etiqueta: 'Largo (cm)', minCm: 1, maxCm: null, opcionesCm: null, valorFijoCm: null },
+    { id: 'fondo', etiqueta: 'Ancho (cm)', minCm: 1, maxCm: null, opcionesCm: null, valorFijoCm: null },
     {
       id: 'alturaFrontal',
       etiqueta: 'Altura frontal (cm)',
       minCm: 1,
       maxCm: null,
       opcionesCm: null,
+      valorFijoCm: null,
     },
   ],
   componentes: [
-    { id: 'tapa', largoDe: 'longitud', anchoDe: 'fondo' },
-    { id: 'frontal', largoDe: 'longitud', anchoDe: 'alturaFrontal' },
+    { id: 'tapa', largoDe: 'longitud', anchoDe: 'fondo', canto: null },
+    { id: 'frontal', largoDe: 'longitud', anchoDe: 'alturaFrontal', canto: null },
   ],
   tarifa: {
     tipo: 'porUmbral',
@@ -53,6 +54,7 @@ const figura: Figura = {
   longitudTarifa: { tipo: 'medida', medida: 'longitud' },
   tarifaAdicional: null, // solo la tabica es compuesta
   suplementos: ['angular-f14', 'ranuras-f14'],
+  medidaPorMetros: null, // solo los rodapiés se piden por metros
 };
 
 const config: Configuracion = {
@@ -182,11 +184,18 @@ describe('croquis de la pieza y código de orden', () => {
       ...figura,
       medidas: [
         ...figura.medidas,
-        { id: 'retorno', etiqueta: 'Retorno (cm)', minCm: 1, maxCm: null, opcionesCm: null },
+        {
+          id: 'retorno',
+          etiqueta: 'Retorno (cm)',
+          minCm: 1,
+          maxCm: null,
+          opcionesCm: null,
+          valorFijoCm: null,
+        },
       ],
       componentes: [
         ...figura.componentes,
-        { id: 'retorno', largoDe: 'longitud', anchoDe: 'retorno' },
+        { id: 'retorno', largoDe: 'longitud', anchoDe: 'retorno', canto: null },
       ],
     };
     const doc = construirPdfOrdenTrabajo({

@@ -1,5 +1,5 @@
 {
-  "_nota": "Tarifas de manipulación según 'Tarifa Torelos Castellbisbal Juny 2023'. Confirmar vigencia con taller antes de producción (§2). Precios sin IVA y SIN MARGEN COMERCIAL: todos son coste de taller y el margen de la subfamilia se aplica encima en el motor (engine/margen.ts). Las tarifas de pasamanos son PROVISIONALES (2026-07-29): repiten el precio del peldaño equivalente mientras taller no confirme la tarifa de pasamanos (§6.6, PENDIENTES.md). Los acabados de canto del corte de piezas (inglete, microbisel, sin microbisel) son indicación directa del 2026-07-31, no vienen de la tarifa de 2023.",
+  "_nota": "Tarifas de manipulación según 'Tarifa Torelos Castellbisbal Juny 2023'. Confirmar vigencia con taller antes de producción (§2). Precios sin IVA y SIN MARGEN COMERCIAL: todos son coste de taller y el margen de la subfamilia se aplica encima en el motor (engine/margen.ts). Las tarifas de pasamanos son PROVISIONALES (2026-07-29): repiten el precio del peldaño equivalente mientras taller no confirme la tarifa de pasamanos (§6.6, PENDIENTES.md). Los acabados de canto del corte de piezas (inglete, microbisel, sin microbisel) son indicación directa del 2026-07-31, no vienen de la tarifa de 2023. Los rodapiés se tarifan por ALTURA, no por canto: las nueve figuras de rodapié (7,2 · 8 · a medida × canto recto · microbiselado · canto romado) comparten estas dos tarifas porque el canto recto «no tiene incremento» (2026-07-31, indicación directa). Por eso los nombres ya no citan un canto concreto: salen tal cual en el desglose y en la orden de trabajo.",
   "tarifas": [
     { "id": "f1-frontal-le5", "nombre": "Figura 1 — frontal ≤ 5 cm", "eurosPorCm": 0.19 },
     { "id": "f1-frontal-gt5", "nombre": "Figura 1 — frontal > 5 cm", "eurosPorCm": 0.23 },
@@ -13,8 +13,8 @@
     { "id": "pasamanos-3", "nombre": "Pasamanos 3", "eurosPorCm": 0.25 },
     { "id": "pasamanos-4", "nombre": "Pasamanos 4", "eurosPorCm": 0.29 },
     { "id": "pasamanos-romo", "nombre": "Pasamanos romo", "eurosPorCm": 0.045 },
-    { "id": "rodapie-estandar", "nombre": "Rodapié romo/microbiselado 7,2 y 8 cm", "eurosPorCm": 0.017 },
-    { "id": "rodapie-no-estandar", "nombre": "Rodapié de medidas no estándar", "eurosPorCm": 0.034 },
+    { "id": "rodapie-estandar", "nombre": "Rodapié 7,2 y 8 cm", "eurosPorCm": 0.017 },
+    { "id": "rodapie-no-estandar", "nombre": "Rodapié a medida", "eurosPorCm": 0.034 },
     { "id": "corte", "nombre": "Corte de piezas", "eurosPorCm": 0.017 }
   ],
   "suplementos": [

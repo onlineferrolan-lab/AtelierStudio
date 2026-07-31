@@ -22,6 +22,10 @@
  * oficial de taller (§3, PENDIENTES.md §2).
  */
 
+// Único import del módulo, y SOLO de tipos (se borra al compilar): el catálogo
+// de cantos vive en configuración, que es de donde lo lee la receta.
+import type { CantoListon } from '../domain/config';
+
 /** Punto de la sección: (z = fondo, y = alto), en cm. */
 export type PuntoSeccion = readonly [number, number];
 
@@ -482,28 +486,55 @@ export function seccionRomo({
 }
 
 /**
- * Rodapié: listón de pie de un grosor con el canto superior ROMADO («Rodapeu
- * romat o bisellat» de la tarifa).
+ * Chaflán del microbiselado, en fracción del grosor. Es un MICRO bisel: apenas
+ * mata el filo, así que se queda muy por debajo del vuelo del romado (ver
+ * `VUELO_ROMADO`). PROVISIONAL (§3): solo representación, ninguna medida de
+ * taller lo fija todavía.
+ */
+const CHAFLAN_MICROBISEL = 0.15;
+
+/**
+ * Rodapié: listón de pie de un grosor rematado por arriba de una de las tres
+ * maneras (2026-07-31, indicación directa; ninguna cambia la tarifa):
+ *  - 'romado': el mismo canto romado del peldaño, tumbado («Rodapeu romat o
+ *    bisellat» de la tarifa). La curva cruza el grueso entero del listón y sube
+ *    solo un cuarto de él (ver `VUELO_ROMADO`), así que la cara superior queda
+ *    casi plana con las dos aristas matadas — NO la cúpula de media caña que se
+ *    dibujaba antes.
+ *  - 'microbiselado': el filo delantero matado con un chaflán mínimo.
+ *  - 'recto': sin rematar, el canto vivo.
  *
- * Es el mismo canto romado del peldaño, tumbado: la curva cruza el grueso
- * entero del listón y sube solo un cuarto de él (ver `VUELO_ROMADO`), así que la
- * cara superior queda casi plana con las dos aristas matadas — no la cúpula de
- * media caña que se dibujaba antes.
+ * La cara z = 0 es la que va contra la pared y z = `grosor` la que se ve: por eso
+ * el microbisel solo mata el filo delantero.
  */
 export function seccionListon({
   altura,
   grosor,
+  canto = 'romado',
 }: {
   readonly altura: number;
   readonly grosor: number;
+  readonly canto?: CantoListon;
 }): SeccionPieza {
+  const base: readonly PuntoSeccion[] = [[0, 0], [grosor, 0]];
+
+  if (canto === 'recto') {
+    return { contorno: [...base, [grosor, altura], [0, altura]], juntas: [] };
+  }
+  if (canto === 'microbiselado') {
+    const c = Math.min(grosor * CHAFLAN_MICROBISEL, altura / 2);
+    return {
+      contorno: [...base, [grosor, altura - c], [grosor - c, altura], [0, altura]],
+      juntas: [],
+    };
+  }
   const rz = Math.min(grosor / 2, altura / 2);
   // Tope defensivo por si algún día entra un listón más bajo que su propio
   // vuelo: la curva no puede comerse el listón entero.
   const ry = Math.min(grosor * VUELO_ROMADO, altura / 2);
   const cima = altura - ry;
   return {
-    contorno: [[0, 0], [grosor, 0], ...arco(rz, cima, rz, ry, 0, Math.PI)],
+    contorno: [...base, ...arco(rz, cima, rz, ry, 0, Math.PI)],
     juntas: [],
   };
 }

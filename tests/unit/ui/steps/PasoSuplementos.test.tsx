@@ -53,7 +53,7 @@ describe('PasoSuplementos', () => {
 
   it('los rodapiés no tienen suplementos ni conmutador de pintado', () => {
     const { api } = montarPasos(<PasoSuplementos />);
-    act(() => api().dispatch({ tipo: 'seleccionarFigura', figuraId: 'rodapie-estandar' }));
+    act(() => api().dispatch({ tipo: 'seleccionarFigura', figuraId: 'rodapie-72-romado' }));
 
     expect(screen.getByText('Esta figura no tiene suplementos.')).toBeInTheDocument();
     expect(screen.queryByRole('checkbox', { name: /Pintado/ })).not.toBeInTheDocument();

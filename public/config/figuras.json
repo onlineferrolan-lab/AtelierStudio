@@ -1,5 +1,5 @@
 {
-  "_nota": "Catálogo de figuras. Las etiquetas de medida son «Largo» y «Ancho» (2026-07-30, indicación directa), y el ancho se pide antes que el largo; los ids internos siguen siendo longitud/fondo para no romper las recetas ni los casos dorados ya escritos. Las recetas de las figuras activas son PROVISIONALES: se deducen de los dibujos de la tarifa PDF mientras el croquis acotado oficial de taller sigue pendiente (§3). Las figuras sin tarifa confirmada (Figura 5, vierteaguas, rodapié recto — §6.5, §6.6) NO están en la galería: se retiraron 2026-07-29 a petición de dirección y su seguimiento vive en PENDIENTES.md (el estado 'pendiente' sigue soportado por si se reincorporan). Los pasamanos (2026-07-29, a petición del maestro) son la MISMA receta que su peldaño equivalente con el frontal/retorno (o la media caña) también en el lado opuesto; su tarifa repite PROVISIONALMENTE el precio del peldaño equivalente hasta que taller confirme tarifa (§6.6, PENDIENTES.md).",
+  "_nota": "Catálogo de figuras. Las etiquetas de medida son «Largo» y «Ancho» (2026-07-30, indicación directa), y el ancho se pide antes que el largo; los ids internos siguen siendo longitud/fondo para no romper las recetas ni los casos dorados ya escritos. Las recetas de las figuras activas son PROVISIONALES: se deducen de los dibujos de la tarifa PDF mientras el croquis acotado oficial de taller sigue pendiente (§3). Los RODAPIÉS son nueve figuras (2026-07-31, indicación directa): tres alturas (7,2 · 8 · a medida) por tres cantos (recto · microbiselado · romado). En las de 7,2 y 8 la altura NO se teclea, va en el nombre y por eso es `valorFijoCm`; el canto solo cambia el dibujo, nunca la tarifa. Las nueve llevan `medidaPorMetros`, que es lo que habilita el segundo modo de cálculo del paso ③ (metros + unidades → largo por pieza). Con esto el antiguo «rodapié recto», retirado en 2026-07-29 por no tener tarifa, vuelve a la galería: el canto recto no tiene incremento. Las figuras sin tarifa confirmada (Figura 5, vierteaguas — §6.5) NO están en la galería: se retiraron 2026-07-29 a petición de dirección y su seguimiento vive en PENDIENTES.md (el estado 'pendiente' sigue soportado por si se reincorporan). Los pasamanos (2026-07-29, a petición del maestro) son la MISMA receta que su peldaño equivalente con el frontal/retorno (o la media caña) también en el lado opuesto; su tarifa repite PROVISIONALMENTE el precio del peldaño equivalente hasta que taller confirme tarifa (§6.6, PENDIENTES.md).",
   "figuras": [
     {
       "id": "figura-1",
@@ -607,8 +607,8 @@
       ]
     },
     {
-      "id": "rodapie-estandar",
-      "nombre": "Rodapié 7,2 y 8 cm",
+      "id": "rodapie-72-recto",
+      "nombre": "Rodapié 7,2 canto recto",
       "estado": "activa",
       "motivoPendiente": null,
       "croquisPendiente": true,
@@ -622,18 +622,16 @@
           "id": "altura",
           "etiqueta": "Altura (cm)",
           "minCm": 7.2,
-          "maxCm": 8,
-          "opcionesCm": [
-            7.2,
-            8
-          ]
+          "maxCm": 7.2,
+          "valorFijoCm": 7.2
         }
       ],
       "componentes": [
         {
           "id": "liston",
           "largoDe": "longitud",
-          "anchoDe": "altura"
+          "anchoDe": "altura",
+          "canto": "recto"
         }
       ],
       "tarifa": {
@@ -644,11 +642,207 @@
         "tipo": "medida",
         "medida": "longitud"
       },
+      "medidaPorMetros": "longitud",
       "suplementos": []
     },
     {
-      "id": "rodapie-no-estandar",
-      "nombre": "Rodapié no estándar",
+      "id": "rodapie-72-microbiselado",
+      "nombre": "Rodapié 7,2 microbiselado",
+      "estado": "activa",
+      "motivoPendiente": null,
+      "croquisPendiente": true,
+      "medidas": [
+        {
+          "id": "longitud",
+          "etiqueta": "Largo (cm)",
+          "minCm": 1
+        },
+        {
+          "id": "altura",
+          "etiqueta": "Altura (cm)",
+          "minCm": 7.2,
+          "maxCm": 7.2,
+          "valorFijoCm": 7.2
+        }
+      ],
+      "componentes": [
+        {
+          "id": "liston",
+          "largoDe": "longitud",
+          "anchoDe": "altura",
+          "canto": "microbiselado"
+        }
+      ],
+      "tarifa": {
+        "tipo": "fija",
+        "tarifaId": "rodapie-estandar"
+      },
+      "longitudTarifa": {
+        "tipo": "medida",
+        "medida": "longitud"
+      },
+      "medidaPorMetros": "longitud",
+      "suplementos": []
+    },
+    {
+      "id": "rodapie-72-romado",
+      "nombre": "Rodapié 7,2 canto romado",
+      "estado": "activa",
+      "motivoPendiente": null,
+      "croquisPendiente": true,
+      "medidas": [
+        {
+          "id": "longitud",
+          "etiqueta": "Largo (cm)",
+          "minCm": 1
+        },
+        {
+          "id": "altura",
+          "etiqueta": "Altura (cm)",
+          "minCm": 7.2,
+          "maxCm": 7.2,
+          "valorFijoCm": 7.2
+        }
+      ],
+      "componentes": [
+        {
+          "id": "liston",
+          "largoDe": "longitud",
+          "anchoDe": "altura",
+          "canto": "romado"
+        }
+      ],
+      "tarifa": {
+        "tipo": "fija",
+        "tarifaId": "rodapie-estandar"
+      },
+      "longitudTarifa": {
+        "tipo": "medida",
+        "medida": "longitud"
+      },
+      "medidaPorMetros": "longitud",
+      "suplementos": []
+    },
+    {
+      "id": "rodapie-8-recto",
+      "nombre": "Rodapié 8 canto recto",
+      "estado": "activa",
+      "motivoPendiente": null,
+      "croquisPendiente": true,
+      "medidas": [
+        {
+          "id": "longitud",
+          "etiqueta": "Largo (cm)",
+          "minCm": 1
+        },
+        {
+          "id": "altura",
+          "etiqueta": "Altura (cm)",
+          "minCm": 8,
+          "maxCm": 8,
+          "valorFijoCm": 8
+        }
+      ],
+      "componentes": [
+        {
+          "id": "liston",
+          "largoDe": "longitud",
+          "anchoDe": "altura",
+          "canto": "recto"
+        }
+      ],
+      "tarifa": {
+        "tipo": "fija",
+        "tarifaId": "rodapie-estandar"
+      },
+      "longitudTarifa": {
+        "tipo": "medida",
+        "medida": "longitud"
+      },
+      "medidaPorMetros": "longitud",
+      "suplementos": []
+    },
+    {
+      "id": "rodapie-8-microbiselado",
+      "nombre": "Rodapié 8 microbiselado",
+      "estado": "activa",
+      "motivoPendiente": null,
+      "croquisPendiente": true,
+      "medidas": [
+        {
+          "id": "longitud",
+          "etiqueta": "Largo (cm)",
+          "minCm": 1
+        },
+        {
+          "id": "altura",
+          "etiqueta": "Altura (cm)",
+          "minCm": 8,
+          "maxCm": 8,
+          "valorFijoCm": 8
+        }
+      ],
+      "componentes": [
+        {
+          "id": "liston",
+          "largoDe": "longitud",
+          "anchoDe": "altura",
+          "canto": "microbiselado"
+        }
+      ],
+      "tarifa": {
+        "tipo": "fija",
+        "tarifaId": "rodapie-estandar"
+      },
+      "longitudTarifa": {
+        "tipo": "medida",
+        "medida": "longitud"
+      },
+      "medidaPorMetros": "longitud",
+      "suplementos": []
+    },
+    {
+      "id": "rodapie-8-romado",
+      "nombre": "Rodapié 8 canto romado",
+      "estado": "activa",
+      "motivoPendiente": null,
+      "croquisPendiente": true,
+      "medidas": [
+        {
+          "id": "longitud",
+          "etiqueta": "Largo (cm)",
+          "minCm": 1
+        },
+        {
+          "id": "altura",
+          "etiqueta": "Altura (cm)",
+          "minCm": 8,
+          "maxCm": 8,
+          "valorFijoCm": 8
+        }
+      ],
+      "componentes": [
+        {
+          "id": "liston",
+          "largoDe": "longitud",
+          "anchoDe": "altura",
+          "canto": "romado"
+        }
+      ],
+      "tarifa": {
+        "tipo": "fija",
+        "tarifaId": "rodapie-estandar"
+      },
+      "longitudTarifa": {
+        "tipo": "medida",
+        "medida": "longitud"
+      },
+      "medidaPorMetros": "longitud",
+      "suplementos": []
+    },
+    {
+      "id": "rodapie-medida-recto",
+      "nombre": "Rodapié a medida canto recto",
       "estado": "activa",
       "motivoPendiente": null,
       "croquisPendiente": true,
@@ -668,7 +862,8 @@
         {
           "id": "liston",
           "largoDe": "longitud",
-          "anchoDe": "altura"
+          "anchoDe": "altura",
+          "canto": "recto"
         }
       ],
       "tarifa": {
@@ -679,6 +874,81 @@
         "tipo": "medida",
         "medida": "longitud"
       },
+      "medidaPorMetros": "longitud",
+      "suplementos": []
+    },
+    {
+      "id": "rodapie-medida-microbiselado",
+      "nombre": "Rodapié a medida microbiselado",
+      "estado": "activa",
+      "motivoPendiente": null,
+      "croquisPendiente": true,
+      "medidas": [
+        {
+          "id": "longitud",
+          "etiqueta": "Largo (cm)",
+          "minCm": 1
+        },
+        {
+          "id": "altura",
+          "etiqueta": "Altura (cm)",
+          "minCm": 1
+        }
+      ],
+      "componentes": [
+        {
+          "id": "liston",
+          "largoDe": "longitud",
+          "anchoDe": "altura",
+          "canto": "microbiselado"
+        }
+      ],
+      "tarifa": {
+        "tipo": "fija",
+        "tarifaId": "rodapie-no-estandar"
+      },
+      "longitudTarifa": {
+        "tipo": "medida",
+        "medida": "longitud"
+      },
+      "medidaPorMetros": "longitud",
+      "suplementos": []
+    },
+    {
+      "id": "rodapie-medida-romado",
+      "nombre": "Rodapié a medida canto romado",
+      "estado": "activa",
+      "motivoPendiente": null,
+      "croquisPendiente": true,
+      "medidas": [
+        {
+          "id": "longitud",
+          "etiqueta": "Largo (cm)",
+          "minCm": 1
+        },
+        {
+          "id": "altura",
+          "etiqueta": "Altura (cm)",
+          "minCm": 1
+        }
+      ],
+      "componentes": [
+        {
+          "id": "liston",
+          "largoDe": "longitud",
+          "anchoDe": "altura",
+          "canto": "romado"
+        }
+      ],
+      "tarifa": {
+        "tipo": "fija",
+        "tarifaId": "rodapie-no-estandar"
+      },
+      "longitudTarifa": {
+        "tipo": "medida",
+        "medida": "longitud"
+      },
+      "medidaPorMetros": "longitud",
       "suplementos": []
     },
     {

@@ -39,6 +39,8 @@ import {
   figuraPorId,
   mermaSugeridaPorcentaje,
   validarMedidasCrudas,
+  validarMedidasPorMetros,
+  type ModoMedida,
 } from '../../domain/engine';
 import { guardarCarrito, leerCarrito } from './carrito-persistencia';
 
@@ -49,6 +51,14 @@ export interface PiezaConfigurada {
   /** Medidas crudas en cm, por id de medida de la figura. */
   readonly medidas: Readonly<Record<string, string>>;
   readonly cantidad: string;
+  /**
+   * Cómo se introduce el largo en las figuras que se venden por metro lineal
+   * (rodapiés): tecleándolo ('largo') o deduciéndolo de los metros pedidos
+   * ('metros'). En las demás figuras se ignora — solo tienen el modo 'largo'.
+   */
+  readonly modoMedida: ModoMedida;
+  /** Metros totales pedidos (texto crudo, en m). Solo se usa en modo 'metros'. */
+  readonly metrosTotales: string;
   readonly suplementos: Readonly<Record<string, boolean>>;
   /**
    * Piezas a las que se aplica cada suplemento POR PIEZA (texto, como cantidad).
@@ -115,6 +125,8 @@ export type AccionAtelier =
   | { tipo: 'seleccionarFigura'; figuraId: string | null }
   | { tipo: 'cambiarMedida'; medida: string; valor: string }
   | { tipo: 'cambiarCantidad'; cantidad: string }
+  | { tipo: 'cambiarModoMedida'; modo: ModoMedida }
+  | { tipo: 'cambiarMetros'; metros: string }
   | { tipo: 'alternarSuplemento'; suplemento: string; activo: boolean }
   | { tipo: 'cambiarUnidadesSuplemento'; suplemento: string; unidades: string }
   | { tipo: 'cambiarPrecioMaterialEditado'; euros: string }
@@ -136,6 +148,8 @@ function piezaVacia(): PiezaConfigurada {
     figuraId: null,
     medidas: {},
     cantidad: '1',
+    modoMedida: 'largo',
+    metrosTotales: '',
     suplementos: {},
     unidadesSuplemento: {},
     precioMaterialEditadoEuros: '',
@@ -164,6 +178,10 @@ function extraerPieza(origen: PiezaConfigurada): PiezaConfigurada {
     figuraId: origen.figuraId,
     medidas: { ...origen.medidas },
     cantidad: origen.cantidad,
+    // El modo de medida y los metros viajan con la pieza: una línea de rodapié
+    // pedida por metros tiene que seguir siéndolo dentro del carrito.
+    modoMedida: origen.modoMedida,
+    metrosTotales: origen.metrosTotales,
     suplementos: { ...origen.suplementos },
     unidadesSuplemento: { ...origen.unidadesSuplemento },
     precioMaterialEditadoEuros: origen.precioMaterialEditadoEuros,
@@ -220,10 +238,15 @@ function reductor(estado: EstadoAtelier, accion: AccionAtelier): EstadoAtelier {
       return { ...estado, material: accion.material };
     case 'seleccionarFigura':
       // Cambiar de figura reinicia medidas y suplementos: no son transferibles.
+      // El modo de cálculo vuelve al normal porque la figura nueva puede no
+      // venderse por metros, y quedarse en un modo que ya no existe dejaría el
+      // paso sin campo de largo.
       return {
         ...estado,
         figuraId: accion.figuraId,
         medidas: {},
+        modoMedida: 'largo',
+        metrosTotales: '',
         suplementos: {},
         unidadesSuplemento: {},
       };
@@ -231,6 +254,13 @@ function reductor(estado: EstadoAtelier, accion: AccionAtelier): EstadoAtelier {
       return { ...estado, medidas: { ...estado.medidas, [accion.medida]: accion.valor } };
     case 'cambiarCantidad':
       return { ...estado, cantidad: accion.cantidad };
+    case 'cambiarModoMedida':
+      // Lo tecleado en el otro modo se conserva: alternar para comparar los dos
+      // resultados es justo el motivo de tener dos modos, y borrarlo obligaría a
+      // volver a escribirlo en cada ida y vuelta.
+      return { ...estado, modoMedida: accion.modo };
+    case 'cambiarMetros':
+      return { ...estado, metrosTotales: accion.metros };
     case 'alternarSuplemento':
       return {
         ...estado,
@@ -406,7 +436,13 @@ export function construirEntradaDePieza(
     };
   }
 
-  const validacion = validarMedidasCrudas(figura, pieza.medidas);
+  // En las figuras que se venden por metro lineal el comercial puede pedir por
+  // metros: entonces el largo de cada pieza sale de repartir los metros entre
+  // las unidades, y no de un campo tecleado.
+  const validacion =
+    figura.medidaPorMetros !== null && pieza.modoMedida === 'metros'
+      ? validarMedidasPorMetros(figura, pieza.medidas, pieza.metrosTotales, cantidad)
+      : validarMedidasCrudas(figura, pieza.medidas);
   if (!validacion.ok) return { ok: false, errores: validacion.errores };
 
   const suplementosActivos = Object.entries(pieza.suplementos)

@@ -87,7 +87,21 @@ export interface CampoMedida {
   readonly maxCm: number | null;
   /** Si está presente, la medida solo puede tomar uno de estos valores (cm). */
   readonly opcionesCm: readonly number[] | null;
+  /**
+   * Medida que NO se teclea: la fija la propia figura (2026-07-31, indicación
+   * directa). Los rodapiés de 7,2 y de 8 llevan la altura en el nombre, así que
+   * no es una elección del comercial sino parte de la figura; la UI la enseña en
+   * solo lectura y la validación la da por puesta. Null = la teclea el comercial.
+   */
+  readonly valorFijoCm: number | null;
 }
+
+/**
+ * Canto superior del listón de rodapié. No cambia la tarifa (2026-07-31,
+ * indicación directa: el canto recto «no tiene incremento»), solo la forma que
+ * se dibuja en la miniatura, el visor 3D y el croquis de la orden.
+ */
+export type CantoListon = 'recto' | 'microbiselado' | 'romado';
 
 export interface ComponenteReceta {
   readonly id: string;
@@ -95,6 +109,8 @@ export interface ComponenteReceta {
   readonly largoDe: string;
   /** Medida de la que sale el ancho del componente. */
   readonly anchoDe: string;
+  /** Solo el componente 'liston': cómo se remata su canto superior. */
+  readonly canto: CantoListon | null;
 }
 
 /**
@@ -152,6 +168,16 @@ export interface Figura {
   } | null;
   /** Ids de suplementos aplicables (definidos en tarifas.json). */
   readonly suplementos: readonly string[];
+  /**
+   * Medida que puede deducirse de los METROS pedidos, en las figuras que se
+   * venden por metro lineal (rodapiés, 2026-07-31, indicación directa). Cuando
+   * no es null, el paso ③ ofrece un segundo modo de cálculo: en vez del largo de
+   * la pieza, el comercial indica cuántos metros quiere y en cuántas unidades, y
+   * el largo sale de dividir (`metros × 100 ÷ unidades`).
+   *
+   * Null = la figura solo admite el modo normal (largo + cantidad).
+   */
+  readonly medidaPorMetros: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -213,12 +239,24 @@ type ReglaTarifaJson =
     };
 
 interface FigurasJson {
-  figuras: (Omit<Figura, 'tarifa' | 'medidas' | 'longitudTarifa' | 'tarifaAdicional'> & {
+  figuras: (Omit<
+    Figura,
+    | 'tarifa'
+    | 'medidas'
+    | 'componentes'
+    | 'longitudTarifa'
+    | 'tarifaAdicional'
+    | 'medidaPorMetros'
+  > & {
     tarifa: ReglaTarifaJson | null;
-    medidas: (Omit<CampoMedida, 'maxCm' | 'opcionesCm'> & {
+    medidas: (Omit<CampoMedida, 'maxCm' | 'opcionesCm' | 'valorFijoCm'> & {
       maxCm?: number | null;
       opcionesCm?: number[] | null;
+      valorFijoCm?: number | null;
     })[];
+    componentes: (Omit<ComponenteReceta, 'canto'> & { canto?: CantoListon | null })[];
+    /** Opcional: solo las figuras que se venden por metro lineal (rodapiés). */
+    medidaPorMetros?: string | null;
     longitudTarifa: ReglaLongitudTarifa | null;
     /** Opcional: solo las figuras compuestas (tabica) lo traen. */
     tarifaAdicional?: {
@@ -293,7 +331,14 @@ function parsearReglaTarifa(json: ReglaTarifaJson | null): ReglaTarifa | null {
 function parsearFiguras(json: FigurasJson): Figura[] {
   return json.figuras.map((f) => ({
     ...f,
-    medidas: f.medidas.map((m) => ({ ...m, maxCm: m.maxCm ?? null, opcionesCm: m.opcionesCm ?? null })),
+    medidas: f.medidas.map((m) => ({
+      ...m,
+      maxCm: m.maxCm ?? null,
+      opcionesCm: m.opcionesCm ?? null,
+      valorFijoCm: m.valorFijoCm ?? null,
+    })),
+    componentes: f.componentes.map((c) => ({ ...c, canto: c.canto ?? null })),
+    medidaPorMetros: f.medidaPorMetros ?? null,
     tarifa: parsearReglaTarifa(f.tarifa),
     tarifaAdicional: f.tarifaAdicional
       ? {
@@ -334,6 +379,25 @@ export function validarConfiguracion(config: Configuracion): string[] {
       if (!idsMedida.includes(c.largoDe) || !idsMedida.includes(c.anchoDe)) {
         errores.push(
           `Figura '${figura.id}': componente '${c.id}' usa medidas no declaradas (${c.largoDe}, ${c.anchoDe})`,
+        );
+      }
+    }
+    // El modo «por metros» tiene que decir de qué medida sale el largo.
+    if (figura.medidaPorMetros !== null && !idsMedida.includes(figura.medidaPorMetros)) {
+      errores.push(
+        `Figura '${figura.id}': medidaPorMetros '${figura.medidaPorMetros}' no es una medida declarada`,
+      );
+    }
+    // Una medida fija que no cumpliera sus propios límites dejaría la figura sin
+    // cotizar y sin que el comercial pudiera hacer nada: se caza al cargar.
+    for (const m of figura.medidas) {
+      if (m.valorFijoCm === null) continue;
+      const fueraDeRango =
+        m.valorFijoCm < m.minCm || (m.maxCm !== null && m.valorFijoCm > m.maxCm);
+      const fueraDeOpciones = m.opcionesCm !== null && !m.opcionesCm.includes(m.valorFijoCm);
+      if (fueraDeRango || fueraDeOpciones) {
+        errores.push(
+          `Figura '${figura.id}': el valor fijo de la medida '${m.id}' (${m.valorFijoCm} cm) no cumple sus propios límites`,
         );
       }
     }

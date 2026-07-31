@@ -50,8 +50,11 @@ Puntos clave de la aritmética (`src/domain/money.ts`):
 
 - Las conversiones de entrada redondean en la frontera: `cmAMm(7.15)` → `72` mm; la comparación
   de mínimos/máximos/opciones se hace ya en mm (`src/domain/engine/validacion.ts`). Que 7,15 cm
-  se redondee a 72 mm antes de comparar con el mínimo de 7,2 cm del rodapié estándar es una
-  decisión consciente, pendiente de confirmar (ver `PENDIENTES.md` §4.5).
+  se redondee a 72 mm antes de comparar con un mínimo de 7,2 cm es una decisión consciente,
+  pendiente de confirmar (ver `PENDIENTES.md` §4.5).
+- El largo deducido del modo «por metros» de los rodapiés (`metros × 100 ÷ unidades`) entra por
+  esa misma frontera: se redondea a mm enteros igual que un largo tecleado, así que el total
+  facturado puede quedar unos milímetros por encima o por debajo de los metros pedidos.
 - **Único redondeo del dinero**: `milesimasACentimos()` convierte milésimas acumuladas a céntimos
   con redondeo half-up, una vez por línea de cotización.
 - `aplicarTarifaLineal(tarifaPorCm, longitudMm)` calcula `tarifa × (mm / 10)` milésimas y aplica

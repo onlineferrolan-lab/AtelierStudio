@@ -27,7 +27,7 @@
  */
 
 import type { ReactNode } from 'react';
-import type { Figura } from '../../domain/config';
+import type { CantoListon, Figura } from '../../domain/config';
 
 // Gris claro neutro (paleta slate de la app), no la terracota de la tarifa
 // (2026-07-29, indicación directa): la pieza real puede ser de cualquier
@@ -258,21 +258,64 @@ function seccionRomo({ doble }: { readonly doble: boolean }): Seccion {
 }
 
 /**
- * Rodapié: listón de pie con el canto superior romado o biselado («Rodapeu romat
- * o bisellat» en la tarifa; el dibujo lleva la banda clara arriba). Los dos
- * rodapiés comparten dibujo. El canto es el del peldaño romo tumbado: cruza el
- * grueso entero y sube un cuarto de él.
+ * Chaflán del microbiselado en la miniatura: 0,35 grosores frente a los 0,15 de
+ * la pieza real (`CHAFLAN_MICROBISEL` en `seccionPieza.ts`). Va exagerado a
+ * propósito, como el resto de proporciones de este fichero: a tamaño real el
+ * microbisel mide 1 px en la tarjeta y las tres variantes de rodapié se verían
+ * idénticas, que es justo lo que la galería tiene que distinguir.
  */
-function seccionListon(): Seccion {
+const CHAFLAN_MINIATURA = 0.35;
+
+/**
+ * Rodapié: listón de pie rematado por arriba según el canto de la figura
+ * (2026-07-31). El romado es el canto del peldaño romo tumbado («Rodapeu romat o
+ * bisellat» en la tarifa): cruza el grueso entero y sube solo un cuarto de él
+ * (ver `VUELO_ROMADO`), no la media caña que se dibujaba antes. El microbiselado
+ * mata solo el filo delantero; el recto lo deja vivo. Las nueve figuras de
+ * rodapié salen de aquí, tres dibujos para las tres alturas.
+ */
+function seccionListon(canto: CantoListon): Seccion {
+  const base = { puntos: [[0, 0], [G, 0]] as readonly Punto[], cara: null };
+  const trasera = (desdeY: number): Tramo => ({
+    puntos: [[0, desdeY], [0, 0]],
+    cara: null,
+  });
+
+  if (canto === 'recto') {
+    return {
+      tramos: [
+        base,
+        { puntos: [[G, 0], [G, ALTO_RODAPIE]], cara: 'frontal' },
+        { puntos: [[G, ALTO_RODAPIE], [0, ALTO_RODAPIE]], cara: 'superior' },
+        trasera(ALTO_RODAPIE),
+      ],
+      juntas: [],
+      largo: LARGO_RODAPIE,
+    };
+  }
+  if (canto === 'microbiselado') {
+    const c = G * CHAFLAN_MINIATURA;
+    return {
+      tramos: [
+        base,
+        { puntos: [[G, 0], [G, ALTO_RODAPIE - c]], cara: 'frontal' },
+        { puntos: [[G, ALTO_RODAPIE - c], [G - c, ALTO_RODAPIE]], cara: 'canto' },
+        { puntos: [[G - c, ALTO_RODAPIE], [0, ALTO_RODAPIE]], cara: 'superior' },
+        trasera(ALTO_RODAPIE),
+      ],
+      juntas: [],
+      largo: LARGO_RODAPIE,
+    };
+  }
   const rz = G / 2;
   const ry = G * VUELO_ROMADO;
   const cima = ALTO_RODAPIE - ry;
   return {
     tramos: [
-      { puntos: [[0, 0], [G, 0]], cara: null },
+      base,
       { puntos: [[G, 0], [G, cima]], cara: 'frontal' },
       { puntos: arco(rz, cima, rz, ry, 0, 180), cara: 'canto' },
-      { puntos: [[0, cima], [0, 0]], cara: null },
+      trasera(cima),
     ],
     juntas: [],
     largo: LARGO_RODAPIE,
@@ -451,7 +494,12 @@ function seccionTabica(): Seccion {
   return { tramos, juntas, largo: LARGO };
 }
 
-/** Sección por id de figura (los dos rodapiés comparten dibujo). */
+/**
+ * Sección por id de figura. Los rodapiés NO están aquí: son nueve figuras que
+ * comparten tres dibujos, así que su sección se saca del canto de la receta
+ * (ver `MiniaturaFigura`) y no de una entrada por id que habría que duplicar
+ * nueve veces y mantener a mano.
+ */
 const SECCIONES: Readonly<Record<string, () => Seccion>> = {
   'figura-1': () => ESCUADRA(0),
   'figura-2': () => ESCUADRA(1),
@@ -464,8 +512,6 @@ const SECCIONES: Readonly<Record<string, () => Seccion>> = {
   'pasamanos-3': () => ESCUADRA(2, false, true),
   'pasamanos-4': () => ESCUADRA(0, true, true),
   'pasamanos-romo': () => seccionRomo({ doble: true }),
-  'rodapie-estandar': seccionListon,
-  'rodapie-no-estandar': seccionListon,
   corte: seccionPlancha,
 };
 
@@ -500,8 +546,13 @@ export function MiniaturaFigura({ figura }: { figura: Figura }): JSX.Element {
   if (figura.estado === 'pendiente') {
     return <SiluetaPendiente />;
   }
-  // Figura activa sin sección asignada (no debería ocurrir): placa genérica.
-  const seccion = (SECCIONES[figura.id] ?? SECCIONES.corte)();
+  // Los rodapiés se dibujan por el canto de su receta, no por id: nueve figuras,
+  // tres dibujos. El resto va por id; sin sección asignada (no debería ocurrir),
+  // placa genérica.
+  const liston = figura.componentes.find((c) => c.id === 'liston');
+  const seccion = liston
+    ? seccionListon(liston.canto ?? 'romado')
+    : (SECCIONES[figura.id] ?? SECCIONES.corte)();
   return (
     <Perfil etiqueta={`Perfil de ${figura.nombre}`}>
       <Pieza seccion={seccion} />

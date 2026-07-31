@@ -25,7 +25,13 @@
 
 import type { Configuracion, Figura } from '../config';
 
-export { validarMedidasCrudas } from './validacion';
+export {
+  MEDIDA_METROS,
+  largoCmPorMetros,
+  validarMedidasCrudas,
+  validarMedidasPorMetros,
+  type ModoMedida,
+} from './validacion';
 export { resolverTarifa, longitudTarifaMm } from './tarifas';
 export { calcularCotizacion, calcularLinea, facturarMaterial } from './cotizacion';
 export type { LineaCalculada, FacturacionMaterial, SalidaLinea } from './cotizacion';

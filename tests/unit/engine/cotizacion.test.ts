@@ -101,8 +101,14 @@ describe('calcularCotizacion — cada figura activa contra su tarifa (§2; pasam
     ['pasamanos-3', medidasF2, 1250], // 0,25
     ['pasamanos-4', { ...medidasF2, retorno: mm(50) }, 1450], // 0,29
     ['pasamanos-romo', { longitud: mm(500), fondo: mm(300) }, 225], // 0,045
-    ['rodapie-estandar', { longitud: mm(500), altura: mm(72) }, 85], // 0,017
-    ['rodapie-no-estandar', { longitud: mm(500), altura: mm(100) }, 170], // 0,034
+    // Rodapiés: tarifa por altura, nunca por canto (2026-07-31). Se prueban los
+    // tres cantos de 7,2 con el mismo importe, que es lo que dice la regla.
+    ['rodapie-72-recto', { longitud: mm(500), altura: mm(72) }, 85], // 0,017
+    ['rodapie-72-microbiselado', { longitud: mm(500), altura: mm(72) }, 85], // 0,017
+    ['rodapie-72-romado', { longitud: mm(500), altura: mm(72) }, 85], // 0,017
+    ['rodapie-8-romado', { longitud: mm(500), altura: mm(80) }, 85], // 0,017
+    ['rodapie-medida-recto', { longitud: mm(500), altura: mm(100) }, 170], // 0,034
+    ['rodapie-medida-romado', { longitud: mm(500), altura: mm(100) }, 170], // 0,034
     ['corte', { largo: mm(300), ancho: mm(200) }, 170], // 0,017 × perímetro 100 cm
   ];
   it.each(casos)(
@@ -452,7 +458,7 @@ describe('calcularCotizacion — empaquetado: varias piezas por baldosa (direcci
     const cinco = esperarOk(
       calcularCotizacion(
         entradaBase({
-          figuraId: 'rodapie-no-estandar',
+          figuraId: 'rodapie-medida-romado',
           medidasMm: medidas,
           cantidad: 5,
           mermaPorcentaje: 0,
@@ -465,7 +471,7 @@ describe('calcularCotizacion — empaquetado: varias piezas por baldosa (direcci
     const seis = esperarOk(
       calcularCotizacion(
         entradaBase({
-          figuraId: 'rodapie-no-estandar',
+          figuraId: 'rodapie-medida-romado',
           medidasMm: medidas,
           cantidad: 6,
           mermaPorcentaje: 0,
@@ -644,11 +650,11 @@ describe('calcularCotizacion — errores como valor (nunca lanza por entrada de 
     [
       'suplemento no aplicable a la figura',
       entradaBase({
-        figuraId: 'rodapie-estandar',
+        figuraId: 'rodapie-72-romado',
         medidasMm: { longitud: mm(500), altura: mm(72) },
         suplementos: ['angular-f14'],
       }),
-      /no disponible para «Rodapié 7,2 y 8 cm»/,
+      /no disponible para «Rodapié 7,2 canto romado»/,
     ],
     [
       'precio editado negativo',
@@ -703,7 +709,7 @@ describe('calcularCotizacion — determinismo y precisión entera (§1)', () => 
         cantidad: 7,
       }),
       entradaBase({
-        figuraId: 'rodapie-no-estandar',
+        figuraId: 'rodapie-medida-romado',
         medidasMm: { longitud: mm(123), altura: mm(45) },
         cantidad: 3,
       }),
