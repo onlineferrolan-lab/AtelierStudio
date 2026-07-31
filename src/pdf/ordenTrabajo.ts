@@ -452,9 +452,17 @@ export interface DatosProduccion {
  *
  * Una imagen ilegible NUNCA rompe la generación: se salta, igual que el logo o la
  * foto del material cuando falla su descarga.
+ *
+ * Recibe los adjuntos y el `codigo` sueltos, no la orden entera, para que la
+ * comparta la orden del pedido (`ordenPedido.ts`), donde el código es `PED-…` y
+ * los adjuntos son del pedido completo — igual que las demás secciones de aquí.
  */
-function paginasAdjuntos(doc: jsPDF, datos: DatosOrdenTrabajo): void {
-  const imagenes = (datos.adjuntos ?? []).filter(seIncrustaEnPdf);
+export function paginasAdjuntos(
+  doc: jsPDF,
+  adjuntos: readonly AdjuntoOrden[] | undefined,
+  codigo: string,
+): void {
+  const imagenes = (adjuntos ?? []).filter(seIncrustaEnPdf);
   imagenes.forEach((adjunto, i) => {
     let props: { width: number; height: number };
     try {
@@ -478,7 +486,7 @@ function paginasAdjuntos(doc: jsPDF, datos: DatosOrdenTrabajo): void {
     doc.text(sanearTextoPdf(adjunto.nombre), MARGEN_X + 26, 16);
     doc.setFontSize(8);
     doc.setTextColor(...GRIS_TEXTO);
-    doc.text(codigoOrdenTrabajo(datos), xDerecha, 16, { align: 'right' });
+    doc.text(codigo, xDerecha, 16, { align: 'right' });
     doc.setTextColor(0, 0, 0);
     doc.setDrawColor(...ROJO_MARCA);
     doc.setLineWidth(0.6);
@@ -664,7 +672,7 @@ export function construirPdfOrdenTrabajo(datos: DatosOrdenTrabajo): jsPDF {
     azulejosNoIncluidos: datos.azulejosNoIncluidos,
   });
   pieOperador(doc, yFinal - AIRE);
-  paginasAdjuntos(doc, datos);
+  paginasAdjuntos(doc, datos.adjuntos, codigoOrdenTrabajo(datos));
   return doc;
 }
 

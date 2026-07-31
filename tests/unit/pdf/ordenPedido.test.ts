@@ -19,6 +19,7 @@ import {
 import { calcularPedido } from '../../../src/domain/engine/pedido';
 import { figuraPorId } from '../../../src/domain/engine';
 import type { EntradaCotizacion, Material, ResultadoPedido } from '../../../src/domain/types';
+import type { AdjuntoOrden } from '../../../src/orden/adjuntos';
 import { construirSeccion } from '../../../src/piezas/piezaDeFigura';
 import { cargarConfigReal, entradaBase, materialErp } from '../engine/util';
 
@@ -169,5 +170,104 @@ describe('el documento refleja el reparto de cajas', () => {
     expect(resultado.cajasAhorradas).toBe(1);
     // Y el documento se construye sin tropezar con ese reparto.
     expect(construirPdfOrdenPedido(datos).getNumberOfPages()).toBe(3);
+  });
+});
+
+/**
+ * Adjuntos del pedido (2026-07-31). Son del PEDIDO, no de cada pieza: se citan
+ * una vez en el resumen y sus páginas van AL FINAL, detrás de las hojas de
+ * pieza. Se comparte `paginasAdjuntos` con la orden de una pieza, así que aquí
+ * se prueba lo que es propio del pedido: el reparto, el sitio y el código PED-.
+ */
+describe('construirPdfOrdenPedido — adjuntos', () => {
+  const imagen: AdjuntoOrden = {
+    id: 'adjunto-1',
+    nombre: 'plano-cliente.png',
+    tipoMime: 'image/png',
+    bytes: 70,
+    dataUrl: PNG_1X1,
+  };
+  const documento: AdjuntoOrden = {
+    id: 'adjunto-2',
+    nombre: 'medicion.pdf',
+    tipoMime: 'application/pdf',
+    bytes: 2048,
+    dataUrl: 'data:application/pdf;base64,JVBERi0xLjQK',
+  };
+
+  const dosPiezas = () => [entradaBase(), entradaBase({ figuraId: 'figura-1' })];
+
+  it('cita todos los adjuntos por nombre en el resumen', () => {
+    const salida = construirPdfOrdenPedido(
+      construirDatos(dosPiezas(), { adjuntos: [imagen, documento] }),
+    ).output();
+    expect(salida).toContain('Adjuntos');
+    expect(salida).toContain('plano-cliente.png');
+    // Los que no se pueden incrustar se marcan: en taller tienen que saber que
+    // existe un archivo que no está impreso aquí.
+    expect(salida).toContain('medicion.pdf');
+    expect(salida).toContain('aparte');
+  });
+
+  it('añade una página por adjunto que es imagen, y ninguna por los demás', () => {
+    // 1 resumen + 2 piezas = 3, y una página más por cada imagen.
+    expect(
+      construirPdfOrdenPedido(construirDatos(dosPiezas(), { adjuntos: [imagen] })).getNumberOfPages(),
+    ).toBe(4);
+    expect(
+      construirPdfOrdenPedido(
+        construirDatos(dosPiezas(), {
+          adjuntos: [imagen, { ...imagen, id: 'adjunto-3', nombre: 'obra.jpg' }],
+        }),
+      ).getNumberOfPages(),
+    ).toBe(5);
+    // El PDF del cliente se cita pero no se incrusta: no añade página.
+    expect(
+      construirPdfOrdenPedido(
+        construirDatos(dosPiezas(), { adjuntos: [documento] }),
+      ).getNumberOfPages(),
+    ).toBe(3);
+  });
+
+  it('las páginas de adjunto van al final, después de las hojas de pieza', () => {
+    const doc = construirPdfOrdenPedido(construirDatos(dosPiezas(), { adjuntos: [imagen] }));
+    expect(doc.getNumberOfPages()).toBe(4);
+    // El PDF se genera sin comprimir, así que el orden de las páginas se lee en
+    // el orden de los textos: la cabecera del adjunto tiene que ir DESPUÉS de la
+    // última hoja de pieza. Colocada tras una pieza concreta parecería que el
+    // documento solo vale para ella.
+    const salida = doc.output();
+    expect(salida.indexOf('ADJUNTO 1/1')).toBeGreaterThan(salida.indexOf('Pieza 2 de 2'));
+  });
+
+  it('las páginas de adjunto llevan el código del pedido, no el de una orden', () => {
+    const salida = construirPdfOrdenPedido(
+      construirDatos(dosPiezas(), { adjuntos: [imagen] }),
+    ).output();
+    expect(salida).toContain('ADJUNTO 1/1');
+    expect(salida).toContain('PED-20260609-1407');
+    expect(salida).not.toContain('OT-20260609-1407');
+  });
+
+  it('un adjunto ilegible no impide generar el pedido', () => {
+    const roto: AdjuntoOrden = {
+      ...imagen,
+      id: 'adjunto-roto',
+      nombre: 'roto.png',
+      dataUrl: 'data:image/png;base64,no-es-base64-valido',
+    };
+    const doc = construirPdfOrdenPedido(construirDatos(dosPiezas(), { adjuntos: [roto] }));
+    // Se salta la página de la imagen, pero el pedido sale: resumen + 2 piezas.
+    expect(doc.getNumberOfPages()).toBe(3);
+    expect(doc.output()).toContain('roto.png');
+  });
+
+  it('sin adjuntos el documento es exactamente el de antes', () => {
+    expect(
+      construirPdfOrdenPedido(construirDatos(dosPiezas())).getNumberOfPages(),
+    ).toBe(3);
+    expect(
+      construirPdfOrdenPedido(construirDatos(dosPiezas(), { adjuntos: [] })).getNumberOfPages(),
+    ).toBe(3);
   });
 });

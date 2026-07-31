@@ -107,6 +107,7 @@ export function PanelPedido(): JSX.Element {
         piezas,
         resultado: pedido.salida.resultado,
         comentarios: estado.comentarios,
+        adjuntos: estado.adjuntos,
         config,
         fecha: new Date(),
       });

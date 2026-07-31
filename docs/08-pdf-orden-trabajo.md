@@ -78,8 +78,28 @@ El módulo separa dos responsabilidades (`src/pdf/ordenTrabajo.ts`):
 Todos los datos entran por un único objeto (`src/pdf/ordenTrabajo.ts:29`): `material`,
 `figura`, `medidasMm` (mm enteros), `cantidad`, `suplementosActivos` (ids),
 `azulejosNoIncluidos` (las baldosas las aporta el cliente),
-`mermaPorcentaje`, `resultado` (`ResultadoCotizacion` del motor), `config`, `fecha` y,
-opcionalmente, las dos imágenes como data URL.
+`mermaPorcentaje`, `resultado` (`ResultadoCotizacion` del motor), `config`, `fecha`,
+`comentarios` y `adjuntos` (ver abajo) y, opcionalmente, las dos imágenes como data URL.
+
+### Adjuntos: `paginasAdjuntos`
+
+Los documentos que el comercial engancha a «Comentarios para taller»
+(`src/orden/adjuntos.ts`) llegan al PDF por dos vías a la vez:
+
+- **Citados por nombre** en la caja de comentarios, TODOS. Los que no se pueden
+  incrustar se marcan «(aparte)»: sin servidor (§8) lo único que se manda es este PDF,
+  así que en taller tienen que saber que existe un archivo que no está impreso aquí.
+- **Como página completa al final**, uno por cada adjunto que sea imagen, en horizontal
+  si es más ancha que alta. jsPDF no fusiona documentos, así que un PDF adjunto solo se
+  puede citar.
+
+`paginasAdjuntos(doc, adjuntos, codigo)` recibe los adjuntos y el código sueltos —no la
+orden entera— porque **la comparte la orden del pedido** (`ordenPedido.ts`), donde el
+código es `PED-…` y los adjuntos son del pedido completo. Ahí las páginas van detrás de
+las hojas de pieza: colocadas tras una pieza concreta parecerían valer solo para ella.
+
+Una imagen ilegible **nunca** rompe la generación: se salta, igual que el logo o la foto
+del material cuando falla su descarga.
 
 ### Nombre de archivo
 

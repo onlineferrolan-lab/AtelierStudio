@@ -49,7 +49,9 @@ Todo debe quedar en verde: `tsc --noEmit`, `eslint . --max-warnings 0`, `vitest 
   del pedido (`ordenPedido.ts`); no dupliques cajas ni cabeceras entre los dos.
 - Adjuntos de la orden (clip de «Comentarios para taller»): `src/orden/adjuntos.ts` — aparte de
   `src/pdf/` a propósito, porque el estado los necesita y `ordenTrabajo.ts` arrastra jsPDF (~580 kB,
-  carga diferida). Solo viven en la sesión: ver PENDIENTES.md §4.16
+  carga diferida). Solo viven en la sesión: ver PENDIENTES.md §4.16. Los pintan
+  `seccionComentarios` (la cita por nombre) y `paginasAdjuntos` (las páginas de imagen), las
+  dos compartidas por la orden de una pieza y la del pedido.
 
 ## Al terminar una tarea
 

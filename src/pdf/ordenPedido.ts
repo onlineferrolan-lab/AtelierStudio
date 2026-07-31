@@ -28,6 +28,7 @@ import type { Configuracion, Figura } from '../domain/config';
 import type { GrupoMaterialPedido, Material, Mm, ResultadoPedido } from '../domain/types';
 import { formatearEuros } from '../domain/money';
 import { formatearCotaCm } from '../domain/units';
+import type { AdjuntoOrden } from '../orden/adjuntos';
 import type { SeccionPieza } from '../piezas/seccionPieza';
 import {
   AIRE,
@@ -51,6 +52,7 @@ import {
   selloFecha,
 } from './maqueta';
 import {
+  paginasAdjuntos,
   seccionCabecera,
   seccionComentarios,
   seccionMaterial,
@@ -83,6 +85,12 @@ export interface DatosOrdenPedido {
   readonly resultado: ResultadoPedido;
   /** Comentarios del comercial para taller; van en el resumen, no en cada pieza. */
   readonly comentarios?: string;
+  /**
+   * Documentos enganchados a esos comentarios. Como los comentarios, son del
+   * PEDIDO y no de cada pieza: se citan una vez en el resumen y sus páginas van
+   * al final del documento, detrás de las hojas de pieza.
+   */
+  readonly adjuntos?: readonly AdjuntoOrden[];
   readonly config: Configuracion;
   readonly fecha: Date;
   readonly logoDataUrl?: string | null;
@@ -459,7 +467,7 @@ export function construirPdfOrdenPedido(datos: DatosOrdenPedido): jsPDF {
 
   y = bloquePiezas(doc, y, datos);
   y = bloqueMaterial(doc, y, datos);
-  y = seccionComentarios(doc, y, datos.comentarios);
+  y = seccionComentarios(doc, y, datos.comentarios, datos.adjuntos);
 
   if (y + altoImportes(datos.resultado) > LIMITE_Y) {
     y = abrirPagina(doc, datos, 'Importes del pedido (continuación)');
@@ -491,6 +499,11 @@ export function construirPdfOrdenPedido(datos: DatosOrdenPedido): jsPDF {
     pieOperador(doc, yp + 20);
     pieDePieza(doc, i + 1, total, codigo);
   });
+
+  // Los adjuntos van al final, detrás de las hojas de pieza: son del pedido
+  // entero, así que colocarlos tras una pieza concreta daría a entender que solo
+  // valen para ella. Llevan el `PED-…` en la cabecera, como el resto del documento.
+  paginasAdjuntos(doc, datos.adjuntos, codigo);
 
   return doc;
 }
