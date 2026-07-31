@@ -51,12 +51,11 @@ describe('PasoSuplementos', () => {
     expect(api().estado.suplementos['angular-f14']).toBe(false);
   });
 
-  it('los rodapiés no tienen suplementos ni conmutador de pintado', () => {
+  it('los rodapiés no tienen suplementos', () => {
     const { api } = montarPasos(<PasoSuplementos />);
     act(() => api().dispatch({ tipo: 'seleccionarFigura', figuraId: 'rodapie-72-romado' }));
 
     expect(screen.getByText('Esta figura no tiene suplementos.')).toBeInTheDocument();
-    expect(screen.queryByRole('checkbox', { name: /Pintado/ })).not.toBeInTheDocument();
   });
 
   // Acabados de canto del corte de piezas (2026-07-31): inglete y microbisel a
@@ -77,15 +76,13 @@ describe('PasoSuplementos', () => {
   });
 
   it('informa cuando la figura no tiene suplementos', () => {
-    // Hoy TODAS las figuras del catálogo tienen suplementos o pintado, así que
-    // el vacío solo se alcanza con una configuración recortada; el mensaje sigue
+    // Hoy casi todas las figuras del catálogo tienen suplementos, así que el
+    // vacío solo se alcanza con una configuración recortada; el mensaje sigue
     // haciendo falta para la próxima figura que se dé de alta sin ninguno.
     const base = construirConfigPrueba();
     configuracion.actual = {
       ...base,
-      figuras: base.figuras.map((f) =>
-        f.id === 'corte' ? { ...f, suplementos: [], tienePintado: false } : f,
-      ),
+      figuras: base.figuras.map((f) => (f.id === 'corte' ? { ...f, suplementos: [] } : f)),
     };
 
     const { api } = montarPasos(<PasoSuplementos />);
