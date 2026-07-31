@@ -41,7 +41,10 @@ El parseo convierte todo a las unidades enteras del dominio (`src/domain/money.t
 | `discoMm`, `toleranciaMm`, `saneadoPorLadoMm` | `Mm` enteros | sin conversión: deben ser **enteros** o la carga falla |
 
 Todos los precios de los JSON son **sin IVA**; el IVA se aplica después según
-`parametros.json → ivaPorcentaje`.
+`parametros.json → ivaPorcentaje`. También son **sin margen comercial**: son coste de taller,
+y el margen de la subfamilia se aplica encima en el motor (`engine/margen.ts`). Al añadir una
+tarifa o un suplemento nuevo, comprueba que el precio que te dan es coste; si ya trajera
+margen dentro, se cobraría dos veces.
 
 ### Validación
 
@@ -102,8 +105,16 @@ Tarifas actuales (€/cm, sin IVA): `f1-frontal-le5` 0,19 · `f1-frontal-gt5` 0,
 | `eurosPorPieza` | number | € por pieza | Solo con `tipo: "porPieza"`; se convierte a céntimos. |
 | `eurosPorCm` | number | € por cm lineal | Solo con `tipo: "porCm"`; hasta 3 decimales (milésimas). |
 
-Cada suplemento lleva **uno** de los dos campos de precio, según su `tipo`. Hoy hay dos
-familias con precios distintos: `*-f14` (Figuras 1–4) y `*-romo` (peldaño romo).
+Cada suplemento lleva **uno** de los dos campos de precio, según su `tipo`. Hoy hay tres
+familias con precios distintos: `*-f14` (Figuras 1–4), `*-romo` (peldaño romo) y `*-corte`
+(acabados de canto del corte de piezas).
+
+Acabados de canto del corte de piezas (2026-07-31, indicación directa; **no** vienen de la
+tarifa de 2023): `inglete-corte` 0,034 · `microbisel-corte` 0,034 · `sin-microbisel-corte`
+**0** €/cm. Se cobran sobre la longitud de tarifa de la figura, que en el corte de piezas es
+el **perímetro** de la pieza. «Sin microbisel» a 0 € no cobra nada: existe para que la
+elección de acabado **conste** en la cotización y en la orden de trabajo; la UI lo rotula
+«Sin coste» en vez de «+0,00 €/cm», y sale como línea de 0 € en el desglose.
 
 ## `figuras.json` — catálogo de figuras
 

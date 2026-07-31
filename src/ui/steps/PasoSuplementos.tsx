@@ -47,6 +47,12 @@ function precioSuplementoTexto(suplemento: Suplemento, margen: MargenCentesimas 
   const conMargen = (centimos: Centimos): Centimos =>
     margen === null ? centimos : aplicarMargen(centimos, margen);
 
+  // Un suplemento a 0 € existe para DEJAR CONSTANCIA de la elección en la orden
+  // de trabajo («Sin microbisel», 2026-07-31), no para cobrar. Decirlo con
+  // palabras evita que un «+0,00 €/cm» se lea como un precio sin configurar.
+  if (suplemento.precioCentimos === 0 || suplemento.precioMilesimasPorCm === 0) {
+    return 'Sin coste';
+  }
   if (suplemento.tipo === 'porPieza' && suplemento.precioCentimos != null) {
     return `+${formatearEuros(conMargen(suplemento.precioCentimos))}/peldaño`;
   }

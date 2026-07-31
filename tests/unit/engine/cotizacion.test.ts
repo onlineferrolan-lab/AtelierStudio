@@ -308,6 +308,53 @@ describe('calcularCotizacion — suplementos (tarifas del PDF §2)', () => {
     expect(r.desglose.manipulacionCentimos).toBe(950);
   });
 
+  /**
+   * Acabados de canto del corte de piezas (2026-07-31, indicación directa).
+   * Inglete y microbisel a 0,034 €/cm de COSTE; se cobran sobre la misma
+   * longitud que la tarifa de corte, que en esta figura es el PERÍMETRO.
+   */
+  it('Corte de piezas: inglete y microbisel a 0,034 €/cm sobre el perímetro', () => {
+    const r = esperarOk(
+      calcularCotizacion(
+        entradaBase({
+          figuraId: 'corte',
+          medidasMm: { largo: mm(300), ancho: mm(200) },
+          cantidad: 2,
+          mermaPorcentaje: 0,
+          suplementos: ['inglete-corte', 'microbisel-corte'],
+        }),
+        config,
+      ),
+    );
+    // Perímetro 2 × (30 + 20) = 100 cm.
+    expect(r.lineasManipulacion).toEqual([
+      { concepto: 'Corte de piezas — 100 cm × 2 ud.', centimos: 340 }, // 0,017 × 100 × 2
+      { concepto: 'Inglete — 100 cm × 2 ud.', centimos: 680 }, // 0,034 × 100 × 2
+      { concepto: 'Microbisel — 100 cm × 2 ud.', centimos: 680 },
+    ]);
+  });
+
+  /** «Sin microbisel» no cobra: está para que la elección conste en la orden. */
+  it('Corte de piezas: «Sin microbisel» aparece en el desglose a 0 €', () => {
+    const r = esperarOk(
+      calcularCotizacion(
+        entradaBase({
+          figuraId: 'corte',
+          medidasMm: { largo: mm(300), ancho: mm(200) },
+          cantidad: 2,
+          mermaPorcentaje: 0,
+          suplementos: ['sin-microbisel-corte'],
+        }),
+        config,
+      ),
+    );
+    expect(r.lineasManipulacion[1]).toEqual({
+      concepto: 'Sin microbisel — 100 cm × 2 ud.',
+      centimos: 0,
+    });
+    expect(r.desglose.manipulacionCentimos).toBe(340);
+  });
+
   it('el orden de líneas es el canónico de la configuración, no el de la entrada', () => {
     const r = esperarOk(
       calcularCotizacion(entradaBase({ suplementos: ['espesado-f14', 'angular-f14'] }), config),

@@ -1,5 +1,5 @@
 {
-  "_nota": "Tarifas de manipulación según 'Tarifa Torelos Castellbisbal Juny 2023'. Confirmar vigencia con taller antes de producción (§2). Precios sin IVA. Las tarifas de pasamanos son PROVISIONALES (2026-07-29): repiten el precio del peldaño equivalente mientras taller no confirme la tarifa de pasamanos (§6.6, PENDIENTES.md).",
+  "_nota": "Tarifas de manipulación según 'Tarifa Torelos Castellbisbal Juny 2023'. Confirmar vigencia con taller antes de producción (§2). Precios sin IVA y SIN MARGEN COMERCIAL: todos son coste de taller y el margen de la subfamilia se aplica encima en el motor (engine/margen.ts). Las tarifas de pasamanos son PROVISIONALES (2026-07-29): repiten el precio del peldaño equivalente mientras taller no confirme la tarifa de pasamanos (§6.6, PENDIENTES.md). Los acabados de canto del corte de piezas (inglete, microbisel, sin microbisel) son indicación directa del 2026-07-31, no vienen de la tarifa de 2023.",
   "tarifas": [
     { "id": "f1-frontal-le5", "nombre": "Figura 1 — frontal ≤ 5 cm", "eurosPorCm": 0.19 },
     { "id": "f1-frontal-gt5", "nombre": "Figura 1 — frontal > 5 cm", "eurosPorCm": 0.23 },
@@ -27,6 +27,9 @@
     { "id": "angular-romo", "nombre": "Angular", "tipo": "porPieza", "eurosPorPieza": 1.0 },
     { "id": "ranuras-romo", "nombre": "Tres ranuras antideslizantes", "tipo": "porCm", "eurosPorCm": 0.02 },
     { "id": "goteron-romo", "nombre": "Ranura (goterón)", "tipo": "porCm", "eurosPorCm": 0.02 },
-    { "id": "espesado-romo", "nombre": "Material espesado", "tipo": "porCm", "eurosPorCm": 0.03 }
+    { "id": "espesado-romo", "nombre": "Material espesado", "tipo": "porCm", "eurosPorCm": 0.03 },
+    { "id": "inglete-corte", "nombre": "Inglete", "tipo": "porCm", "eurosPorCm": 0.034 },
+    { "id": "microbisel-corte", "nombre": "Microbisel", "tipo": "porCm", "eurosPorCm": 0.034 },
+    { "id": "sin-microbisel-corte", "nombre": "Sin microbisel", "tipo": "porCm", "eurosPorCm": 0 }
   ]
 }
