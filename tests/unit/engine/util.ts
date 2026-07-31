@@ -104,7 +104,6 @@ export function entradaBase(overrides: Partial<EntradaCotizacion> = {}): Entrada
     cantidad: 5,
     suplementos: [],
     unidadesSuplemento: {},
-    pintado: false,
     precioMaterialEditado: null,
     mermaPorcentaje: 10,
     tipoMargen: 'pvp',

@@ -39,9 +39,6 @@
  *    que baldosas de origen = ceil(cantidad / piezasPorBaldosa). No se mezclan
  *    componentes de piezas distintas en la misma fila de colocación.
  *
- *  - PINTADO: solo cambia la tarifa de figuras con regla "pintable" (rodapiés,
- *    §2). En el resto se ignora silenciosamente.
- *
  *  - SUPLEMENTOS POR PIEZA: no se aplican a toda la cantidad, sino a las piezas
  *    que indique `entrada.unidadesSuplemento` (2026-07-30, indicación directa).
  *    «Angular» remata el extremo del peldaño y en un tramo de escalera solo lo
@@ -352,9 +349,8 @@ export function calcularCotizacion(entrada: EntradaCotizacion, config: Configura
   }
 
   // 7. Manipulación: tarifa resuelta × longitud de tarifa (redondeo por pieza,
-  //    luego × cantidad — ver cabecera) + suplementos activos. El pintado solo
-  //    afecta a figuras con regla "pintable" (rodapiés); en las demás se ignora.
-  const tarifa = resolverTarifa(figura, entrada.medidasMm, entrada.pintado, config);
+  //    luego × cantidad — ver cabecera) + suplementos activos.
+  const tarifa = resolverTarifa(figura, entrada.medidasMm, config);
   const longitudTarifa = longitudTarifaMm(figura, entrada.medidasMm);
   const cantidad = entrada.cantidad;
   const suplementosActivos = new Set(entrada.suplementos);
@@ -370,7 +366,7 @@ export function calcularCotizacion(entrada: EntradaCotizacion, config: Configura
   // en su PROPIA línea, con su propio redondeo por pieza, igual que la
   // principal; así el desglose enseña de qué se compone el precio y no se
   // acumulan dos redondeos sobre un importe ya redondeado.
-  const tarifaZocalo = resolverTarifaAdicional(figura, entrada.medidasMm, entrada.pintado, config);
+  const tarifaZocalo = resolverTarifaAdicional(figura, entrada.medidasMm, config);
   const longitudZocalo = longitudTarifaAdicionalMm(figura, entrada.medidasMm);
   if (tarifaZocalo !== null && longitudZocalo !== null) {
     const adicionalPorPieza = aplicarTarifaLineal(tarifaZocalo.milesimasPorCm, longitudZocalo);

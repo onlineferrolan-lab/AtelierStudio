@@ -97,8 +97,6 @@ export interface EntradaCotizacion {
    * enteros, menores que 1 o mayores que la cantidad pedida.
    */
   readonly unidadesSuplemento: Readonly<Record<string, number>>;
-  /** Tarifa alternativa cuando el rodapié va pintado. */
-  readonly pintado: boolean;
   /**
    * Precio de material editado por el comercial (céntimos/m² o céntimos/unidad
    * según el tipo de material). Null = usar la tarifa TARP por defecto.

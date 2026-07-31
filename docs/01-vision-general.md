@@ -87,9 +87,8 @@ valores concretos (p. ej. altura de rodapié 7,2 / 8 cm), más el campo **cantid
 
 `src/ui/steps/PasoSuplementos.tsx`. Un conmutador por cada suplemento aplicable a la
 figura activa, con nombre y precio leídos siempre de configuración: «+2,00 €/peldaño»
-para los `porPieza`, «+0,02 €/cm» para los `porCm`. Si la figura admite pintado
-(`tienePintado`, rodapiés), aparece el conmutador «Pintado», que cambia a la tarifa de
-pintado (§2). Cada cambio actualiza la cotización al momento.
+para los `porPieza`, «+0,02 €/cm» para los `porCm`. Cada cambio actualiza la cotización
+al momento.
 
 ### Bloque Cotización (siempre visible)
 
@@ -138,7 +137,7 @@ viole es un bug:
 |---|---|---|
 | **Material** | Baldosa cerámica de origen sobre la que se manipula la pieza. Viene del catálogo (API del catàleg, índice o catálogo de muestra) o de la «entrada manual». Lleva referencia, descripción, formato (largo × ancho), tarifa (TARP, asumida €/m² de forma provisional —ver PENDIENTES.md §4.7—), piezas/m² por caja e imagen. | `Material` en `src/domain/types.ts`; `src/data/` |
 | **Figura** | Tipo de pieza que fabrica el taller: Figuras 1–4 (peldaños con frontal), peldaño romo, rodapiés (estándar 7,2/8 cm y no estándar) y corte de piezas. Se define con medidas, receta de componentes, regla de tarifa y suplementos. Las recetas son provisionales hasta el croquis acotado (§3). | `public/config/figuras.json`; `Figura` en `src/domain/config.ts` |
-| **Suplemento** | Extra activable en el paso ④, asociado a cada figura: `porPieza` (céntimos por pieza, se muestra «€/peldaño») o `porCm` (milésimas por cm lineal). Ejemplos: angular, ranuras, goterón, espesado. El «pintado» de los rodapiés no es un suplemento sino una tarifa alternativa. | `tarifas.json`; `Suplemento` en `src/domain/config.ts` |
+| **Suplemento** | Extra activable en el paso ④, asociado a cada figura: `porPieza` (céntimos por pieza, se muestra «€/peldaño») o `porCm` (milésimas por cm lineal). Ejemplos: angular, ranuras, goterón, espesado. | `tarifas.json`; `Suplemento` en `src/domain/config.ts` |
 | **Merma** | Porcentaje extra aplicado sobre las baldosas necesarias, redondeado hacia arriba (`ceil(baldosas × (1 + %))`), para cubrir roturas y recortes. El valor por defecto (10 %, §4) es de desarrollo y su editabilidad está pendiente (§6.9/§6.10). | `parametros.json`; `baldosasConMerma` en `src/domain/types.ts` |
 | **Ocupación** | Cuánta dimensión útil de la baldosa de origen consumen los componentes de la pieza al colocarlos. La receta actual (Σ anchos + (n−1)·disco + 2·saneado + tolerancia) es **provisional** (§6.4). De ella salen las baldosas necesarias, el número de cortes y si la baldosa se gira 90°. | `DetalleOcupacion` en `src/domain/types.ts`; `src/domain/engine/` |
 | **Facturación por cajas** | El proveedor solo sirve cajas completas, así que se factura la caja entera y el sobrante se cobra al cliente (§4). Antes dependía de un origen Stock/Pedido, suprimido el 2026-07-30. | `calcularCotizacion` en `src/domain/engine/cotizacion.ts` |

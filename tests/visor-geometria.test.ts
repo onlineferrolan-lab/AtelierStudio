@@ -29,7 +29,6 @@ function figuraDePrueba(parcial: Partial<Figura>): Figura {
     longitudTarifa: null,
     tarifaAdicional: null,
     suplementos: [],
-    tienePintado: false,
     ...parcial,
   };
 }

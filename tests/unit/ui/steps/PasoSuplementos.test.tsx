@@ -1,7 +1,7 @@
 /**
  * Tests del paso ④ Suplementos: conmutadores por suplemento de la figura con
- * los precios leídos de configuración (tarifas.json), conmutador «Pintado»
- * para figuras con tarifa pintable y mensajes guía según el estado (§1.④, §2).
+ * los precios leídos de configuración (tarifas.json) y mensajes guía según el
+ * estado (§1.④, §2).
  */
 
 import { act, fireEvent, screen } from '@testing-library/react';
@@ -39,14 +39,12 @@ describe('PasoSuplementos', () => {
     expect(api().estado.suplementos['angular-f14']).toBe(false);
   });
 
-  it('muestra el conmutador Pintado en figuras con tarifa pintable', () => {
+  it('los rodapiés no tienen suplementos ni conmutador de pintado', () => {
     const { api } = montarPasos(<PasoSuplementos />);
     act(() => api().dispatch({ tipo: 'seleccionarFigura', figuraId: 'rodapie-estandar' }));
 
-    const pintado = screen.getByRole('checkbox', { name: /Pintado/ });
-    expect(pintado).not.toBeChecked();
-    fireEvent.click(pintado);
-    expect(api().estado.pintado).toBe(true);
+    expect(screen.getByText('Esta figura no tiene suplementos.')).toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: /Pintado/ })).not.toBeInTheDocument();
   });
 
   it('informa cuando la figura no tiene suplementos', () => {

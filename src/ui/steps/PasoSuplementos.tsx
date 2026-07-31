@@ -4,9 +4,8 @@
  * Para la figura activa: un conmutador por cada suplemento aplicable
  * (`figura.suplementos`), con nombre y precio leídos SIEMPRE de configuración
  * (`config.suplementos`, nunca hardcodeados): «+2,00 €/peldaño» para los de
- * porPieza, «+0,02 €/cm» para los de porCm. Cuando la figura `tienePintado`,
- * conmutador «Pintado» que cambia la tarifa al precio de pintado (rodapiés,
- * §2). Cada cambio actualiza la cotización al momento vía el estado global.
+ * porPieza, «+0,02 €/cm» para los de porCm. Cada cambio actualiza la cotización
+ * al momento vía el estado global.
  *
  * Los suplementos POR PIEZA («Angular») llevan además un campo con a cuántas
  * piezas se aplican: es un remate del extremo y en un tramo de escalera solo lo
@@ -27,7 +26,7 @@ import type { Centimos, MargenCentesimas } from '../../domain/types';
 import { useConfig } from '../state/config-context';
 import { useAtelier, useSalidaMotor } from '../state/quote-state';
 import { usePasos } from '../state/pasos-context';
-import { FilaConmutador, InfoTooltip, PasoCard } from '../components/primitivas';
+import { FilaConmutador, PasoCard } from '../components/primitivas';
 
 /**
  * Precio del suplemento para mostrar junto al conmutador. Las milésimas se
@@ -112,30 +111,6 @@ function UnidadesSuplemento({
   );
 }
 
-/** Conmutador «Pintado» (tarifa alternativa de rodapiés, §2) con tooltip. */
-function FilaPintado({
-  activo,
-  alCambiar,
-}: {
-  activo: boolean;
-  alCambiar: (activo: boolean) => void;
-}): JSX.Element {
-  return (
-    <label className="flex cursor-pointer items-start gap-3 rounded-md px-2 py-2 hover:bg-slate-50">
-      <input
-        type="checkbox"
-        checked={activo}
-        onChange={(e) => alCambiar(e.target.checked)}
-        className="mt-0.5 h-4 w-4 rounded border-slate-300 accent-marca"
-      />
-      <span className="flex items-center gap-1.5 text-sm text-slate-800">
-        Pintado
-        <InfoTooltip texto="Cambia la tarifa de la figura al precio de pintado." />
-      </span>
-    </label>
-  );
-}
-
 export function PasoSuplementos(): JSX.Element {
   const config = useConfig();
   const { estado, dispatch } = useAtelier();
@@ -153,7 +128,7 @@ export function PasoSuplementos(): JSX.Element {
   let contenido: JSX.Element;
   if (!figura) {
     contenido = <p className="text-sm text-slate-500">Selecciona primero una figura en el paso 2.</p>;
-  } else if (figura.suplementos.length === 0 && !figura.tienePintado) {
+  } else if (figura.suplementos.length === 0) {
     contenido = <p className="text-sm text-slate-500">Esta figura no tiene suplementos.</p>;
   } else {
     contenido = (
@@ -187,12 +162,6 @@ export function PasoSuplementos(): JSX.Element {
             </div>
           );
         })}
-        {figura.tienePintado ? (
-          <FilaPintado
-            activo={estado.pintado}
-            alCambiar={(pintado) => dispatch({ tipo: 'cambiarPintado', pintado })}
-          />
-        ) : null}
       </div>
     );
   }

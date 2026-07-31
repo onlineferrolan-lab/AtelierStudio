@@ -1,6 +1,6 @@
 /**
  * Tests de resolución de tarifas y longitud de tarifa contra la configuración
- * real (tarifas del PDF de taller, §2): fija / porUmbral / pintable.
+ * real (tarifas del PDF de taller, §2): fija / porUmbral.
  */
 
 import { figuraPorId, longitudTarifaMm, resolverTarifa } from '../../../src/domain/engine';
@@ -27,13 +27,15 @@ describe('resolverTarifa — tarifas del PDF por figura (§2)', () => {
     ['figura-3', 'figura-3', 250],
     ['figura-4', 'figura-4', 290],
     ['peldano-romo', 'peldano-romo', 45],
+    ['rodapie-estandar', 'rodapie-estandar', 17],
+    ['rodapie-no-estandar', 'rodapie-no-estandar', 34],
     ['corte', 'corte', 17],
   ] as const)('%s → tarifa %s de %i milésimas/cm', (figuraId, tarifaId, milesimas) => {
     const f = figura(figuraId);
     const medidasMinimas = medidas(
       Object.fromEntries(f.medidas.map((m) => [m.id, Math.max(10, Math.round(m.minCm * 10))])),
     );
-    const tarifa = resolverTarifa(f, medidasMinimas, false, config);
+    const tarifa = resolverTarifa(f, medidasMinimas, config);
     expect(tarifa.id).toBe(tarifaId);
     expect(tarifa.milesimasPorCm).toBe(milesimas);
   });
@@ -42,7 +44,6 @@ describe('resolverTarifa — tarifas del PDF por figura (§2)', () => {
     const tarifa = resolverTarifa(
       figura('figura-1'),
       medidas({ alturaFrontal: 50 }),
-      false,
       config,
     );
     expect(tarifa.id).toBe('f1-frontal-le5');
@@ -53,52 +54,17 @@ describe('resolverTarifa — tarifas del PDF por figura (§2)', () => {
     const tarifa = resolverTarifa(
       figura('figura-1'),
       medidas({ alturaFrontal: 51 }),
-      false,
       config,
     );
     expect(tarifa.id).toBe('f1-frontal-gt5');
     expect(tarifa.milesimasPorCm).toBe(230);
   });
 
-  it.each([
-    [false, 'rodapie-estandar', 17],
-    [true, 'rodapie-estandar-pintado', 25],
-  ] as const)(
-    'rodapié estándar pintado=%s → %s (%i milésimas/cm)',
-    (pintado, tarifaId, milesimas) => {
-      const tarifa = resolverTarifa(
-        figura('rodapie-estandar'),
-        medidas({ longitud: 500, altura: 72 }),
-        pintado,
-        config,
-      );
-      expect(tarifa.id).toBe(tarifaId);
-      expect(tarifa.milesimasPorCm).toBe(milesimas);
-    },
-  );
-
-  it.each([
-    [false, 'rodapie-no-estandar', 34],
-    [true, 'rodapie-no-estandar-pintado', 42],
-  ] as const)(
-    'rodapié no estándar pintado=%s → %s (%i milésimas/cm)',
-    (pintado, tarifaId, milesimas) => {
-      const tarifa = resolverTarifa(
-        figura('rodapie-no-estandar'),
-        medidas({ longitud: 500, altura: 100 }),
-        pintado,
-        config,
-      );
-      expect(tarifa.id).toBe(tarifaId);
-      expect(tarifa.milesimasPorCm).toBe(milesimas);
-    },
-  );
-
   it('figura sin tarifa (pendiente, §6) lanza error de configuración', () => {
     // Sin figuras pendientes en la configuración real (retiradas 2026-07-29):
     // el caso se reproduce con una figura sintética sin regla de tarifa.
     const sinTarifa: Figura = { ...figura('figura-2'), tarifa: null };
-    expect(() => resolverTarifa(sinTarifa, {}, false, config)).toThrow(/no tiene tarifa/);
+    expect(() => resolverTarifa(sinTarifa, {}, config)).toThrow(/no tiene tarifa/);
   });
 });
 

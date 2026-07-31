@@ -38,7 +38,6 @@ export interface DatosOrdenTrabajo {
    * entrada se entiende UNA pieza, igual que en el motor.
    */
   readonly unidadesSuplemento?: Readonly<Record<string, number>>;
-  readonly pintado: boolean;
   readonly precioMaterialEditadoEuros: string;
   readonly mermaPorcentaje: number;
   /** Comentarios libres del comercial para taller ('' = no se imprime el bloque). */
@@ -482,7 +481,6 @@ function seccionOperaciones(doc: jsPDF, y: number, datos: DatosOrdenTrabajo): nu
     }
     return `${nombre} (todas)`;
   });
-  if (datos.figura.tienePintado && datos.pintado) partes.push('Pintado');
   const texto = partes.length > 0 ? partes.join('  ·  ') : 'Sin operaciones adicionales.';
 
   const lineas = lineasDeTexto(doc, texto, ANCHO_UTIL - 6, 9);

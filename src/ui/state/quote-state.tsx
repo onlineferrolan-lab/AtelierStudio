@@ -35,7 +35,6 @@ export interface EstadoAtelier {
    * todas (2026-07-30). Los suplementos por cm no aparecen aquí.
    */
   readonly unidadesSuplemento: Readonly<Record<string, string>>;
-  readonly pintado: boolean;
   /** Precio de material editado por el comercial, en € (texto). '' = usar tarifa. */
   readonly precioMaterialEditadoEuros: string;
   /**
@@ -72,7 +71,6 @@ export type AccionAtelier =
   | { tipo: 'cambiarCantidad'; cantidad: string }
   | { tipo: 'alternarSuplemento'; suplemento: string; activo: boolean }
   | { tipo: 'cambiarUnidadesSuplemento'; suplemento: string; unidades: string }
-  | { tipo: 'cambiarPintado'; pintado: boolean }
   | { tipo: 'cambiarPrecioMaterialEditado'; euros: string }
   | { tipo: 'cambiarMerma'; porcentaje: string }
   | { tipo: 'cambiarComentarios'; comentarios: string }
@@ -88,7 +86,6 @@ export function estadoInicial(): EstadoAtelier {
     cantidad: '1',
     suplementos: {},
     unidadesSuplemento: {},
-    pintado: false,
     precioMaterialEditadoEuros: '',
     mermaEditadaPorcentaje: '',
     tipoMargen: 'pvp',
@@ -109,7 +106,6 @@ function reductor(estado: EstadoAtelier, accion: AccionAtelier): EstadoAtelier {
         medidas: {},
         suplementos: {},
         unidadesSuplemento: {},
-        pintado: false,
       };
     case 'cambiarMedida':
       return { ...estado, medidas: { ...estado.medidas, [accion.medida]: accion.valor } };
@@ -135,8 +131,6 @@ function reductor(estado: EstadoAtelier, accion: AccionAtelier): EstadoAtelier {
           [accion.suplemento]: accion.unidades,
         },
       };
-    case 'cambiarPintado':
-      return { ...estado, pintado: accion.pintado };
     case 'cambiarPrecioMaterialEditado':
       return { ...estado, precioMaterialEditadoEuros: accion.euros };
     case 'cambiarMerma':
@@ -251,7 +245,6 @@ export function construirEntrada(
       unidadesSuplemento: Object.fromEntries(
         suplementosActivos.map((id) => [id, unidadesDeSuplemento(estado, id)]),
       ),
-      pintado: estado.pintado,
       tipoMargen: estado.tipoMargen,
       // El margen a mano se guarda en puntos y el motor lo quiere en centésimas.
       margenManualCentesimas: margenManualCentesimas(estado),

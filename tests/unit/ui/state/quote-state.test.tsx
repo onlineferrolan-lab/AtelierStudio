@@ -19,7 +19,6 @@ describe('estadoInicial', () => {
     expect(estado.medidas).toEqual({});
     expect(estado.suplementos).toEqual({});
     expect(estado.unidadesSuplemento).toEqual({});
-    expect(estado.pintado).toBe(false);
     expect(estado.comentarios).toBe('');
   });
 

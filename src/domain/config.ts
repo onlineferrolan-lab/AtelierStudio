@@ -101,7 +101,6 @@ export interface ComponenteReceta {
  * Cómo se obtiene la tarifa de una figura:
  *  - fija: una sola tarifa.
  *  - porUmbral: según una medida (Figura 1: frontal ≤ 5 cm / > 5 cm).
- *  - pintable: tarifa base y tarifa alternativa si va pintado (rodapiés).
  */
 export type ReglaTarifa =
   | { readonly tipo: 'fija'; readonly tarifaId: string }
@@ -111,8 +110,7 @@ export type ReglaTarifa =
       readonly umbralMm: Mm;
       readonly tarifaIdMenorOIgual: string;
       readonly tarifaIdMayor: string;
-    }
-  | { readonly tipo: 'pintable'; readonly tarifaId: string; readonly tarifaIdPintado: string };
+    };
 
 /**
  * Longitud a la que se aplica la tarifa lineal:
@@ -154,8 +152,6 @@ export interface Figura {
   } | null;
   /** Ids de suplementos aplicables (definidos en tarifas.json). */
   readonly suplementos: readonly string[];
-  /** true si la tarifa depende del conmutador "Pintado" del paso ④. */
-  readonly tienePintado: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -214,8 +210,7 @@ type ReglaTarifaJson =
       umbralCm: number;
       tarifaIdMenorOIgual: string;
       tarifaIdMayor: string;
-    }
-  | { tipo: 'pintable'; tarifaId: string; tarifaIdPintado: string };
+    };
 
 interface FigurasJson {
   figuras: (Omit<Figura, 'tarifa' | 'medidas' | 'longitudTarifa' | 'tarifaAdicional'> & {
@@ -323,9 +318,7 @@ export function validarConfiguracion(config: Configuracion): string[] {
     const tarifaIds =
       figura.tarifa.tipo === 'fija'
         ? [figura.tarifa.tarifaId]
-        : figura.tarifa.tipo === 'pintable'
-          ? [figura.tarifa.tarifaId, figura.tarifa.tarifaIdPintado]
-          : [figura.tarifa.tarifaIdMenorOIgual, figura.tarifa.tarifaIdMayor];
+        : [figura.tarifa.tarifaIdMenorOIgual, figura.tarifa.tarifaIdMayor];
     for (const id of tarifaIds) {
       if (!idsTarifa.includes(id)) {
         errores.push(`Figura '${figura.id}': tarifa desconocida '${id}'`);

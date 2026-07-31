@@ -23,8 +23,6 @@ function idsDeRegla(regla: ReglaTarifa): readonly string[] {
   switch (regla.tipo) {
     case 'fija':
       return [regla.tarifaId];
-    case 'pintable':
-      return [regla.tarifaId, regla.tarifaIdPintado];
     case 'porUmbral':
       return [regla.tarifaIdMenorOIgual, regla.tarifaIdMayor];
   }
@@ -67,17 +65,12 @@ function resolverRegla(
   regla: ReglaTarifa,
   figuraId: string,
   medidasMm: Readonly<Record<string, Mm>>,
-  pintado: boolean,
   config: Configuracion,
 ): TarifaLineal {
   let id: string;
   switch (regla.tipo) {
     case 'fija':
       id = regla.tarifaId;
-      break;
-    case 'pintable':
-      // Regla pintable (§2): el pintado solo cambia la tarifa de los rodapiés.
-      id = pintado ? regla.tarifaIdPintado : regla.tarifaId;
       break;
     case 'porUmbral': {
       const valor = medidasMm[regla.medida];
@@ -95,17 +88,16 @@ function resolverRegla(
   return tarifa;
 }
 
-/** Resuelve la tarifa lineal aplicable según la regla de la figura (fija/porUmbral/pintable). */
+/** Resuelve la tarifa lineal aplicable según la regla de la figura (fija/porUmbral). */
 export function resolverTarifa(
   figura: Figura,
   medidasMm: Readonly<Record<string, Mm>>,
-  pintado: boolean,
   config: Configuracion,
 ): TarifaLineal {
   if (figura.tarifa === null) {
     throw new Error(`La figura '${figura.id}' no tiene tarifa (figura pendiente, §6).`);
   }
-  return resolverRegla(figura.tarifa, figura.id, medidasMm, pintado, config);
+  return resolverRegla(figura.tarifa, figura.id, medidasMm, config);
 }
 
 /**
@@ -115,11 +107,10 @@ export function resolverTarifa(
 export function resolverTarifaAdicional(
   figura: Figura,
   medidasMm: Readonly<Record<string, Mm>>,
-  pintado: boolean,
   config: Configuracion,
 ): TarifaLineal | null {
   if (figura.tarifaAdicional === null) return null;
-  return resolverRegla(figura.tarifaAdicional.tarifa, figura.id, medidasMm, pintado, config);
+  return resolverRegla(figura.tarifaAdicional.tarifa, figura.id, medidasMm, config);
 }
 
 /** Longitud (mm) de una regla concreta. */

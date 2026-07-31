@@ -19,7 +19,7 @@ de usuario.
 |---|---|---|
 | `calcularCotizacion(entrada, config)` | `src/domain/engine/cotizacion.ts` | Pipeline completo: devuelve `SalidaMotor`. |
 | `validarMedidasCrudas(figura, crudas)` | `src/domain/engine/validacion.ts` | Valida el texto tecleado (cm) contra los campos de la figura y lo convierte a `Mm`. |
-| `resolverTarifa(figura, medidasMm, pintado, config)` | `src/domain/engine/tarifas.ts` | Resuelve la tarifa lineal según la regla de la figura. |
+| `resolverTarifa(figura, medidasMm, config)` | `src/domain/engine/tarifas.ts` | Resuelve la tarifa lineal según la regla de la figura. |
 | `longitudTarifaMm(figura, medidasMm)` | `src/domain/engine/tarifas.ts` | Longitud (mm) a la que se aplica la tarifa y los suplementos por cm. |
 | `figuraPorId(config, figuraId)` | `src/domain/engine/index.ts` | Busca una figura por id en la configuración. |
 
@@ -167,9 +167,8 @@ mano. No se inventa un margen ni se cotiza a coste en silencio (§0).
 
 ### 7. Manipulación y suplementos
 
-- `resolverTarifa()` aplica la regla de la figura: `fija`, `porUmbral` (Figura 1: frontal
-  ≤ 5 cm / > 5 cm) o `pintable` (rodapiés: el conmutador «Pintado» solo cambia la tarifa de
-  figuras `pintable`; en las demás se ignora silenciosamente).
+- `resolverTarifa()` aplica la regla de la figura: `fija` o `porUmbral` (Figura 1: frontal
+  ≤ 5 cm / > 5 cm).
 - `longitudTarifaMm()` obtiene la longitud a tarifar: una `medida` (habitualmente `longitud`)
   o el `perimetro` = 2·(largo+ancho), en «Corte de piezas» y en el zócalo de la tabica
   (PROVISIONAL, pendiente de taller; ver `PENDIENTES.md` §4.3).

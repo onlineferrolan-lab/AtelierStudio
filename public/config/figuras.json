@@ -52,8 +52,7 @@
         "ranuras-f14",
         "goteron-f14",
         "espesado-f14"
-      ],
-      "tienePintado": false
+      ]
     },
     {
       "id": "figura-2",
@@ -103,8 +102,7 @@
         "ranuras-f14",
         "goteron-f14",
         "espesado-f14"
-      ],
-      "tienePintado": false
+      ]
     },
     {
       "id": "figura-3",
@@ -154,8 +152,7 @@
         "ranuras-f14",
         "goteron-f14",
         "espesado-f14"
-      ],
-      "tienePintado": false
+      ]
     },
     {
       "id": "figura-4",
@@ -215,8 +212,7 @@
         "ranuras-f14",
         "goteron-f14",
         "espesado-f14"
-      ],
-      "tienePintado": false
+      ]
     },
     {
       "id": "tabica",
@@ -290,8 +286,7 @@
         "ranuras-f14",
         "goteron-f14",
         "espesado-f14"
-      ],
-      "tienePintado": false
+      ]
     },
     {
       "id": "peldano-romo",
@@ -331,8 +326,7 @@
         "ranuras-romo",
         "goteron-romo",
         "espesado-romo"
-      ],
-      "tienePintado": false
+      ]
     },
     {
       "id": "pasamanos-1",
@@ -390,8 +384,7 @@
         "ranuras-f14",
         "goteron-f14",
         "espesado-f14"
-      ],
-      "tienePintado": false
+      ]
     },
     {
       "id": "pasamanos-2",
@@ -446,8 +439,7 @@
         "ranuras-f14",
         "goteron-f14",
         "espesado-f14"
-      ],
-      "tienePintado": false
+      ]
     },
     {
       "id": "pasamanos-3",
@@ -502,8 +494,7 @@
         "ranuras-f14",
         "goteron-f14",
         "espesado-f14"
-      ],
-      "tienePintado": false
+      ]
     },
     {
       "id": "pasamanos-4",
@@ -573,8 +564,7 @@
         "ranuras-f14",
         "goteron-f14",
         "espesado-f14"
-      ],
-      "tienePintado": false
+      ]
     },
     {
       "id": "pasamanos-romo",
@@ -614,8 +604,7 @@
         "ranuras-romo",
         "goteron-romo",
         "espesado-romo"
-      ],
-      "tienePintado": false
+      ]
     },
     {
       "id": "rodapie-estandar",
@@ -648,16 +637,14 @@
         }
       ],
       "tarifa": {
-        "tipo": "pintable",
-        "tarifaId": "rodapie-estandar",
-        "tarifaIdPintado": "rodapie-estandar-pintado"
+        "tipo": "fija",
+        "tarifaId": "rodapie-estandar"
       },
       "longitudTarifa": {
         "tipo": "medida",
         "medida": "longitud"
       },
-      "suplementos": [],
-      "tienePintado": true
+      "suplementos": []
     },
     {
       "id": "rodapie-no-estandar",
@@ -685,16 +672,14 @@
         }
       ],
       "tarifa": {
-        "tipo": "pintable",
-        "tarifaId": "rodapie-no-estandar",
-        "tarifaIdPintado": "rodapie-no-estandar-pintado"
+        "tipo": "fija",
+        "tarifaId": "rodapie-no-estandar"
       },
       "longitudTarifa": {
         "tipo": "medida",
         "medida": "longitud"
       },
-      "suplementos": [],
-      "tienePintado": true
+      "suplementos": []
     },
     {
       "id": "corte",
@@ -730,8 +715,7 @@
         "largoDe": "largo",
         "anchoDe": "ancho"
       },
-      "suplementos": [],
-      "tienePintado": false
+      "suplementos": []
     }
   ]
 }

@@ -101,8 +101,8 @@ suplementos: todo se lee de `useConfig()`.
   nombre.
 - Las figuras `estado: 'pendiente'` (§6.5/§6.6) se ven pero están **bloqueadas**: tarjeta
   deshabilitada, insignia **PENDIENTE** y el `motivoPendiente` visible.
-- La selección despacha `seleccionarFigura`, y el reductor **reinicia medidas, suplementos y
-  pintado** (no son transferibles entre figuras).
+- La selección despacha `seleccionarFigura`, y el reductor **reinicia medidas y suplementos**
+  (no son transferibles entre figuras).
 - `MiniaturaFigura` (`src/ui/steps/MiniaturaFigura.tsx`) dibuja cada figura como una pieza
   3D isométrica en SVG inline con un estilo único (paleta de marca, 2026-07-29; antes se
   usaban PNG extraídos de la tarifa PDF de taller), fiel al ensamblaje del visor 3D — las
@@ -134,15 +134,13 @@ suplementos: todo se lee de `useConfig()`.
   convierten a € solo para presentación; el cálculo sigue en enteros en el motor). La unidad
   «€/peldaño» es el ejemplo literal de §2 y está pendiente de confirmar para figuras futuras
   (PENDIENTES.md §4.11).
-- Si la figura `tienePintado`, conmutador **Pintado** con tooltip: cambia la tarifa de la figura
-  al precio de pintado (rodapiés, §2).
-- Cada cambio despacha `alternarSuplemento` / `cambiarPintado` y actualiza la cotización al
-  momento vía el estado global.
+- Cada cambio despacha `alternarSuplemento` y actualiza la cotización al momento vía el estado
+  global.
 - Este paso **no cierra ninguna otra tarjeta**. Antes cerraba el ③ al activar un
-  suplemento/pintado y al mover el ratón por encima; se quitó (2026-07-29, indicación directa)
+  suplemento y al mover el ratón por encima; se quitó (2026-07-29, indicación directa)
   porque cerraba una tarjeta que el comercial estaba usando — y en el caso del ratón, sin que
   hubiera tocado nada.
-- Sin figura seleccionada, o si la figura no tiene suplementos ni pintado, muestra un mensaje
+- Sin figura seleccionada, o si la figura no tiene suplementos, muestra un mensaje
   orientativo.
 
 ## Bloque Cotización (`src/ui/shell/cotizacion.tsx`)
@@ -198,7 +196,6 @@ conversión a mm/céntimos pasa por el motor, nunca por los componentes.
 | `medidas` | `Record<string, string>` (cm crudos, por id de medida) | `{}` |
 | `cantidad` | `string` | `'1'` |
 | `suplementos` | `Record<string, boolean>` (por id de suplemento) | `{}` |
-| `pintado` | `boolean` | `false` |
 | `precioMaterialEditadoEuros` | `string` (`''` = usar tarifa) | `''` |
 | `mermaPorcentaje` | `string` | `parametros.mermaPorcentajeDefecto` |
 
@@ -207,11 +204,10 @@ conversión a mm/céntimos pasa por el motor, nunca por los componentes.
 | Acción | Efecto |
 |---|---|
 | `seleccionarMaterial` | Fija (o quita, con `null`) el material. |
-| `seleccionarFigura` | Fija la figura y **reinicia `medidas`, `suplementos` y `pintado`** (no transferibles). |
+| `seleccionarFigura` | Fija la figura y **reinicia `medidas` y `suplementos`** (no transferibles). |
 | `cambiarMedida` | Actualiza una medida cruda (cm). |
 | `cambiarCantidad` | Actualiza la cantidad cruda. |
 | `alternarSuplemento` | Activa/desactiva un suplemento por id. |
-| `cambiarPintado` | Activa/desactiva el pintado. |
 | `cambiarPrecioMaterialEditado` | Precio editado en € (texto); `''` restablece la tarifa. |
 | `cambiarMerma` | % de merma (texto). |
 | `reiniciar` | Vuelve a `estadoInicial` con el % de merma por defecto de configuración. |

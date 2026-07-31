@@ -45,7 +45,6 @@ interface CasoDorado {
    * Opcional: sin él, cada suplemento por pieza se cobra a UNA pieza.
    */
   unidadesSuplemento?: Record<string, number>;
-  pintado: boolean;
   precioMaterialEditadoEuros: number | null;
   mermaPorcentaje: number;
   /**
@@ -153,7 +152,6 @@ function ejecutarCaso(caso: CasoDorado): SalidaMotor {
       cantidad: caso.cantidad,
       suplementos: caso.suplementos,
       unidadesSuplemento: caso.unidadesSuplemento ?? {},
-      pintado: caso.pintado,
       precioMaterialEditado:
         caso.precioMaterialEditadoEuros === null
           ? null

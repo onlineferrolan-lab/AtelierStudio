@@ -87,32 +87,30 @@ describe('calcularCotizacion — caso base (Figura 2, stock)', () => {
 describe('calcularCotizacion — cada figura activa contra su tarifa (§2; pasamanos PROVISIONAL §6.6)', () => {
   // Cantidad 1, merma 0 → baldosasConMerma 1 → 1 caja (4 piezas, 1,44 m²);
   // material = 1,44 m² × 25 € = 3600 céntimos, igual en todos los casos.
-  const casos: [string, Record<string, Mm>, boolean, number][] = [
-    ['figura-1', { longitud: mm(500), fondo: mm(300), alturaFrontal: mm(40) }, false, 950], // ≤5 cm: 0,19
-    ['figura-1', { longitud: mm(500), fondo: mm(300), alturaFrontal: mm(60) }, false, 1150], // >5 cm: 0,23
-    ['figura-2', medidasF2, false, 1150], // 0,23
-    ['figura-3', medidasF2, false, 1250], // 0,25
-    ['figura-4', { ...medidasF2, retorno: mm(100) }, false, 1450], // 0,29
-    ['peldano-romo', { longitud: mm(500), fondo: mm(300) }, false, 225], // 0,045
+  const casos: [string, Record<string, Mm>, number][] = [
+    ['figura-1', { longitud: mm(500), fondo: mm(300), alturaFrontal: mm(40) }, 950], // ≤5 cm: 0,19
+    ['figura-1', { longitud: mm(500), fondo: mm(300), alturaFrontal: mm(60) }, 1150], // >5 cm: 0,23
+    ['figura-2', medidasF2, 1150], // 0,23
+    ['figura-3', medidasF2, 1250], // 0,25
+    ['figura-4', { ...medidasF2, retorno: mm(100) }, 1450], // 0,29
+    ['peldano-romo', { longitud: mm(500), fondo: mm(300) }, 225], // 0,045
     // Pasamanos: tarifa PROVISIONAL = precio del peldaño equivalente (§6.6, PENDIENTES.md).
-    ['pasamanos-1', { longitud: mm(500), fondo: mm(300), alturaFrontal: mm(40) }, false, 950], // ≤5 cm: 0,19
-    ['pasamanos-1', { longitud: mm(500), fondo: mm(300), alturaFrontal: mm(60) }, false, 1150], // >5 cm: 0,23
-    ['pasamanos-2', medidasF2, false, 1150], // 0,23
-    ['pasamanos-3', medidasF2, false, 1250], // 0,25
-    ['pasamanos-4', { ...medidasF2, retorno: mm(50) }, false, 1450], // 0,29
-    ['pasamanos-romo', { longitud: mm(500), fondo: mm(300) }, false, 225], // 0,045
-    ['rodapie-estandar', { longitud: mm(500), altura: mm(72) }, false, 85], // 0,017
-    ['rodapie-estandar', { longitud: mm(500), altura: mm(72) }, true, 125], // pintado 0,025
-    ['rodapie-no-estandar', { longitud: mm(500), altura: mm(100) }, false, 170], // 0,034
-    ['rodapie-no-estandar', { longitud: mm(500), altura: mm(100) }, true, 210], // pintado 0,042
-    ['corte', { largo: mm(300), ancho: mm(200) }, false, 170], // 0,017 × perímetro 100 cm
+    ['pasamanos-1', { longitud: mm(500), fondo: mm(300), alturaFrontal: mm(40) }, 950], // ≤5 cm: 0,19
+    ['pasamanos-1', { longitud: mm(500), fondo: mm(300), alturaFrontal: mm(60) }, 1150], // >5 cm: 0,23
+    ['pasamanos-2', medidasF2, 1150], // 0,23
+    ['pasamanos-3', medidasF2, 1250], // 0,25
+    ['pasamanos-4', { ...medidasF2, retorno: mm(50) }, 1450], // 0,29
+    ['pasamanos-romo', { longitud: mm(500), fondo: mm(300) }, 225], // 0,045
+    ['rodapie-estandar', { longitud: mm(500), altura: mm(72) }, 85], // 0,017
+    ['rodapie-no-estandar', { longitud: mm(500), altura: mm(100) }, 170], // 0,034
+    ['corte', { largo: mm(300), ancho: mm(200) }, 170], // 0,017 × perímetro 100 cm
   ];
   it.each(casos)(
-    '%s %s pintado=%s → %i céntimos de manipulación',
-    (figuraId, medidas, pintado, esperada) => {
+    '%s %s → %i céntimos de manipulación',
+    (figuraId, medidas, esperada) => {
       const r = esperarOk(
         calcularCotizacion(
-          entradaBase({ figuraId, medidasMm: medidas, pintado, cantidad: 1, mermaPorcentaje: 0 }),
+          entradaBase({ figuraId, medidasMm: medidas, cantidad: 1, mermaPorcentaje: 0 }),
           config,
         ),
       );
@@ -661,7 +659,6 @@ describe('calcularCotizacion — determinismo y precisión entera (§1)', () => 
         figuraId: 'rodapie-no-estandar',
         medidasMm: { longitud: mm(123), altura: mm(45) },
         cantidad: 3,
-        pintado: true,
       }),
       entradaBase({
         suplementos: ['angular-f14', 'ranuras-f14', 'goteron-f14', 'espesado-f14'],

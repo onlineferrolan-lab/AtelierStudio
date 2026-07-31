@@ -53,7 +53,6 @@ const figura: Figura = {
   longitudTarifa: { tipo: 'medida', medida: 'longitud' },
   tarifaAdicional: null, // solo la tabica es compuesta
   suplementos: ['angular-f14', 'ranuras-f14'],
-  tienePintado: false,
 };
 
 const config: Configuracion = {
@@ -160,7 +159,6 @@ const datosBase: DatosOrdenTrabajo = {
   medidasMm: { longitud: mm(1000), fondo: mm(300), alturaFrontal: mm(40) },
   cantidad: 5,
   suplementosActivos: ['angular-f14', 'ranuras-f14'],
-  pintado: false,
   precioMaterialEditadoEuros: '',
   mermaPorcentaje: 10,
   resultado,
@@ -281,7 +279,6 @@ describe('construirPdfOrdenTrabajo', () => {
     const datos: DatosOrdenTrabajo = {
       ...datosBase,
       material: materialManual,
-      pintado: true,
       precioMaterialEditadoEuros: '8,50',
       mermaPorcentaje: 12.5,
       resultado: { ...resultado, cajasFacturadas: 3, unidadesFacturadas: 6 },

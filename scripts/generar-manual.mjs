@@ -470,7 +470,7 @@ function CONTENIDO(m) {
       'Eliges el material del catálogo (o lo introduces a mano si no está).',
       'Eliges la figura que hay que fabricar.',
       'Introduces las medidas en centímetros y cuántas piezas hacen falta.',
-      'Marcas los suplementos que lleve (angular, ranuras, goterón, espesado, pintado).',
+      'Marcas los suplementos que lleve (angular, ranuras, goterón, espesado).',
       'Revisas la cotización y generas el PDF de la orden de trabajo.',
     ],
     { numerada: true },
@@ -695,14 +695,12 @@ function CONTENIDO(m) {
         'Por cm lineal, en todas las piezas',
       ],
       ['Material espesado', 'La pieza se hace más gruesa', 'Por cm lineal, en todas las piezas'],
-      ['Pintado', 'Solo rodapiés: cambia la tarifa a la de pintado', 'Cambia la tarifa, no se suma'],
     ],
     [0.28, 0.42, 0.3],
   );
   m.p(
     'Los suplementos que van por centímetro se calculan sobre el largo de la pieza ' +
-      'y se aplican a todas las unidades del presupuesto. El pintado no es un añadido: ' +
-      'sustituye la tarifa de la figura por la de pintado.',
+      'y se aplican a todas las unidades del presupuesto.',
   );
   m.h2('Angular: eliges a cuántas piezas se lo pones');
   m.p(
@@ -939,9 +937,8 @@ function CONTENIDO(m) {
   ]);
   m.p(
     'Algunas figuras tienen dos tarifas según una medida: la Figura 1 cobra un ' +
-      'precio si el frontal mide 5 cm o menos y otro si pasa de 5 cm. Los rodapiés ' +
-      'tienen tarifa normal y tarifa de pintado. El corte de piezas se tarifa sobre el ' +
-      'perímetro completo, es decir 2 x (largo + ancho).',
+      'precio si el frontal mide 5 cm o menos y otro si pasa de 5 cm. El corte de ' +
+      'piezas se tarifa sobre el perímetro completo, es decir 2 x (largo + ancho).',
   );
   m.p(
     'Los suplementos se añaden como líneas propias. Los de por centímetro se calculan ' +

@@ -18,7 +18,6 @@
   "cantidad": 5,
   "suplementos": ["angular-f14", "ranuras-f14"],
   "unidadesSuplemento": { "angular-f14": 2 },
-  "pintado": false,
   "precioMaterialEditadoEuros": null,
   "mermaPorcentaje": 10,
   "margenCentesimas": 0,

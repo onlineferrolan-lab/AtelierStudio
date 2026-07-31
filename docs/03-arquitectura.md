@@ -154,8 +154,8 @@ Detalles del recorrido:
    configuración ya lista.
 2. **Estado de la cotización.** `quote-state.tsx` guarda una única pieza por orden, con
    los campos como **texto crudo** (medidas en cm tal cual se teclean) para poder dar
-   mensajes de validación concretos (§1.③). Cambiar de figura reinicia medidas,
-   suplementos y pintado: no son transferibles.
+   mensajes de validación concretos (§1.③). Cambiar de figura reinicia medidas y
+   suplementos: no son transferibles.
 3. **Conversión.** `construirEntrada` valida y convierte el estado crudo a
    `EntradaCotizacion` (mm enteros, céntimos enteros). Devuelve `null` si faltan datos
    básicos, o los errores como valor si la validación falla.

@@ -164,7 +164,6 @@ export function PanelCotizacion(): JSX.Element {
         cantidad: construida.entrada.cantidad,
         suplementosActivos: construida.entrada.suplementos,
         unidadesSuplemento: construida.entrada.unidadesSuplemento,
-        pintado: construida.entrada.pintado,
         precioMaterialEditadoEuros: estado.precioMaterialEditadoEuros,
         mermaPorcentaje: construida.entrada.mermaPorcentaje,
         comentarios: estado.comentarios,

@@ -45,7 +45,6 @@ Un fichero por caso, `NNN-nombre-corto.json`:
   // texto tal cual lo teclea el comercial, en cm
   "cantidad": 5,
   "suplementos": ["angular-f14"], // ids de public/config/tarifas.json
-  "pintado": false,
   "precioMaterialEditadoEuros": null, // número o null
   "mermaPorcentaje": 10,
   "esperado": {

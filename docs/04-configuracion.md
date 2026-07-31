@@ -89,8 +89,7 @@ libre que el parser ignora (igual en los otros dos JSON).
 
 Tarifas actuales (€/cm, sin IVA): `f1-frontal-le5` 0,19 · `f1-frontal-gt5` 0,23 ·
 `figura-2` 0,23 · `figura-3` 0,25 · `figura-4` 0,29 · `peldano-romo` 0,045 ·
-`rodapie-estandar` 0,017 · `rodapie-estandar-pintado` 0,025 · `rodapie-no-estandar` 0,034
-· `rodapie-no-estandar-pintado` 0,042 · `corte` 0,017.
+`rodapie-estandar` 0,017 · `rodapie-no-estandar` 0,034 · `corte` 0,017.
 
 ### `suplementos[]` — suplementos opcionales del paso ④
 
@@ -125,7 +124,6 @@ el croquis acotado oficial (§3, ver [PENDIENTES.md](../PENDIENTES.md)).
 | `tarifa` | objeto \| null | Regla que elige la tarifa lineal (ver abajo); `null` en figuras pendientes. |
 | `longitudTarifa` | objeto \| null | A qué longitud se aplica la tarifa (ver abajo); `null` en pendientes. |
 | `suplementos` | string[] | Ids de suplementos de `tarifas.json` aplicables a esta figura. |
-| `tienePintado` | boolean | `true` si la tarifa depende del conmutador «Pintado» del paso ④ (rodapiés). |
 
 ### `medidas[]` — campos de entrada en cm
 
@@ -150,13 +148,12 @@ el croquis acotado oficial (§3, ver [PENDIENTES.md](../PENDIENTES.md)).
 
 ### `tarifa` — regla de selección de tarifa
 
-Tres tipos, discriminados por `tipo`:
+Dos tipos, discriminados por `tipo`:
 
 | `tipo` | Campos | Cuándo se usa |
 |---|---|---|
-| `fija` | `tarifaId` | Una sola tarifa lineal (Figuras 2–4, peldaño romo, corte). |
+| `fija` | `tarifaId` | Una sola tarifa lineal (Figuras 2–4, peldaño romo, rodapiés, corte). |
 | `porUmbral` | `medida`, `umbralCm`, `tarifaIdMenorOIgual`, `tarifaIdMayor` | La tarifa depende de una medida. Figura 1: `alturaFrontal` ≤ 5 cm → `f1-frontal-le5`; > 5 cm → `f1-frontal-gt5`. |
-| `pintable` | `tarifaId`, `tarifaIdPintado` | Tarifa base y tarifa alternativa si el paso ④ marca «Pintado» (rodapiés). |
 
 Todos los `tarifaId*` deben existir en `tarifas.json`.
 
