@@ -38,6 +38,9 @@ Todo debe quedar en verde: `tsc --noEmit`, `eslint . --max-warnings 0`, `vitest 
   índice de búsqueda) + `fuenteCataleg.ts` (datos reales por código, vía proxy `/api/cataleg/`,
   nunca con la clave en el navegador — ver README y PENDIENTES.md §4.8)
 - Visor 3D paramétrico: `src/viewer/` · PDF orden de trabajo: `src/pdf/`
+- Adjuntos de la orden (clip de «Comentarios para taller»): `src/orden/adjuntos.ts` — aparte de
+  `src/pdf/` a propósito, porque el estado los necesita y `ordenTrabajo.ts` arrastra jsPDF (~580 kB,
+  carga diferida). Solo viven en la sesión: ver PENDIENTES.md §4.16
 
 ## Al terminar una tarea
 

@@ -19,9 +19,9 @@
  *    ahí (`medidasTecleadas`, mismo criterio que `PasoMedidas`): recién
  *    elegida la figura, "vacío" no es todavía un error que enseñar.
  *  - «Generar PDF»: construye `DatosOrdenTrabajo` (construirEntrada + resultado
- *    + la sección de la pieza para el croquis) y llama a
- *    `generarPdfOrdenTrabajo`; cualquier error se muestra en pantalla sin
- *    romper la app.
+ *    + la sección de la pieza para el croquis + los comentarios y sus adjuntos)
+ *    y llama a `generarPdfOrdenTrabajo`; cualquier error se muestra en pantalla
+ *    sin romper la app.
  */
 
 import { useState } from 'react';
@@ -168,6 +168,7 @@ export function PanelCotizacion(): JSX.Element {
         precioMaterialEditadoEuros: estado.precioMaterialEditadoEuros,
         mermaPorcentaje: construida.entrada.mermaPorcentaje,
         comentarios: estado.comentarios,
+        adjuntos: estado.adjuntos,
         resultado: salida.resultado,
         config,
         fecha: new Date(),

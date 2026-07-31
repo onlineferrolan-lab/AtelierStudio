@@ -21,6 +21,7 @@ describe('estadoInicial', () => {
     expect(estado.unidadesSuplemento).toEqual({});
     expect(estado.pintado).toBe(false);
     expect(estado.comentarios).toBe('');
+    expect(estado.adjuntos).toEqual([]);
   });
 
   /**
