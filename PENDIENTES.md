@@ -170,6 +170,14 @@ El motor no se considera correcto hasta reproducir 10–15 cálculos reales vali
 13. El PDF incluye línea de producción «ocupación X de Y · N cortes · baldosa girada 90°» por relevancia para corte (no estaba en §1): ¿se queda?
 14. Glifos `≤/≥` se sustituyen por `<=/>=` en el PDF (fuentes estándar jsPDF). Incrustar fuente Unicode si se quieren literales.
 15. ¿El comercial necesita ver el €/m² equivalente en materiales manuales (€/unidad)?
+16. **Adjuntos de la orden (clip en «Comentarios para taller», 2026-07-31):** el comercial
+    puede enganchar documentos (plano del cliente, foto de obra…). Sin servidor (§8) viven solo
+    en la sesión del navegador: los que son **imagen** (PNG/JPEG/WebP) se incrustan como páginas
+    al final de la orden de trabajo, y los demás (PDF, DWG, hoja de cálculo) **solo se citan por
+    nombre** en la hoja, marcados «(aparte)» — jsPDF no fusiona documentos. Topes provisionales:
+    6 documentos × 5 MB (`src/orden/adjuntos.ts`). **Pendiente de dirección:** ¿hace falta
+    archivarlos o enviarlos de verdad (correo/ERP)? Eso requiere servidor. ¿Y aceptar HEIC del
+    móvil, que hoy no se incrusta?
 
 ## 5. Fuera de alcance de la v1 (§8) — no construido, se retoma tras validación en uso real
 

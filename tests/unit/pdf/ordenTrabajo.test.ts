@@ -13,6 +13,7 @@ import {
   type DatosOrdenTrabajo,
 } from '../../../src/pdf/ordenTrabajo';
 import { seccionEscuadra, seccionRomo } from '../../../src/piezas/seccionPieza';
+import type { AdjuntoOrden } from '../../../src/orden/adjuntos';
 
 // PNG 1×1 válido (parseable por doc.getImageProperties sin canvas, jsdom-friendly).
 const PNG_1X1 =
@@ -410,6 +411,117 @@ describe('generarPdfOrdenTrabajo', () => {
 
     // Logo + foto una vez cada uno, no dos.
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+});
+
+/**
+ * Adjuntos de la orden. Lo que se comprueba es el reparto: TODOS se citan por
+ * nombre en la hoja, y solo los que son imagen añaden página (jsPDF no fusiona
+ * documentos). Y que un adjunto ilegible no impide generar el PDF.
+ */
+describe('adjuntos', () => {
+  const imagen: AdjuntoOrden = {
+    id: 'adjunto-1',
+    nombre: 'plano-cliente.png',
+    tipoMime: 'image/png',
+    bytes: 70,
+    dataUrl: PNG_1X1,
+  };
+  const documento: AdjuntoOrden = {
+    id: 'adjunto-2',
+    nombre: 'medicion.pdf',
+    tipoMime: 'application/pdf',
+    bytes: 2048,
+    dataUrl: 'data:application/pdf;base64,JVBERi0xLjQK',
+  };
+
+  /** El PDF se genera sin comprimir, así que los textos se pueden buscar en crudo. */
+  function textoDelPdf(datos: DatosOrdenTrabajo): string {
+    return construirPdfOrdenTrabajo(datos).output();
+  }
+
+  it('cita todos los adjuntos por nombre en la hoja', () => {
+    const salida = textoDelPdf({ ...datosBase, adjuntos: [imagen, documento] });
+    expect(salida).toContain('Adjuntos');
+    expect(salida).toContain('plano-cliente.png');
+    expect(salida).toContain('medicion.pdf');
+    // Los que no se pueden incrustar se marcan: en taller tienen que saber que
+    // existe un archivo que no está impreso en la hoja.
+    expect(salida).toContain('aparte');
+  });
+
+  it('añade una página por cada adjunto que es imagen', () => {
+    expect(
+      construirPdfOrdenTrabajo({ ...datosBase, adjuntos: [imagen] }).getNumberOfPages(),
+    ).toBe(2);
+    expect(
+      construirPdfOrdenTrabajo({
+        ...datosBase,
+        adjuntos: [imagen, { ...imagen, id: 'adjunto-3', nombre: 'obra.jpg' }],
+      }).getNumberOfPages(),
+    ).toBe(3);
+  });
+
+  it('las páginas de adjunto se numeran y llevan el código de la orden', () => {
+    const salida = textoDelPdf({ ...datosBase, adjuntos: [imagen, documento] });
+    // 1/1: el PDF del cliente no cuenta, porque no genera página.
+    expect(salida).toContain('ADJUNTO 1/1');
+    expect(salida).toContain('OT-20260609-1407');
+  });
+
+  it('un adjunto que no es imagen no añade página, solo la cita', () => {
+    const doc = construirPdfOrdenTrabajo({ ...datosBase, adjuntos: [documento] });
+    expect(doc.getNumberOfPages()).toBe(1);
+    expect(doc.output()).toContain('medicion.pdf');
+  });
+
+  it('sin adjuntos la hoja no cambia: una página y sin bloque de comentarios', () => {
+    expect(construirPdfOrdenTrabajo({ ...datosBase, adjuntos: [] }).getNumberOfPages()).toBe(1);
+    expect(construirPdfOrdenTrabajo({ ...datosBase, adjuntos: [] }).output()).not.toContain(
+      'Adjuntos',
+    );
+  });
+
+  /**
+   * Con adjuntos pero sin comentarios el bloque se imprime igual: si no, los
+   * nombres de los documentos no saldrían en ninguna parte de la hoja.
+   */
+  it('imprime el bloque de comentarios aunque solo haya adjuntos', () => {
+    const salida = textoDelPdf({ ...datosBase, comentarios: '', adjuntos: [documento] });
+    expect(salida).toContain('COMENTARIOS PARA TALLER');
+    expect(salida).toContain('medicion.pdf');
+  });
+
+  /**
+   * Igual que el logo o la foto del material cuando falla la descarga: un adjunto
+   * ilegible NO puede impedir que salga la orden de trabajo.
+   */
+  it('un data URL corrupto se salta sin romper la generación', () => {
+    const corrupto: AdjuntoOrden = {
+      ...imagen,
+      nombre: 'roto.png',
+      dataUrl: 'data:image/png;base64,esto-no-es-un-png',
+    };
+    const doc = construirPdfOrdenTrabajo({ ...datosBase, adjuntos: [corrupto, imagen] });
+    // La imagen buena sí sale; la corrupta no añade página.
+    expect(doc.getNumberOfPages()).toBe(2);
+    expect(doc.output()).toContain('roto.png'); // pero se cita en la hoja
+  });
+
+  it('con el máximo de adjuntos y comentarios largos, la HOJA sigue siendo una página', () => {
+    const seis = Array.from({ length: 6 }, (_, i) => ({
+      ...documento,
+      id: `adjunto-${i}`,
+      nombre: `documento-de-nombre-muy-largo-del-cliente-${i}.pdf`,
+    }));
+    const doc = construirPdfOrdenTrabajo({
+      ...datosBase,
+      comentarios: 'Aviso largo. '.repeat(30),
+      adjuntos: seis,
+    });
+    // Ninguno es imagen: si la lista se hubiera desbordado, no lo veríamos aquí,
+    // pero sí que el conteo de páginas sigue en la hoja sola.
+    expect(doc.getNumberOfPages()).toBe(1);
   });
 });
 

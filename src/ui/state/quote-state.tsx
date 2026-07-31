@@ -34,6 +34,7 @@ import type {
   SalidaPedido,
   TipoMargen,
 } from '../../domain/types';
+import { MAX_ADJUNTOS, type AdjuntoOrden } from '../../orden/adjuntos';
 import {
   calcularCotizacion,
   calcularPedido,
@@ -120,6 +121,12 @@ export interface EstadoAtelier extends PiezaConfigurada {
    */
   readonly comentarios: string;
   /**
+   * Documentos enganchados a esos comentarios (plano del cliente, foto de la
+   * obra…). Como los comentarios: son de la ORDEN, no de la pieza, y no tocan el
+   * cálculo. Ver `src/orden/adjuntos.ts` para los topes y qué llega al taller.
+   */
+  readonly adjuntos: readonly AdjuntoOrden[];
+  /**
    * PEDIDO: las piezas ya añadidas, en el orden en que se añadieron. Vacío = se
    * trabaja como siempre, con una sola pieza.
    */
@@ -138,6 +145,8 @@ export type AccionAtelier =
   | { tipo: 'cambiarAzulejosNoIncluidos'; noIncluidos: boolean }
   | { tipo: 'cambiarMerma'; porcentaje: string }
   | { tipo: 'cambiarComentarios'; comentarios: string }
+  | { tipo: 'anadirAdjuntos'; adjuntos: readonly AdjuntoOrden[] }
+  | { tipo: 'quitarAdjunto'; id: string }
   | { tipo: 'cambiarTipoMargen'; tipoMargen: TipoMargen }
   | { tipo: 'cambiarMargenManual'; porcentaje: string }
   | { tipo: 'anadirAlPedido' }
@@ -170,6 +179,7 @@ export function estadoInicial(): EstadoAtelier {
     tipoMargen: 'pvp',
     comentarios: '',
     carrito: [],
+    adjuntos: [],
   };
 }
 
@@ -294,6 +304,15 @@ function reductor(estado: EstadoAtelier, accion: AccionAtelier): EstadoAtelier {
     case 'cambiarComentarios':
       // Son de la orden, no de la pieza: cambiar de figura NO los borra.
       return { ...estado, comentarios: accion.comentarios };
+    case 'anadirAdjuntos':
+      // El tope se aplica aquí además de en la UI: es el estado el que no puede
+      // crecer sin límite (los data URL viven en memoria, ver `adjuntos.ts`).
+      return {
+        ...estado,
+        adjuntos: [...estado.adjuntos, ...accion.adjuntos].slice(0, MAX_ADJUNTOS),
+      };
+    case 'quitarAdjunto':
+      return { ...estado, adjuntos: estado.adjuntos.filter((a) => a.id !== accion.id) };
     case 'cambiarTipoMargen':
       return { ...estado, tipoMargen: accion.tipoMargen };
     case 'cambiarMargenManual':

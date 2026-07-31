@@ -47,6 +47,9 @@ Todo debe quedar en verde: `tsc --noEmit`, `eslint . --max-warnings 0`, `vitest 
 - Visor 3D paramétrico: `src/viewer/` · PDF: `src/pdf/` — los bloques de maquetación
   viven en `maqueta.ts` y los comparten la orden de una pieza (`ordenTrabajo.ts`) y la
   del pedido (`ordenPedido.ts`); no dupliques cajas ni cabeceras entre los dos.
+- Adjuntos de la orden (clip de «Comentarios para taller»): `src/orden/adjuntos.ts` — aparte de
+  `src/pdf/` a propósito, porque el estado los necesita y `ordenTrabajo.ts` arrastra jsPDF (~580 kB,
+  carga diferida). Solo viven en la sesión: ver PENDIENTES.md §4.16
 
 ## Al terminar una tarea
 

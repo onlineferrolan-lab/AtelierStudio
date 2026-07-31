@@ -20,6 +20,7 @@ describe('estadoInicial', () => {
     expect(estado.suplementos).toEqual({});
     expect(estado.unidadesSuplemento).toEqual({});
     expect(estado.comentarios).toBe('');
+    expect(estado.adjuntos).toEqual([]);
   });
 
   /** Por defecto los azulejos SE cobran: la excepción es el cliente que los trae. */

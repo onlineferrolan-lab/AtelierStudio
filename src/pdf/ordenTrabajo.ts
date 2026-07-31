@@ -38,6 +38,7 @@ import type {
 } from '../domain/types';
 import { formatearEuros } from '../domain/money';
 import { formatearCotaCm } from '../domain/units';
+import { seIncrustaEnPdf, type AdjuntoOrden } from '../orden/adjuntos';
 import type { SeccionPieza } from '../piezas/seccionPieza';
 import {
   AIRE,
@@ -89,6 +90,13 @@ export interface DatosOrdenTrabajo {
   readonly mermaPorcentaje: number;
   /** Comentarios libres del comercial para taller ('' = no se imprime el bloque). */
   readonly comentarios?: string;
+  /**
+   * Documentos que el comercial enganchó a los comentarios. Todos se citan por
+   * nombre en la hoja; los que son imagen salen además como páginas al final
+   * (`paginasAdjuntos`), que es la única forma de que el plano o la foto lleguen
+   * al taller sin servidor de por medio (ver `src/orden/adjuntos.ts`).
+   */
+  readonly adjuntos?: readonly AdjuntoOrden[];
   readonly resultado: ResultadoCotizacion;
   readonly config: Configuracion;
   readonly fecha: Date;
@@ -356,14 +364,46 @@ export function seccionOperaciones(doc: jsPDF, y: number, datos: DatosOperacione
 }
 
 /**
- * Comentarios del comercial para taller. Solo se imprime si hay texto, y con
- * fondo tenue para que se vea que es una indicación y no un dato calculado.
+ * Lista de adjuntos para la hoja: `plano.png · medicion.pdf (aparte)`. El
+ * «(aparte)» marca los que NO se pueden incrustar (jsPDF no fusiona documentos):
+ * el taller tiene que saber que existe un archivo que no está impreso aquí.
  */
-export function seccionComentarios(doc: jsPDF, y: number, comentarios: string | undefined): number {
+function textoAdjuntos(adjuntos: readonly AdjuntoOrden[]): string {
+  const nombres = adjuntos.map((a) => (seIncrustaEnPdf(a) ? a.nombre : `${a.nombre} (aparte)`));
+  return `Adjuntos (${adjuntos.length}): ${nombres.join('  ·  ')}`;
+}
+
+/**
+ * Tope de líneas de la lista de adjuntos. La hoja es de UNA página y de alto
+ * fijo: seis nombres largos podrían empujar los importes fuera del A4, así que
+ * se recorta con «…» — los nombres completos van en la cabecera de cada página
+ * de adjunto.
+ */
+const MAX_LINEAS_ADJUNTOS = 2;
+
+/**
+ * Comentarios del comercial para taller, con la lista de documentos adjuntos
+ * debajo. Solo se imprime si hay texto o hay adjuntos, y con fondo tenue para que
+ * se vea que es una indicación y no un dato calculado.
+ */
+export function seccionComentarios(
+  doc: jsPDF,
+  y: number,
+  comentarios: string | undefined,
+  adjuntos: readonly AdjuntoOrden[] = [],
+): number {
   const texto = (comentarios ?? '').trim();
-  if (texto === '') return y;
-  const lineas = lineasDeTexto(doc, texto, ANCHO_UTIL - 6, 9);
-  const ALTO = ALTO_TITULO_CAJA + 5 + lineas.length * ALTO_FILA;
+  if (texto === '' && adjuntos.length === 0) return y;
+
+  const lineas = texto === '' ? [] : lineasDeTexto(doc, texto, ANCHO_UTIL - 6, 9);
+  const todasAdjuntos =
+    adjuntos.length === 0 ? [] : lineasDeTexto(doc, textoAdjuntos(adjuntos), ANCHO_UTIL - 6, 8);
+  const lineasAdjuntos =
+    todasAdjuntos.length <= MAX_LINEAS_ADJUNTOS
+      ? todasAdjuntos
+      : [...todasAdjuntos.slice(0, MAX_LINEAS_ADJUNTOS - 1), `${todasAdjuntos[MAX_LINEAS_ADJUNTOS - 1]} …`];
+
+  const ALTO = ALTO_TITULO_CAJA + 5 + (lineas.length + lineasAdjuntos.length) * ALTO_FILA;
   const yc = cajaTitulada(doc, y, ALTO, 'Comentarios para taller');
   doc.setFillColor(255, 252, 240);
   doc.rect(MARGEN_X + 0.3, y + ALTO_TITULO_CAJA + 0.3, ANCHO_UTIL - 0.6, ALTO - ALTO_TITULO_CAJA - 0.6, 'F');
@@ -371,6 +411,14 @@ export function seccionComentarios(doc: jsPDF, y: number, comentarios: string | 
   doc.setFontSize(9);
   doc.setTextColor(0, 0, 0);
   lineas.forEach((linea, i) => doc.text(linea, MARGEN_X + 3, yc + i * ALTO_FILA));
+
+  // Los adjuntos, más pequeños y en gris: acompañan al aviso, no son el aviso.
+  doc.setFontSize(8);
+  doc.setTextColor(...GRIS_TEXTO);
+  lineasAdjuntos.forEach((linea, i) =>
+    doc.text(linea, MARGEN_X + 3, yc + (lineas.length + i) * ALTO_FILA),
+  );
+  doc.setTextColor(0, 0, 0);
   return y + ALTO + AIRE;
 }
 
@@ -392,6 +440,81 @@ export interface DatosProduccion {
     readonly m2Facturados: number;
   } | null;
 }
+
+/**
+ * Páginas de adjuntos: una por cada documento adjunto que sea imagen (plano
+ * fotografiado, foto de la obra, captura de la medición), a página completa y en
+ * horizontal si la imagen es más ancha que alta.
+ *
+ * Es la única vía para que el documento del comercial llegue al taller: sin
+ * servidor (§8) lo único que se manda es este PDF. Los adjuntos que no son
+ * imagen no se pueden incrustar y quedan citados por nombre en la hoja.
+ *
+ * Una imagen ilegible NUNCA rompe la generación: se salta, igual que el logo o la
+ * foto del material cuando falla su descarga.
+ */
+function paginasAdjuntos(doc: jsPDF, datos: DatosOrdenTrabajo): void {
+  const imagenes = (datos.adjuntos ?? []).filter(seIncrustaEnPdf);
+  imagenes.forEach((adjunto, i) => {
+    let props: { width: number; height: number };
+    try {
+      props = doc.getImageProperties(adjunto.dataUrl);
+    } catch {
+      return; // data URL corrupto o formato que jsPDF no sabe leer: solo se cita por nombre
+    }
+
+    doc.addPage('a4', props.width > props.height ? 'landscape' : 'portrait');
+    const anchoPagina = doc.internal.pageSize.getWidth();
+    const altoPagina = doc.internal.pageSize.getHeight();
+    const xDerecha = anchoPagina - MARGEN_X;
+
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.setTextColor(...ROJO_MARCA);
+    doc.text(`ADJUNTO ${i + 1}/${imagenes.length}`, MARGEN_X, 16);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(0, 0, 0);
+    doc.text(sanearTextoPdf(adjunto.nombre), MARGEN_X + 26, 16);
+    doc.setFontSize(8);
+    doc.setTextColor(...GRIS_TEXTO);
+    doc.text(codigoOrdenTrabajo(datos), xDerecha, 16, { align: 'right' });
+    doc.setTextColor(0, 0, 0);
+    doc.setDrawColor(...ROJO_MARCA);
+    doc.setLineWidth(0.6);
+    doc.line(MARGEN_X, 19, xDerecha, 19);
+
+    // La imagen se centra en el hueco que queda bajo la cabecera: una foto
+    // panorámica pegada arriba dejaba media hoja en blanco debajo.
+    const yHueco = 19 + AIRE + 1;
+    const altoHueco = altoPagina - yHueco - MARGEN_X;
+    const { ancho, alto } = tamanoImagenEnCaja(
+      doc,
+      adjunto.dataUrl,
+      anchoPagina - MARGEN_X * 2,
+      altoHueco,
+    );
+    try {
+      doc.addImage(
+        adjunto.dataUrl,
+        formatoDeDataUrl(adjunto.dataUrl),
+        (anchoPagina - ancho) / 2,
+        yHueco + (altoHueco - alto) / 2,
+        ancho,
+        alto,
+      );
+    } catch {
+      // La imagen se parseó pero no se pudo pintar: la página se queda con su
+      // cabecera y una nota, para que en taller no parezca una hoja perdida.
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(...GRIS_TEXTO);
+      doc.text('No se pudo incrustar esta imagen; pídela a oficina.', MARGEN_X, yHueco + 6);
+      doc.setTextColor(0, 0, 0);
+    }
+  });
+}
+
 
 /**
  * Producción: de dónde sale la pieza y cuánto material se gasta. Va después de
@@ -504,6 +627,10 @@ export function seccionImportes(doc: jsPDF, y: number, datos: DatosImportes): nu
  * El orden de los bloques es el del taller: qué hay que fabricar, con qué
  * material, qué operaciones lleva, qué avisos hay, de dónde sale y — al final,
  * porque no lo miran en el taller — cuánto cuesta.
+ *
+ * La HOJA es siempre una página; detrás pueden ir las páginas de adjuntos
+ * (`paginasAdjuntos`), que se añaden con el pie ya dibujado para no alterar la
+ * maquetación de la primera.
  */
 export function construirPdfOrdenTrabajo(datos: DatosOrdenTrabajo): jsPDF {
   const doc = new jsPDF({ unit: 'mm', format: 'a4' });
@@ -517,7 +644,7 @@ export function construirPdfOrdenTrabajo(datos: DatosOrdenTrabajo): jsPDF {
   y = seccionPieza(doc, y, datos);
   y = seccionMaterial(doc, y, datos);
   y = seccionOperaciones(doc, y, datos);
-  y = seccionComentarios(doc, y, datos.comentarios);
+  y = seccionComentarios(doc, y, datos.comentarios, datos.adjuntos);
   y = seccionProduccion(doc, y, {
     componentes: datos.resultado.componentes,
     ocupacion: datos.resultado.ocupacion,
@@ -537,6 +664,7 @@ export function construirPdfOrdenTrabajo(datos: DatosOrdenTrabajo): jsPDF {
     azulejosNoIncluidos: datos.azulejosNoIncluidos,
   });
   pieOperador(doc, yFinal - AIRE);
+  paginasAdjuntos(doc, datos);
   return doc;
 }
 
