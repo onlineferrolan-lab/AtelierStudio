@@ -46,7 +46,7 @@ Un fichero por caso, `NNN-nombre-corto.json`:
   "cantidad": 5,
   "suplementos": ["angular-f14"], // ids de public/config/tarifas.json
   "pintado": false,
-  "precioMaterialEditadoEuros": null, // número o null
+  "azulejosNoIncluidos": false, // true = las baldosas las trae el cliente (material a 0)
   "mermaPorcentaje": 10,
   "esperado": {
     "ok": true,
@@ -59,7 +59,6 @@ Un fichero por caso, `NNN-nombre-corto.json`:
     "ocupacionMm": 355,
     "dimensionUtilMm": 600,
     "baldosaGirada": false,
-    "precioMaterialOriginal": 2500, // céntimos (€/m² o €/unidad)
     "materialCentimos": 5400,
     "manipulacionCentimos": 7250, // incluye suplementos
     "arranqueCentimos": 6000,

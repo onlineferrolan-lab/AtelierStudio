@@ -101,8 +101,9 @@ devuelve el motor:
   mientras falten datos o haya errores.
 - **Datos logísticos**: baldosas necesarias, baldosas con merma, piezas/cajas facturadas
   y m² facturados.
-- **Precio del material editable** por el comercial, con la tarifa original siempre
-  visible y botón de restablecer.
+- **«Azulejos no incluidos»**: casilla para cuando el cliente aporta las baldosas. El
+  material sale a 0 € (la línea del desglose lo dice) y el resto del cálculo no cambia:
+  se siguen dando las baldosas y cajas que el cliente tiene que traer.
 - **Merma (%)** visible; editable solo si `parametros.mermaEditable` (pendiente de
   dirección, §6.10).
 - **Errores de validación** del motor listados con sus mensajes concretos.

@@ -73,7 +73,8 @@ cualquiera produce errores, devuelve `{ ok: false, errores }` y no sigue calcula
 - `validarEntrada()` acumula **todos** los errores antes de fallar: cantidad entera ≥ 1, merma
   ≥ 0, medidas presentes y en rango (`revalidarMedidasMm` — el motor no confía en que la UI haya
   validado antes), referencias de la receta y la tarifa a medidas declaradas, tarifas existentes,
-  suplementos existentes/aplicables/con precio coherente, precio de material disponible y datos
+  suplementos existentes/aplicables/con precio coherente, precio de material disponible —salvo
+  con `azulejosNoIncluidos`, que lo hace innecesario— y datos
   de caja (`piezasPorCaja` entero ≥ 1 y `m2PorCaja` > 0), que hacen falta **siempre** porque se
   factura por cajas completas.
 - La validación de texto crudo en la UI (`validarMedidasCrudas`) acepta coma o punto decimal
@@ -142,10 +143,11 @@ de compra no están implementados (§6.8).
 - Material del ERP: `m² = cajas × m2PorCaja` (el `m2PorCaja` del ERP se cuantiza a mm² enteros).
   El importe es `mm² × céntimos/m²` con half-up exacto.
 - Material manual: `precioUnidadCentimos × unidadesFacturadas`.
-- `precioMaterialEditado` (si el comercial lo introduce) sustituye al precio unitario
-  correspondiente —€/m² en ERP, €/unidad en manual—; `precioMaterialOriginal` conserva la
-  tarifa previa para mostrarla junto al editado. Que TARP sea €/m² es una hipótesis
-  documentada (§6; ver `PENDIENTES.md` §4, «Datos y catálogo»).
+- `azulejosNoIncluidos` (el cliente aporta las baldosas, 2026-07-31): el importe de
+  material es **0** y la tarifa del artículo deja de ser obligatoria para poder cotizar.
+  Lo demás no cambia —baldosas, merma, cajas y m² se siguen calculando—, porque es lo que
+  el cliente tiene que traer. Que TARP sea €/m² es una hipótesis documentada (§6; ver
+  `PENDIENTES.md` §4, «Datos y catálogo»).
 
 ### 6 bis. Margen comercial (2026-07-31)
 

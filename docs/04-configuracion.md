@@ -259,7 +259,7 @@ taller o dirección: no son valores reales confirmados (ver [PENDIENTES.md](../P
 ### Merma sugerida por formato (2026-07-31)
 
 La merma ya no es un número fijo: se **propone** a partir del formato de la baldosa y el
-comercial puede sobrescribirla, igual que el precio del material. La regla —indicación
+comercial puede sobrescribirla. La regla —indicación
 directa— es una interpolación **lineal sobre el lado mayor** de la baldosa:
 
 ```

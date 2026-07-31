@@ -155,11 +155,12 @@ y el texto «La cotización aparecerá al completar los pasos ① Material, ② 
   Total sin IVA · IVA (`config.parametros.ivaPorcentaje` %) · Total con IVA (destacado).
 - **Datos logísticos** (solo con resultado): baldosas necesarias, baldosas con merma, piezas
   facturadas, cajas facturadas y m² facturados.
-- **Precio del material editable** por el comercial en € (§1 «Cotización»): campo filtrado al
-  teclear (`/^\d{0,7}([.,]\d{0,2})?$/`, para que un texto no parseable nunca llegue al motor),
-  tarifa original siempre visible junto al editado (`precioMaterialOriginal` del motor, o la
-  tarifa del material) y botón **Restablecer a tarifa** cuando hay valor editado. La unidad
-  mostrada es €/m², o €/unidad en material manual.
+- **«Azulejos no incluidos»** (§1 «Cotización»): casilla para cuando el cliente aporta las
+  baldosas. Solo aparece con material elegido. Pone el material a 0 € —la línea del desglose
+  pasa a «Material (no incluido)»— y deja cotizar artículos sin tarifa TARP; el resto del
+  cálculo (baldosas, merma, cajas, m²) no cambia, porque es lo que el cliente debe traer.
+  Sustituye al antiguo campo de precio de material editable: lo que hacía falta no era
+  retocar la tarifa, sino dejarla fuera (2026-07-31, indicación directa).
 - **Merma sobre baldosas (%)**: visible para el comercial (§4). El valor se **sugiere** a partir
   del formato de la baldosa (lado mayor: 60 cm o menos → 10 %, 120 cm o más → 20 %) más el extra
   de las figuras numeradas, y el estado guarda solo la EDICIÓN del comercial, de modo que la
@@ -199,7 +200,7 @@ conversión a mm/céntimos pasa por el motor, nunca por los componentes.
 | `cantidad` | `string` | `'1'` |
 | `suplementos` | `Record<string, boolean>` (por id de suplemento) | `{}` |
 | `pintado` | `boolean` | `false` |
-| `precioMaterialEditadoEuros` | `string` (`''` = usar tarifa) | `''` |
+| `azulejosNoIncluidos` | `boolean` (las aporta el cliente → material a 0) | `false` |
 | `mermaPorcentaje` | `string` | `parametros.mermaPorcentajeDefecto` |
 
 ### Acciones (`AccionAtelier`)
@@ -212,7 +213,7 @@ conversión a mm/céntimos pasa por el motor, nunca por los componentes.
 | `cambiarCantidad` | Actualiza la cantidad cruda. |
 | `alternarSuplemento` | Activa/desactiva un suplemento por id. |
 | `cambiarPintado` | Activa/desactiva el pintado. |
-| `cambiarPrecioMaterialEditado` | Precio editado en € (texto); `''` restablece la tarifa. |
+| `cambiarAzulejosNoIncluidos` | Marca/desmarca que el cliente aporta las baldosas (material a 0). |
 | `cambiarMerma` | % de merma (texto). |
 | `reiniciar` | Vuelve a `estadoInicial` con el % de merma por defecto de configuración. |
 

@@ -23,7 +23,7 @@
 import { jsPDF } from 'jspdf';
 import type { Configuracion, Figura } from '../domain/config';
 import type { Centimos, Material, Mm, ResultadoCotizacion } from '../domain/types';
-import { eurosACentimos, formatearEuros } from '../domain/money';
+import { formatearEuros } from '../domain/money';
 import { formatearCotaCm } from '../domain/units';
 import { cajaSeccion, type SeccionPieza } from '../piezas/seccionPieza';
 
@@ -39,7 +39,8 @@ export interface DatosOrdenTrabajo {
    */
   readonly unidadesSuplemento?: Readonly<Record<string, number>>;
   readonly pintado: boolean;
-  readonly precioMaterialEditadoEuros: string;
+  /** Las baldosas las aporta el cliente: el material no se cobra y la hoja lo dice. */
+  readonly azulejosNoIncluidos: boolean;
   readonly mermaPorcentaje: number;
   /** Comentarios libres del comercial para taller ('' = no se imprime el bloque). */
   readonly comentarios?: string;
@@ -280,12 +281,6 @@ function formatearNumeroCm(valor: number): string {
   return FORMATO_NUMERO_CM.format(valor);
 }
 
-function formatearPrecioEditado(precioMaterialEditadoEuros: string): string {
-  const valor = Number.parseFloat(precioMaterialEditadoEuros.trim().replace(',', '.'));
-  if (Number.isNaN(valor)) return `${precioMaterialEditadoEuros} €`;
-  return formatearEuros(eurosACentimos(valor));
-}
-
 /**
  * Cabecera: logo, el nombre del documento en grande y el código de orden a la
  * derecha. El código va destacado porque es por lo que se cita la hoja.
@@ -433,10 +428,11 @@ function seccionMaterial(doc: jsPDF, y: number, datos: DatosOrdenTrabajo): numbe
     material.piezasPorCaja != null
       ? `${material.piezasPorCaja} ud./caja${material.m2PorCaja != null ? ` · ${FORMATO_M2.format(material.m2PorCaja)} m²` : ''}`
       : '—';
-  const precio =
-    datos.precioMaterialEditadoEuros.trim() === ''
-      ? precioMaterialTarifa(material)
-      : `${formatearPrecioEditado(datos.precioMaterialEditadoEuros)} (editado; tarifa ${precioMaterialTarifa(material)})`;
+  // Con «azulejos no incluidos» el taller tiene que saber que las baldosas las
+  // trae el cliente: es lo que explica que el material no aparezca cobrado.
+  const precio = datos.azulejosNoIncluidos
+    ? 'NO INCLUIDOS (aporta cliente)'
+    : precioMaterialTarifa(material);
 
   const xCol2 = x + 78;
   let yf = yc + 9;
@@ -650,7 +646,12 @@ function seccionImportes(doc: jsPDF, y: number, datos: DatosOrdenTrabajo): numbe
   const yc = cajaTitulada(doc, y, ALTO, 'Importes');
 
   let yf = yc + 1;
-  filaImporte(doc, yf, 'Material', desglose.materialCentimos);
+  filaImporte(
+    doc,
+    yf,
+    datos.azulejosNoIncluidos ? 'Material (no incluido: lo aporta el cliente)' : 'Material',
+    desglose.materialCentimos,
+  );
   yf += ALTO_FILA;
   filaImporte(doc, yf, 'Manipulación', desglose.manipulacionCentimos, { negrita: true });
   yf += ALTO_FILA;

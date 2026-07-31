@@ -77,7 +77,7 @@ El módulo separa dos responsabilidades (`src/pdf/ordenTrabajo.ts`):
 
 Todos los datos entran por un único objeto (`src/pdf/ordenTrabajo.ts:29`): `material`,
 `figura`, `medidasMm` (mm enteros), `cantidad`, `suplementosActivos` (ids),
-`pintado`, `precioMaterialEditadoEuros` (cadena tal cual la tecleó el comercial),
+`pintado`, `azulejosNoIncluidos` (las baldosas las aporta el cliente),
 `mermaPorcentaje`, `resultado` (`ResultadoCotizacion` del motor), `config`, `fecha` y,
 opcionalmente, las dos imágenes como data URL.
 
@@ -93,10 +93,9 @@ El módulo PDF hereda las reglas irrompibles del dominio (ver `AGENTS.md`):
 
 - **Dinero: céntimos enteros (`Centimos`).** Todos los importes se imprimen con
   `formatearEuros` (`src/domain/money.ts`), que formatea con `Intl.NumberFormat('es-ES',
-  { style: 'currency', currency: 'EUR' })` — nunca se divide ni se formatea a mano. La
-  única excepción controlada es `precioMaterialEditadoEuros`, que llega como cadena
-  tecleada: `formatearPrecioEditado` la parsea (aceptando coma o punto) y la convierte
-  con `eurosACentimos` antes de formatearla; si no parsea, se imprime tal cual con « €».
+  { style: 'currency', currency: 'EUR' })` — nunca se divide ni se formatea a mano.
+  Con `azulejosNoIncluidos` la fila «Precio» del material no lleva importe: dice
+  «NO INCLUIDOS (aporta cliente)», y la línea de material del desglose lo repite.
 - **Geometría: mm enteros (`Mm`) en el cálculo, cm en la presentación.** Todas las cotas
   (formato de baldosa, medidas, componentes, ocupación) salen de `formatearCotaCm`
   (`src/domain/units.ts`): mm → «90 cm» con un decimal máximo y separador `es-ES`.

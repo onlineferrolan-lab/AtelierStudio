@@ -14,7 +14,6 @@ import type {
   SalidaMotor,
   TipoMargen,
 } from '../../domain/types';
-import { eurosACentimos } from '../../domain/money';
 import {
   calcularCotizacion,
   figuraPorId,
@@ -36,13 +35,17 @@ export interface EstadoAtelier {
    */
   readonly unidadesSuplemento: Readonly<Record<string, string>>;
   readonly pintado: boolean;
-  /** Precio de material editado por el comercial, en € (texto). '' = usar tarifa. */
-  readonly precioMaterialEditadoEuros: string;
+  /**
+   * El cliente aporta las baldosas: se cotiza la manipulación y el material sale
+   * a 0 (2026-07-31, indicación directa). Sustituye al antiguo precio de material
+   * editable a mano: lo que hacía falta en la práctica no era retocar la tarifa,
+   * sino dejarla fuera.
+   */
+  readonly azulejosNoIncluidos: boolean;
   /**
    * % de merma escrito a mano por el comercial (texto). **'' = usar la sugerida**
-   * por formato + figura (`mermaSugeridaPorcentaje`), igual que el precio del
-   * material usa la tarifa cuando no se edita. Se guarda la edición, no el valor
-   * resuelto, para que al cambiar de material o de figura la sugerencia se
+   * por formato + figura (`mermaSugeridaPorcentaje`). Se guarda la edición, no el
+   * valor resuelto, para que al cambiar de material o de figura la sugerencia se
    * recalcule sola mientras nadie la haya tocado.
    */
   readonly mermaEditadaPorcentaje: string;
@@ -73,7 +76,7 @@ export type AccionAtelier =
   | { tipo: 'alternarSuplemento'; suplemento: string; activo: boolean }
   | { tipo: 'cambiarUnidadesSuplemento'; suplemento: string; unidades: string }
   | { tipo: 'cambiarPintado'; pintado: boolean }
-  | { tipo: 'cambiarPrecioMaterialEditado'; euros: string }
+  | { tipo: 'cambiarAzulejosNoIncluidos'; noIncluidos: boolean }
   | { tipo: 'cambiarMerma'; porcentaje: string }
   | { tipo: 'cambiarComentarios'; comentarios: string }
   | { tipo: 'cambiarTipoMargen'; tipoMargen: TipoMargen }
@@ -89,7 +92,7 @@ export function estadoInicial(): EstadoAtelier {
     suplementos: {},
     unidadesSuplemento: {},
     pintado: false,
-    precioMaterialEditadoEuros: '',
+    azulejosNoIncluidos: false,
     mermaEditadaPorcentaje: '',
     tipoMargen: 'pvp',
     margenManualPorcentaje: '',
@@ -137,8 +140,8 @@ function reductor(estado: EstadoAtelier, accion: AccionAtelier): EstadoAtelier {
       };
     case 'cambiarPintado':
       return { ...estado, pintado: accion.pintado };
-    case 'cambiarPrecioMaterialEditado':
-      return { ...estado, precioMaterialEditadoEuros: accion.euros };
+    case 'cambiarAzulejosNoIncluidos':
+      return { ...estado, azulejosNoIncluidos: accion.noIncluidos };
     case 'cambiarMerma':
       return { ...estado, mermaEditadaPorcentaje: accion.porcentaje };
     case 'cambiarComentarios':
@@ -227,10 +230,6 @@ export function construirEntrada(
     .filter(([, activo]) => activo)
     .map(([id]) => id);
 
-  const precioEditadoTxt = estado.precioMaterialEditadoEuros.trim().replace(',', '.');
-  const precioMaterialEditado =
-    precioEditadoTxt === '' ? null : eurosACentimos(Number.parseFloat(precioEditadoTxt));
-
   // Sin edición manual se usa la sugerida por formato + figura; con ella, la del
   // comercial. Un texto no numérico se deja pasar (NaN) para que el error salga
   // del motor, como con la cantidad.
@@ -255,7 +254,7 @@ export function construirEntrada(
       tipoMargen: estado.tipoMargen,
       // El margen a mano se guarda en puntos y el motor lo quiere en centésimas.
       margenManualCentesimas: margenManualCentesimas(estado),
-      precioMaterialEditado,
+      azulejosNoIncluidos: estado.azulejosNoIncluidos,
       mermaPorcentaje,
     },
   };
