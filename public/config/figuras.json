@@ -715,7 +715,11 @@
         "largoDe": "largo",
         "anchoDe": "ancho"
       },
-      "suplementos": []
+      "suplementos": [
+        "inglete-corte",
+        "microbisel-corte",
+        "sin-microbisel-corte"
+      ]
     }
   ]
 }

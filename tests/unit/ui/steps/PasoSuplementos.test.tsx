@@ -5,14 +5,26 @@
  */
 
 import { act, fireEvent, screen } from '@testing-library/react';
+import type { Configuracion } from '../../../../src/domain/config';
 import { PasoSuplementos } from '../../../../src/ui/steps/PasoSuplementos';
-import { materialPrueba } from './config-prueba';
+import { construirConfigPrueba, materialPrueba } from './config-prueba';
 import { montarPasos } from './utilidades-prueba';
+
+/**
+ * Configuración que ve el componente: la real de `/public/config` salvo que un
+ * test ponga otra en `configuracion.actual` (se usa para llegar a estados que el
+ * catálogo real ya no produce). `vi.hoisted` porque `vi.mock` se iza.
+ */
+const configuracion = vi.hoisted(() => ({ actual: null as Configuracion | null }));
+
+afterEach(() => {
+  configuracion.actual = null;
+});
 
 vi.mock('../../../../src/ui/state/config-context', async (importOriginal) => {
   const mod = await importOriginal<typeof import('../../../../src/ui/state/config-context')>();
   const { construirConfigPrueba } = await import('./config-prueba');
-  return { ...mod, useConfig: () => construirConfigPrueba() };
+  return { ...mod, useConfig: () => configuracion.actual ?? construirConfigPrueba() };
 });
 
 describe('PasoSuplementos', () => {
@@ -47,7 +59,35 @@ describe('PasoSuplementos', () => {
     expect(screen.queryByRole('checkbox', { name: /Pintado/ })).not.toBeInTheDocument();
   });
 
+  // Acabados de canto del corte de piezas (2026-07-31): inglete y microbisel a
+  // 0,034 €/cm de coste; «Sin microbisel» existe para dejar constancia de la
+  // elección en la orden, y por eso se rotula «Sin coste» y no «+0,00 €/cm».
+  it('lista los acabados de canto del corte de piezas', () => {
+    const { api } = montarPasos(<PasoSuplementos />);
+    act(() => api().dispatch({ tipo: 'seleccionarFigura', figuraId: 'corte' }));
+
+    expect(screen.getAllByText(/^\+0,034\s€\/cm$/)).toHaveLength(2);
+    expect(screen.getByText('Sin coste')).toBeInTheDocument();
+
+    const inglete = screen.getByRole('checkbox', { name: /Inglete/ });
+    fireEvent.click(inglete);
+    expect(api().estado.suplementos['inglete-corte']).toBe(true);
+    // Van por cm: recorren el canto, no se eligen unidades.
+    expect(screen.queryByLabelText(/Piezas con Inglete/)).not.toBeInTheDocument();
+  });
+
   it('informa cuando la figura no tiene suplementos', () => {
+    // Hoy TODAS las figuras del catálogo tienen suplementos o pintado, así que
+    // el vacío solo se alcanza con una configuración recortada; el mensaje sigue
+    // haciendo falta para la próxima figura que se dé de alta sin ninguno.
+    const base = construirConfigPrueba();
+    configuracion.actual = {
+      ...base,
+      figuras: base.figuras.map((f) =>
+        f.id === 'corte' ? { ...f, suplementos: [], tienePintado: false } : f,
+      ),
+    };
+
     const { api } = montarPasos(<PasoSuplementos />);
     act(() => api().dispatch({ tipo: 'seleccionarFigura', figuraId: 'corte' }));
     expect(screen.getByText('Esta figura no tiene suplementos.')).toBeInTheDocument();

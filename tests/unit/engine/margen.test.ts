@@ -21,6 +21,7 @@ import {
   subfamiliaDeReferencia,
 } from '../../../src/domain/engine/margen';
 import { centimos } from '../../../src/domain/money';
+import { mm } from '../../../src/domain/units';
 import type { Configuracion } from '../../../src/domain/config';
 import type { ResultadoCotizacion, SalidaMotor, TablaMargenes } from '../../../src/domain/types';
 import { cargarConfigReal, entradaBase, materialErp, materialManual } from './util';
@@ -166,6 +167,34 @@ describe('la cotización aplica el margen a TODO lo que se factura', () => {
       expect(linea.concepto).toBe(aCoste.lineasManipulacion[i].concepto);
       expect(linea.centimos).toBe(aplicarMargen(aCoste.lineasManipulacion[i].centimos, 6600));
     }
+  });
+
+  /**
+   * Los acabados de canto del corte de piezas llegaron a 0,034 €/cm **de coste**
+   * (2026-07-31, indicación directa: «este no lleva el margen»). Igual que el
+   * resto de la tarifa de taller: el markup va ENCIMA, no dentro del precio.
+   */
+  it('el inglete del corte de piezas se cobra con el margen encima del coste', () => {
+    const acabado = {
+      material: materialConMargen(),
+      figuraId: 'corte',
+      medidasMm: { largo: mm(300), ancho: mm(200) }, // perímetro 100 cm
+      cantidad: 1,
+      mermaPorcentaje: 0,
+      suplementos: ['inglete-corte'],
+    };
+    const lineaInglete = (r: ResultadoCotizacion) =>
+      r.lineasManipulacion.find((l) => l.concepto.startsWith('Inglete'))?.centimos;
+
+    const aCosteInglete = esperarOk(
+      calcularCotizacion(entradaBase({ ...acabado, margenManualCentesimas: 0 }), config),
+    );
+    const conMargenInglete = esperarOk(
+      calcularCotizacion(entradaBase({ ...acabado, margenManualCentesimas: null }), config),
+    );
+
+    expect(lineaInglete(aCosteInglete)).toBe(340); // 0,034 €/cm × 100 cm
+    expect(lineaInglete(conMargenInglete)).toBe(aplicarMargen(centimos(340), 6600)); // 5,64 €
   });
 
   /**

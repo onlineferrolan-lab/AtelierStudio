@@ -695,6 +695,21 @@ function CONTENIDO(m) {
         'Por cm lineal, en todas las piezas',
       ],
       ['Material espesado', 'La pieza se hace más gruesa', 'Por cm lineal, en todas las piezas'],
+      [
+        'Inglete',
+        'Solo corte de piezas: el canto se corta a inglete para unir dos piezas en esquina',
+        'Por cm lineal, sobre el perímetro de la pieza',
+      ],
+      [
+        'Microbisel',
+        'Solo corte de piezas: se mata el filo del canto con un bisel muy pequeño',
+        'Por cm lineal, sobre el perímetro de la pieza',
+      ],
+      [
+        'Sin microbisel',
+        'Solo corte de piezas: el canto se deja tal cual sale de la sierra',
+        'No cuesta nada; se marca para que conste en la orden',
+      ],
     ],
     [0.28, 0.42, 0.3],
   );
